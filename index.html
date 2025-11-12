@@ -22,6 +22,11 @@
             height: 400px;
             width: 100%;
         }
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 300px;
+            }
+        }
         .tab-dragging {
             opacity: 0.5;
             cursor: grabbing;
@@ -56,6 +61,180 @@
         .tab-edit-mode .tab-edit-indicator {
             display: inline-block;
         }
+        
+        /* Mobile Responsive Styles */
+        .mobile-menu-hidden {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-hide {
+                display: none !important;
+            }
+            .mobile-menu-button {
+                display: flex !important;
+            }
+            .desktop-button-text {
+                display: none;
+            }
+            .case-card {
+                background: white;
+                border: 1px solid #e5e7eb;
+                border-radius: 0.5rem;
+                padding: 1rem;
+                margin-bottom: 0.75rem;
+            }
+            .case-card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: start;
+                margin-bottom: 0.75rem;
+                padding-bottom: 0.75rem;
+                border-bottom: 1px solid #f3f4f6;
+            }
+            .case-card-body {
+                display: none;
+            }
+            .case-card.expanded .case-card-body {
+                display: block;
+            }
+            .tabs-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }
+            .tabs-container::-webkit-scrollbar {
+                display: none;
+            }
+            .tabs-wrapper {
+                display: inline-flex;
+                min-width: 100%;
+            }
+        }
+        
+        .filters-collapsed {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        .filters-expanded {
+            max-height: 500px;
+            transition: max-height 0.3s ease-in;
+        }
+        
+        /* Drawer styles for mobile modals */
+        @media (max-width: 768px) {
+            .mobile-drawer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                top: auto;
+                max-height: 90vh;
+                border-radius: 1rem 1rem 0 0;
+                margin: 0;
+                animation: slideUp 0.3s ease-out;
+            }
+            @keyframes slideUp {
+                from {
+                    transform: translateY(100%);
+                }
+                to {
+                    transform: translateY(0);
+                }
+            }
+        }
+        
+        /* Touch-friendly tap targets */
+        @media (max-width: 768px) {
+            button, a, input[type="checkbox"], input[type="radio"] {
+                min-height: 44px;
+                min-width: 44px;
+            }
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 300px;
+            }
+            
+            /* Hide table, show cards on mobile */
+            .desktop-table {
+                display: none;
+            }
+            
+            .mobile-cards {
+                display: block;
+            }
+            
+            /* Mobile tab scrolling with snap */
+            .tab-scroll-container {
+                overflow-x: auto;
+                scroll-snap-type: x mandatory;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }
+            
+            .tab-scroll-container::-webkit-scrollbar {
+                display: none;
+            }
+            
+            .tab-scroll-container > div {
+                scroll-snap-align: start;
+            }
+            
+            /* Drawer-style modals */
+            .mobile-modal {
+                align-items: flex-end !important;
+            }
+            
+            .mobile-modal > div {
+                max-height: 85vh !important;
+                border-radius: 16px 16px 0 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            
+            /* Larger touch targets */
+            button, select, input {
+                min-height: 44px;
+            }
+            
+            /* Filter accordion */
+            .filter-collapsed {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease;
+            }
+            
+            .filter-expanded {
+                max-height: 500px;
+                transition: max-height 0.3s ease;
+            }
+        }
+        
+        @media (min-width: 769px) {
+            .mobile-cards {
+                display: none;
+            }
+            
+            .desktop-table {
+                display: table;
+            }
+            
+            .mobile-menu-button {
+                display: none;
+            }
+            
+            .mobile-filter-toggle {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -78,7 +257,13 @@
             x: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
             edit: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
             trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
-            grip: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>'
+            grip: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>',
+            menu: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>',
+            chevronDown: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>',
+            chevronUp: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg>',
+            menu: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>',
+            chevronDown: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>',
+            chevronUp: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"></polyline></svg>'
         };
 
         // Default tabs if no custom order exists
@@ -186,6 +371,8 @@
             showBucketManager: false,
             showBulkSearch: false,
             showSettingsMenu: false,
+            showMobileMenu: false,
+            filtersExpanded: false,
             bulkSearchNames: savedSettings.bulkSearchNames,
             tabEditMode: false,
             tabOrder: loadTabOrder(),
@@ -633,28 +820,27 @@
                 state.fuzzyThreshold >= 0.3 ? 'Loose' : 'Very Loose';
             
             return `
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) toggleBulkSearch()">
-                    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full m-4">
-                        <div class="border-b px-6 py-4 flex justify-between items-center">
-                            <h2 class="text-xl font-bold">Bulk Name Search with Fuzzy Matching</h2>
-                            <button onclick="toggleBulkSearch()" class="text-gray-500 hover:text-gray-700">
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center md:items-center mobile-modal z-50" onclick="if(event.target === this) toggleBulkSearch()">
+                    <div class="bg-white rounded-lg md:rounded-lg shadow-xl max-w-2xl w-full m-0 md:m-4 max-h-[85vh] md:max-h-[90vh] overflow-y-auto">
+                        <div class="sticky top-0 bg-white border-b px-4 md:px-6 py-4 flex justify-between items-center">
+                            <h2 class="text-lg md:text-xl font-bold">Bulk Name Search</h2>
+                            <button onclick="toggleBulkSearch()" class="text-gray-500 hover:text-gray-700 p-2">
                                 ${icons.x}
                             </button>
                         </div>
                         
-                        <div class="p-6 space-y-4">
-                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="p-4 md:p-6 space-y-4">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4">
                                 <h3 class="font-semibold text-blue-900 mb-2">🎯 Fuzzy Matching</h3>
-                                <p class="text-sm text-blue-800">
-                                    Fuzzy matching finds names even with typos, misspellings, or partial matches. 
-                                    For example, "John Smith" will match "Jon Smyth" or "Johnny Smith".
+                                <p class="text-xs md:text-sm text-blue-800">
+                                    Fuzzy matching finds names even with typos, misspellings, or partial matches.
                                 </p>
                             </div>
 
                             <div class="space-y-2">
                                 <label class="flex items-center justify-between">
                                     <span class="text-sm font-medium text-gray-700">Match Strictness</span>
-                                    <span class="text-sm px-3 py-1 rounded ${
+                                    <span class="text-xs md:text-sm px-2 md:px-3 py-1 rounded ${
                                         state.fuzzyThreshold >= 0.7 ? 'bg-green-100 text-green-800' :
                                         state.fuzzyThreshold >= 0.5 ? 'bg-yellow-100 text-yellow-800' :
                                         'bg-orange-100 text-orange-800'
@@ -669,19 +855,9 @@
                                     oninput="updateFuzzyThreshold(this.value / 100)"
                                     class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                                 <div class="flex justify-between text-xs text-gray-500">
-                                    <span>Loose (more matches)</span>
-                                    <span>Strict (exact matches)</span>
+                                    <span>Loose</span>
+                                    <span>Strict</span>
                                 </div>
-                            </div>
-
-                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600">
-                                <p class="font-medium mb-1">Threshold Guide:</p>
-                                <ul class="space-y-1">
-                                    <li>• <strong>Very Strict (90-100%):</strong> Almost exact matches only</li>
-                                    <li>• <strong>Strict (70-89%):</strong> Minor typos allowed (recommended)</li>
-                                    <li>• <strong>Moderate (50-69%):</strong> More flexible matching</li>
-                                    <li>• <strong>Loose (0-49%):</strong> Very forgiving, may include false positives</li>
-                                </ul>
                             </div>
 
                             <div>
@@ -691,22 +867,22 @@
                                 <textarea 
                                     id="bulkSearchInput"
                                     placeholder="John Smith&#10;Jane Doe&#10;Robert Johnson"
-                                    class="w-full h-64 px-4 py-2 border rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    class="w-full h-48 md:h-64 px-3 md:px-4 py-2 border rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >${state.bulkSearchNames.join('\n')}</textarea>
                             </div>
                             
-                            <div class="flex justify-between items-center">
+                            <div class="flex flex-col-reverse sm:flex-row justify-between items-stretch sm:items-center gap-2">
                                 <button onclick="clearBulkSearch(); toggleBulkSearch()" 
-                                    class="px-4 py-2 text-red-600 hover:text-red-800">
+                                    class="px-4 py-3 sm:py-2 text-red-600 hover:text-red-800 border border-red-300 rounded-lg">
                                     Clear All
                                 </button>
-                                <div class="space-x-2">
+                                <div class="flex gap-2">
                                     <button onclick="toggleBulkSearch()" 
-                                        class="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                                        class="flex-1 sm:flex-initial px-4 py-3 sm:py-2 border rounded-lg hover:bg-gray-50">
                                         Cancel
                                     </button>
                                     <button onclick="processBulkSearch()" 
-                                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                        class="flex-1 sm:flex-initial px-6 py-3 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                                         Search
                                     </button>
                                 </div>
@@ -720,11 +896,11 @@
         // Bucket management UI
         function renderBucketManager() {
             return `
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) toggleBucketManager()">
-                    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto m-4">
-                        <div class="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-                            <h2 class="text-2xl font-bold">Manage Buckets</h2>
-                            <button onclick="toggleBucketManager()" class="text-gray-500 hover:text-gray-700">
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-end md:items-center justify-center z-50 p-0 md:p-4" onclick="if(event.target === this) toggleBucketManager()">
+                    <div class="bg-white rounded-t-2xl md:rounded-lg shadow-xl w-full md:max-w-4xl max-h-[90vh] overflow-y-auto mobile-drawer">
+                        <div class="sticky top-0 bg-white border-b px-4 md:px-6 py-4 flex justify-between items-center z-10">
+                            <h2 class="text-lg md:text-2xl font-bold">Manage Buckets</h2>
+                            <button onclick="toggleBucketManager()" class="text-gray-500 hover:text-gray-700 p-2">
                                 ${icons.x}
                             </button>
                         </div>
@@ -918,11 +1094,13 @@
                         <div class="max-w-7xl mx-auto px-4 py-4">
                             <div class="flex flex-col space-y-4">
                                 <div class="flex justify-between items-start">
-                                    <div>
-                                        <h1 class="text-2xl font-bold text-gray-900">Eviction Detainer Dashboard</h1>
-                                        <p class="text-sm text-gray-600">Nashville Sessions Court</p>
+                                    <div class="flex-1">
+                                        <h1 class="text-xl md:text-2xl font-bold text-gray-900">Eviction Detainer Dashboard</h1>
+                                        <p class="text-xs md:text-sm text-gray-600">Nashville Sessions Court</p>
                                     </div>
-                                    <div class="flex space-x-2">
+                                    
+                                    <!-- Desktop Actions -->
+                                    <div class="hidden md:flex space-x-2">
                                         <button onclick="toggleBulkSearch()" 
                                             class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center space-x-2">
                                             ${icons.search}
@@ -945,11 +1123,44 @@
                                             <span>Settings</span>
                                         </button>
                                     </div>
+
+                                    <!-- Mobile Menu Button -->
+                                    <button onclick="toggleMobileMenu()" 
+                                        class="md:hidden p-2 text-gray-600 hover:text-gray-900">
+                                        ${icons.menu}
+                                    </button>
                                 </div>
 
+                                <!-- Mobile Menu Dropdown -->
+                                ${state.showMobileMenu ? `
+                                    <div class="md:hidden space-y-2 pb-2">
+                                        <button onclick="toggleBulkSearch(); toggleMobileMenu()" 
+                                            class="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg flex items-center justify-center space-x-2">
+                                            ${icons.search}
+                                            <span>Bulk Search</span>
+                                            ${state.bulkSearchNames.length > 0 ? `<span class="ml-2 px-2 py-0.5 bg-white text-indigo-600 rounded-full text-xs font-bold">${state.bulkSearchNames.length}</span>` : ''}
+                                        </button>
+                                        <button onclick="exportToCSV(); toggleMobileMenu()" 
+                                            class="w-full px-4 py-3 bg-green-600 text-white rounded-lg flex items-center justify-center space-x-2">
+                                            ${icons.download}
+                                            <span>Export CSV</span>
+                                        </button>
+                                        <button onclick="toggleBucketManager(); toggleMobileMenu()" 
+                                            class="w-full px-4 py-3 bg-purple-600 text-white rounded-lg flex items-center justify-center space-x-2">
+                                            ${icons.folder}
+                                            <span>Manage Buckets</span>
+                                        </button>
+                                        <button onclick="showSettingsMenu(); toggleMobileMenu()" 
+                                            class="w-full px-4 py-3 bg-gray-600 text-white rounded-lg flex items-center justify-center space-x-2">
+                                            ${icons.filter}
+                                            <span>Settings</span>
+                                        </button>
+                                    </div>
+                                ` : ''}
+
                                 ${state.bulkSearchNames.length > 0 ? `
-                                    <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 flex items-center justify-between">
-                                        <div class="flex items-center space-x-2">
+                                    <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                                        <div class="flex flex-wrap items-center gap-2">
                                             <span class="text-sm font-medium text-indigo-900">
                                                 🎯 Bulk Search Active: ${state.bulkSearchNames.length} names
                                             </span>
@@ -977,53 +1188,64 @@
                                 ` : ''}
 
                                 <!-- Search and Filters -->
-                                <div class="flex flex-col md:flex-row gap-3">
-                                    <div class="flex-1 relative">
-                                        <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                                            ${icons.search}
+                                <div class="flex flex-col gap-3">
+                                    <div class="flex flex-col sm:flex-row gap-3">
+                                        <div class="flex-1 relative">
+                                            <div class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                                                ${icons.search}
+                                            </div>
+                                            <input type="text" 
+                                                placeholder="Search by defendant, plaintiff, docket, attorney..."
+                                                value="${state.searchTerm}"
+                                                oninput="updateSearch(this.value)"
+                                                class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                         </div>
-                                        <input type="text" 
-                                            placeholder="Search by defendant, plaintiff, docket, attorney..."
-                                            value="${state.searchTerm}"
-                                            oninput="updateSearch(this.value)"
-                                            class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        
+                                        <select onchange="updateBucketFilter(this.value)" 
+                                            value="${state.selectedBucket}"
+                                            class="px-4 py-2 border rounded-lg bg-white">
+                                            <option value="all">All Cases</option>
+                                            ${state.buckets.map(bucket => `
+                                                <option value="${bucket.id}" ${state.selectedBucket === bucket.id ? 'selected' : ''}>
+                                                    ${bucket.name} (${analytics.bucketStats[bucket.id]?.count || 0})
+                                                </option>
+                                            `).join('')}
+                                        </select>
                                     </div>
-                                    
-                                    <select onchange="updateBucketFilter(this.value)" 
-                                        value="${state.selectedBucket}"
-                                        class="px-4 py-2 border rounded-lg bg-white">
-                                        <option value="all">All Cases</option>
-                                        ${state.buckets.map(bucket => `
-                                            <option value="${bucket.id}" ${state.selectedBucket === bucket.id ? 'selected' : ''}>
-                                                ${bucket.name} (${analytics.bucketStats[bucket.id]?.count || 0})
-                                            </option>
-                                        `).join('')}
-                                    </select>
-                                </div>
 
-                                <!-- Date Range Filters -->
-                                <div class="flex flex-wrap gap-2 items-center">
-                                    <span class="text-sm font-medium text-gray-700">Date Range:</span>
-                                    <input type="date" 
-                                        id="startDateInput"
-                                        value="${state.filterCriteria.startDate}"
-                                        class="px-3 py-1 text-sm border rounded">
-                                    <span class="text-sm text-gray-500">to</span>
-                                    <input type="date" 
-                                        id="endDateInput"
-                                        value="${state.filterCriteria.endDate}"
-                                        class="px-3 py-1 text-sm border rounded">
-                                    <button onclick="applyDateRange()" 
-                                        class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
-                                        Apply
+                                    <!-- Mobile Filter Toggle -->
+                                    <button onclick="toggleFilters()" 
+                                        class="md:hidden flex items-center justify-between px-4 py-2 border rounded-lg bg-gray-50 hover:bg-gray-100">
+                                        <span class="text-sm font-medium text-gray-700">Date Range Filters</span>
+                                        ${state.filtersExpanded ? icons.chevronUp : icons.chevronDown}
                                     </button>
-                                    <div class="flex gap-2">
-                                        <button onclick="setDatePreset(30)" 
-                                            class="px-3 py-1 text-sm border rounded hover:bg-gray-50">30 days</button>
-                                        <button onclick="setDatePreset(90)" 
-                                            class="px-3 py-1 text-sm border rounded hover:bg-gray-50">90 days</button>
-                                        <button onclick="setDatePreset(365)" 
-                                            class="px-3 py-1 text-sm border rounded hover:bg-gray-50">1 year</button>
+
+                                    <!-- Date Range Filters -->
+                                    <div class="md:block ${state.filtersExpanded ? 'block' : 'hidden md:block'}">
+                                        <div class="flex flex-wrap gap-2 items-center">
+                                            <span class="text-sm font-medium text-gray-700">Date Range:</span>
+                                            <input type="date" 
+                                                id="startDateInput"
+                                                value="${state.filterCriteria.startDate}"
+                                                class="px-3 py-1 text-sm border rounded flex-1 sm:flex-initial">
+                                            <span class="text-sm text-gray-500">to</span>
+                                            <input type="date" 
+                                                id="endDateInput"
+                                                value="${state.filterCriteria.endDate}"
+                                                class="px-3 py-1 text-sm border rounded flex-1 sm:flex-initial">
+                                            <button onclick="applyDateRange()" 
+                                                class="w-full sm:w-auto px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                                                Apply
+                                            </button>
+                                        </div>
+                                        <div class="flex gap-2 mt-2">
+                                            <button onclick="setDatePreset(30)" 
+                                                class="flex-1 sm:flex-initial px-3 py-1 text-sm border rounded hover:bg-gray-50">30 days</button>
+                                            <button onclick="setDatePreset(90)" 
+                                                class="flex-1 sm:flex-initial px-3 py-1 text-sm border rounded hover:bg-gray-50">90 days</button>
+                                            <button onclick="setDatePreset(365)" 
+                                                class="flex-1 sm:flex-initial px-3 py-1 text-sm border rounded hover:bg-gray-50">1 year</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1041,7 +1263,7 @@
                                         </button>
                                     </div>
                                 ` : ''}
-                                <div class="flex space-x-1 overflow-x-auto">
+                                <div class="tab-scroll-container flex space-x-1 overflow-x-auto">
                                     ${state.tabOrder.map(tab => `
                                         <button 
                                             draggable="${state.tabEditMode}"
@@ -1057,13 +1279,13 @@
                                             ondrop="handleTabDrop(event, '${tab.id}')"
                                             ondragend="handleTabDragEnd(event)"
                                             onclick="if(!state.tabEditMode) changeView('${tab.id}')" 
-                                            class="draggable-tab px-4 py-3 flex items-center space-x-2 border-b-2 transition ${
+                                            class="draggable-tab px-3 md:px-4 py-3 flex items-center space-x-1 md:space-x-2 border-b-2 transition whitespace-nowrap ${
                                                 state.selectedView === tab.id ? 
                                                 'border-blue-600 text-blue-600' : 
                                                 'border-transparent text-gray-600 hover:text-gray-900'
                                             } ${state.tabEditMode ? 'cursor-move' : ''}">
                                             ${state.tabEditMode ? `<span class="text-gray-400">${icons.grip}</span>` : ''}
-                                            <span>${tab.label}</span>
+                                            <span class="text-sm md:text-base">${tab.label}</span>
                                         </button>
                                     `).join('')}
                                 </div>
@@ -1113,42 +1335,42 @@
             
             if (state.selectedView === 'overview') {
                 viewContent.innerHTML = `
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                        <div class="bg-white rounded-lg shadow-sm p-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
+                        <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-sm font-medium text-gray-600">Total Cases</p>
-                                    <p class="text-3xl font-bold text-gray-900 mt-2">${analytics.totalCases}</p>
+                                    <p class="text-2xl md:text-3xl font-bold text-gray-900 mt-2">${analytics.totalCases}</p>
                                 </div>
                                 <div class="text-blue-600">${icons.building}</div>
                             </div>
                         </div>
                         
-                        <div class="bg-white rounded-lg shadow-sm p-6">
+                        <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-sm font-medium text-gray-600">Pending Cases</p>
-                                    <p class="text-3xl font-bold text-red-600 mt-2">${analytics.pendingCases}</p>
+                                    <p class="text-2xl md:text-3xl font-bold text-red-600 mt-2">${analytics.pendingCases}</p>
                                 </div>
                                 <div class="text-red-600">${icons.alert}</div>
                             </div>
                         </div>
 
-                        <div class="bg-white rounded-lg shadow-sm p-6">
+                        <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-sm font-medium text-gray-600">Corporate Landlords</p>
-                                    <p class="text-3xl font-bold text-gray-900 mt-2">${analytics.corporateLandlords}</p>
+                                    <p class="text-2xl md:text-3xl font-bold text-gray-900 mt-2">${analytics.corporateLandlords}</p>
                                 </div>
                                 <div class="text-blue-600">${icons.building}</div>
                             </div>
                         </div>
 
-                        <div class="bg-white rounded-lg shadow-sm p-6">
+                        <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-sm font-medium text-gray-600">Pro Se Defendants</p>
-                                    <p class="text-3xl font-bold text-yellow-600 mt-2">${analytics.proSeDefendants}</p>
+                                    <p class="text-2xl md:text-3xl font-bold text-yellow-600 mt-2">${analytics.proSeDefendants}</p>
                                 </div>
                                 <div class="text-yellow-600">${icons.user}</div>
                             </div>
@@ -1156,9 +1378,9 @@
                     </div>
 
                     ${state.buckets.length > 0 ? `
-                        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                        <div class="bg-white rounded-lg shadow-sm p-4 md:p-6 mb-6">
                             <h3 class="text-lg font-semibold mb-4">Bucket Overview</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 ${state.buckets.map(bucket => {
                                     const stats = analytics.bucketStats[bucket.id];
                                     return `
@@ -1166,7 +1388,7 @@
                                             onclick="selectBucket('${bucket.id}')">
                                             <div class="flex justify-between items-start mb-2">
                                                 <h4 class="font-semibold text-${bucket.color}-900">${bucket.name}</h4>
-                                                <span class="text-2xl font-bold text-${bucket.color}-700">${stats?.count || 0}</span>
+                                                <span class="text-xl md:text-2xl font-bold text-${bucket.color}-700">${stats?.count || 0}</span>
                                             </div>
                                             <div class="text-sm text-${bucket.color}-700">
                                                 ${stats?.percentage || 0}% of total cases
@@ -1180,9 +1402,14 @@
                 `;
 
             } else if (state.selectedView === 'attorneys') {
+                // Show fewer items on mobile
+                const isMobile = window.innerWidth < 768;
+                const itemCount = isMobile ? 8 : 15;
+                const mobileData = analytics.attorneyData.slice(0, itemCount);
+                
                 viewContent.innerHTML = `
-                    <div class="bg-white rounded-lg shadow-sm p-6">
-                        <h3 class="text-lg font-semibold mb-4">Top 15 Attorneys by Case Volume</h3>
+                    <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
+                        <h3 class="text-base md:text-lg font-semibold mb-4">Top ${itemCount} Attorneys by Case Volume</h3>
                         <div class="chart-container">
                             <canvas id="attorneyChart"></canvas>
                         </div>
@@ -1190,16 +1417,21 @@
                 `;
                 setTimeout(() => {
                     createBarChart('attorneyChart',
-                        analytics.attorneyData.map(a => a.count),
-                        analytics.attorneyData.map(a => a.name),
+                        mobileData.map(a => a.count),
+                        mobileData.map(a => a.name),
                         'Number of Cases'
                     );
                 }, 100);
 
             } else if (state.selectedView === 'landlords') {
+                // Show fewer items on mobile
+                const isMobile = window.innerWidth < 768;
+                const itemCount = isMobile ? 8 : 15;
+                const mobileData = analytics.plaintiffData.slice(0, itemCount);
+                
                 viewContent.innerHTML = `
-                    <div class="bg-white rounded-lg shadow-sm p-6">
-                        <h3 class="text-lg font-semibold mb-4">Top 15 Plaintiffs (Landlords) by Filing Volume</h3>
+                    <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
+                        <h3 class="text-base md:text-lg font-semibold mb-4">Top ${itemCount} Plaintiffs (Landlords) by Filing Volume</h3>
                         <div class="chart-container">
                             <canvas id="landlordChart"></canvas>
                         </div>
@@ -1207,8 +1439,8 @@
                 `;
                 setTimeout(() => {
                     createBarChart('landlordChart',
-                        analytics.plaintiffData.map(p => p.count),
-                        analytics.plaintiffData.map(p => p.name),
+                        mobileData.map(p => p.count),
+                        mobileData.map(p => p.name),
                         'Number of Cases'
                     );
                 }, 100);
@@ -1231,10 +1463,12 @@
 
             } else if (state.selectedView === 'cases') {
                 viewContent.innerHTML = `
-                    <div class="bg-white rounded-lg shadow-sm p-6">
+                    <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
                         <h3 class="text-lg font-semibold mb-4">Case Details (${processedData.length} cases)</h3>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm">
+                        
+                        <!-- Desktop Table View -->
+                        <div class="hidden md:block overflow-x-auto">
+                            <table class="desktop-table w-full text-sm">
                                 <thead class="bg-gray-50 border-b-2 border-gray-200">
                                     <tr>
                                         <th class="px-4 py-3 text-left font-semibold text-gray-700">Docket #</th>
@@ -1291,6 +1525,65 @@
                                 </tbody>
                             </table>
                         </div>
+
+                        <!-- Mobile Card View -->
+                        <div class="mobile-cards md:hidden space-y-3">
+                            ${processedData.map(record => {
+                                const matchingBuckets = state.buckets.filter(b => recordMatchesBucket(record, b));
+                                return `
+                                    <div class="border rounded-lg p-4 hover:shadow-md transition">
+                                        <div class="flex justify-between items-start mb-3">
+                                            <div class="font-mono text-sm text-blue-600 font-semibold">${record.Docket_Number}</div>
+                                            <span class="inline-block px-2 py-1 text-xs rounded ${
+                                                record.Status === 'PENDING' ? 
+                                                    'bg-red-100 text-red-800' : 
+                                                    'bg-gray-100 text-gray-800'
+                                            }">
+                                                ${record.Status}
+                                            </span>
+                                        </div>
+                                        
+                                        <div class="space-y-2 text-sm">
+                                            <div>
+                                                <span class="text-gray-500 text-xs">Defendant:</span>
+                                                <div class="font-semibold text-gray-900">${record.Defendant_Respondent}</div>
+                                            </div>
+                                            
+                                            <div>
+                                                <span class="text-gray-500 text-xs">Plaintiff:</span>
+                                                <div class="text-gray-700">${record.Plaintiff_Petitioner}</div>
+                                            </div>
+                                            
+                                            <div class="flex justify-between items-center pt-2 border-t">
+                                                <div>
+                                                    <span class="text-gray-500 text-xs">Filed:</span>
+                                                    <div class="text-gray-700">${record.File_Date}</div>
+                                                </div>
+                                                <div>
+                                                    ${record.Attorney?.includes('PRS') || record.Attorney?.trim() === ',' ? 
+                                                        '<span class="inline-block px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">Pro Se</span>' : 
+                                                        `<span class="text-xs text-gray-600">${record.Attorney}</span>`
+                                                    }
+                                                </div>
+                                            </div>
+                                            
+                                            ${matchingBuckets.length > 0 ? `
+                                                <div class="pt-2 border-t">
+                                                    <div class="flex flex-wrap gap-1">
+                                                        ${matchingBuckets.map(b => `
+                                                            <span class="inline-block px-2 py-0.5 text-xs bg-${b.color}-100 text-${b.color}-800 rounded">
+                                                                ${b.name}
+                                                            </span>
+                                                        `).join('')}
+                                                    </div>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+
                         <div class="mt-6 border-t pt-4 text-sm text-gray-600 text-center">
                             Showing ${processedData.length} cases
                         </div>
@@ -1455,6 +1748,33 @@
             render();
         }
 
+        function toggleMobileMenu() {
+            state.showMobileMenu = !state.showMobileMenu;
+            render();
+        }
+
+        function toggleFilters() {
+            state.filtersExpanded = !state.filtersExpanded;
+            render();
+        }
+
+        function toggleCaseCard(index) {
+            const card = document.getElementById(`case-card-${index}`);
+            if (card) {
+                card.classList.toggle('expanded');
+            }
+        }
+
+        function toggleMobileMenu() {
+            state.showMobileMenu = !state.showMobileMenu;
+            render();
+        }
+
+        function toggleFilters() {
+            state.filtersExpanded = !state.filtersExpanded;
+            render();
+        }
+
         // Settings management
         function showSettingsMenu() {
             state.showSettingsMenu = !state.showSettingsMenu;
@@ -1575,11 +1895,11 @@
         function renderSettingsMenu() {
             const storageSize = getStorageSize();
             return `
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) showSettingsMenu()">
-                    <div class="bg-white rounded-lg shadow-xl max-w-md w-full m-4">
-                        <div class="border-b px-6 py-4 flex justify-between items-center">
-                            <h2 class="text-xl font-bold">Settings & Data</h2>
-                            <button onclick="showSettingsMenu()" class="text-gray-500 hover:text-gray-700">
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-end md:items-center justify-center z-50 p-0 md:p-4" onclick="if(event.target === this) showSettingsMenu()">
+                    <div class="bg-white rounded-t-2xl md:rounded-lg shadow-xl w-full md:max-w-md mobile-drawer max-h-[90vh] overflow-y-auto">
+                        <div class="sticky top-0 bg-white border-b px-4 md:px-6 py-4 flex justify-between items-center z-10">
+                            <h2 class="text-lg md:text-xl font-bold">Settings & Data</h2>
+                            <button onclick="showSettingsMenu()" class="text-gray-500 hover:text-gray-700 p-2">
                                 ${icons.x}
                             </button>
                         </div>
