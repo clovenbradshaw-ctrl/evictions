@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eviction Detainer Dashboard - Enhanced</title>
+    <link rel="icon" type="image/png" href="https://storage.googleapis.com/intelechia-content/im/eviction%20prevention%20logo.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -128,24 +129,60 @@
             ];
         }
 
+        function loadSettings() {
+            const saved = localStorage.getItem('eviction_settings');
+            if (saved) {
+                try {
+                    return JSON.parse(saved);
+                } catch (e) {
+                    console.error('Error loading settings:', e);
+                    return getDefaultSettings();
+                }
+            }
+            return getDefaultSettings();
+        }
+
+        function getDefaultSettings() {
+            return {
+                selectedView: 'overview',
+                selectedBucket: 'all',
+                searchTerm: '',
+                bulkSearchNames: [],
+                filterCriteria: {
+                    attorney: 'all',
+                    plaintiff: 'all',
+                    status: 'all',
+                    startDate: getDateDaysAgo(365),
+                    endDate: getTodayDate()
+                }
+            };
+        }
+
+        function saveSettings() {
+            const settings = {
+                selectedView: state.selectedView,
+                selectedBucket: state.selectedBucket,
+                searchTerm: state.searchTerm,
+                bulkSearchNames: state.bulkSearchNames,
+                filterCriteria: state.filterCriteria
+            };
+            localStorage.setItem('eviction_settings', JSON.stringify(settings));
+        }
+
         // State management with localStorage support
+        const savedSettings = loadSettings();
         let state = {
             data: [],
             loading: true,
             error: null,
-            searchTerm: '',
-            selectedView: 'overview',
-            selectedBucket: 'all',
-            filterCriteria: {
-                attorney: 'all',
-                plaintiff: 'all',
-                status: 'all',
-                startDate: getDateDaysAgo(365),
-                endDate: getTodayDate()
-            },
+            searchTerm: savedSettings.searchTerm,
+            selectedView: savedSettings.selectedView,
+            selectedBucket: savedSettings.selectedBucket,
+            filterCriteria: savedSettings.filterCriteria,
             showBucketManager: false,
             showBulkSearch: false,
-            bulkSearchNames: [],
+            showSettingsMenu: false,
+            bulkSearchNames: savedSettings.bulkSearchNames,
             tabEditMode: false,
             tabOrder: loadTabOrder(),
             buckets: loadBuckets(),
@@ -568,26 +605,6 @@
             render();
         }
 
-        function processBulkSearch() {
-            const textarea = document.getElementById('bulkSearchInput');
-            if (!textarea) return;
-            
-            const names = textarea.value
-                .split('\n')
-                .map(name => name.trim())
-                .filter(name => name.length > 0);
-            
-            state.bulkSearchNames = names;
-            state.showBulkSearch = false;
-            state.selectedView = 'cases'; // Switch to cases view
-            render();
-        }
-
-        function clearBulkSearch() {
-            state.bulkSearchNames = [];
-            render();
-        }
-
         function renderBulkSearchModal() {
             return `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) toggleBulkSearch()">
@@ -854,6 +871,11 @@
                                             ${icons.folder}
                                             <span>Manage Buckets</span>
                                         </button>
+                                        <button onclick="showSettingsMenu()" 
+                                            class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center space-x-2">
+                                            ${icons.filter}
+                                            <span>Settings</span>
+                                        </button>
                                     </div>
                                 </div>
 
@@ -981,6 +1003,7 @@
 
                 ${state.showBucketManager ? renderBucketManager() : ''}
                 ${state.showBulkSearch ? renderBulkSearchModal() : ''}
+                ${state.showSettingsMenu ? renderSettingsMenu() : ''}
             `;
         }
 
@@ -1274,29 +1297,34 @@
         // Event handlers
         function updateSearch(value) {
             state.searchTerm = value;
+            saveSettings();
             render();
         }
 
         function updateBucketFilter(bucketId) {
             state.selectedBucket = bucketId;
             state.selectedView = 'cases'; // Switch to cases view to show filtered results
+            saveSettings();
             render();
         }
 
         function selectBucket(bucketId) {
             state.selectedBucket = bucketId;
             state.selectedView = 'cases';
+            saveSettings();
             render();
         }
 
         function updateFilter(type, value) {
             state.filterCriteria[type] = value;
+            saveSettings();
             fetchData();
         }
 
         function updateDateRange(startDate, endDate) {
             state.filterCriteria.startDate = startDate;
             state.filterCriteria.endDate = endDate;
+            saveSettings();
             fetchData();
         }
 
@@ -1317,7 +1345,209 @@
 
         function changeView(view) {
             state.selectedView = view;
+            saveSettings();
             render();
+        }
+
+        function processBulkSearch() {
+            const textarea = document.getElementById('bulkSearchInput');
+            if (!textarea) return;
+            
+            const names = textarea.value
+                .split('\n')
+                .map(name => name.trim())
+                .filter(name => name.length > 0);
+            
+            state.bulkSearchNames = names;
+            state.showBulkSearch = false;
+            state.selectedView = 'cases'; // Switch to cases view
+            saveSettings();
+            render();
+        }
+
+        function clearBulkSearch() {
+            state.bulkSearchNames = [];
+            saveSettings();
+            render();
+        }
+
+        // Settings management
+        function showSettingsMenu() {
+            state.showSettingsMenu = !state.showSettingsMenu;
+            render();
+        }
+
+        function exportSettings() {
+            const settingsData = {
+                version: '1.0',
+                exportDate: new Date().toISOString(),
+                settings: {
+                    selectedView: state.selectedView,
+                    selectedBucket: state.selectedBucket,
+                    searchTerm: state.searchTerm,
+                    bulkSearchNames: state.bulkSearchNames,
+                    filterCriteria: state.filterCriteria
+                },
+                tabOrder: state.tabOrder,
+                buckets: state.buckets
+            };
+
+            const blob = new Blob([JSON.stringify(settingsData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `eviction-dashboard-settings-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importSettings() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const imported = JSON.parse(event.target.result);
+                        
+                        // Import settings
+                        if (imported.settings) {
+                            state.selectedView = imported.settings.selectedView || 'overview';
+                            state.selectedBucket = imported.settings.selectedBucket || 'all';
+                            state.searchTerm = imported.settings.searchTerm || '';
+                            state.bulkSearchNames = imported.settings.bulkSearchNames || [];
+                            state.filterCriteria = imported.settings.filterCriteria || getDefaultSettings().filterCriteria;
+                            saveSettings();
+                        }
+                        
+                        // Import tab order
+                        if (imported.tabOrder) {
+                            saveTabOrder(imported.tabOrder);
+                        }
+                        
+                        // Import buckets
+                        if (imported.buckets) {
+                            saveBuckets(imported.buckets);
+                        }
+
+                        alert('Settings imported successfully!');
+                        fetchData();
+                    } catch (error) {
+                        console.error('Error importing settings:', error);
+                        alert('Error importing settings. Please check the file format.');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        function resetAllSettings() {
+            if (confirm('Are you sure you want to reset ALL settings to defaults? This will clear:\n\n• Tab order\n• Custom buckets\n• Search filters\n• Bulk searches\n• Date ranges\n\nThis cannot be undone.')) {
+                localStorage.removeItem('eviction_settings');
+                localStorage.removeItem('eviction_tab_order');
+                localStorage.removeItem('eviction_buckets');
+                
+                // Reset state
+                const defaults = getDefaultSettings();
+                state.selectedView = defaults.selectedView;
+                state.selectedBucket = defaults.selectedBucket;
+                state.searchTerm = defaults.searchTerm;
+                state.bulkSearchNames = defaults.bulkSearchNames;
+                state.filterCriteria = defaults.filterCriteria;
+                state.tabOrder = defaultTabs;
+                state.buckets = loadBuckets();
+                state.showSettingsMenu = false;
+                
+                fetchData();
+            }
+        }
+
+        function clearSearchHistory() {
+            if (confirm('Clear search term and bulk searches?')) {
+                state.searchTerm = '';
+                state.bulkSearchNames = [];
+                saveSettings();
+                render();
+            }
+        }
+
+        function getStorageSize() {
+            let total = 0;
+            for (let key in localStorage) {
+                if (localStorage.hasOwnProperty(key) && key.startsWith('eviction_')) {
+                    total += localStorage[key].length + key.length;
+                }
+            }
+            return (total / 1024).toFixed(2); // KB
+        }
+
+        function renderSettingsMenu() {
+            const storageSize = getStorageSize();
+            return `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) showSettingsMenu()">
+                    <div class="bg-white rounded-lg shadow-xl max-w-md w-full m-4">
+                        <div class="border-b px-6 py-4 flex justify-between items-center">
+                            <h2 class="text-xl font-bold">Settings & Data</h2>
+                            <button onclick="showSettingsMenu()" class="text-gray-500 hover:text-gray-700">
+                                ${icons.x}
+                            </button>
+                        </div>
+                        
+                        <div class="p-6 space-y-4">
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <h3 class="font-semibold text-blue-900 mb-2">💾 Local Storage</h3>
+                                <p class="text-sm text-blue-800 mb-2">All your settings are saved in your browser:</p>
+                                <ul class="text-xs text-blue-700 space-y-1 mb-3">
+                                    <li>✓ Tab order and layout</li>
+                                    <li>✓ Custom buckets and rules</li>
+                                    <li>✓ Search filters and date ranges</li>
+                                    <li>✓ Bulk search lists</li>
+                                    <li>✓ Selected view and bucket</li>
+                                </ul>
+                                <p class="text-xs text-blue-600">Using ${storageSize} KB of storage</p>
+                            </div>
+
+                            <div class="space-y-2">
+                                <button onclick="exportSettings()" 
+                                    class="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2">
+                                    ${icons.download}
+                                    <span>Export Settings</span>
+                                </button>
+
+                                <button onclick="importSettings()" 
+                                    class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2">
+                                    ${icons.upload}
+                                    <span>Import Settings</span>
+                                </button>
+
+                                <button onclick="clearSearchHistory()" 
+                                    class="w-full px-4 py-3 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 flex items-center justify-center space-x-2">
+                                    ${icons.x}
+                                    <span>Clear Searches</span>
+                                </button>
+
+                                <button onclick="resetAllSettings()" 
+                                    class="w-full px-4 py-3 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 flex items-center justify-center space-x-2">
+                                    ${icons.alert}
+                                    <span>Reset All Settings</span>
+                                </button>
+                            </div>
+
+                            <div class="pt-4 border-t">
+                                <p class="text-xs text-gray-500 text-center">
+                                    Settings are stored locally in your browser.<br>
+                                    They will persist across sessions but may be cleared if you clear browser data.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         // Initialize
