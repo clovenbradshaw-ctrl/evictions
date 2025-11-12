@@ -30,10 +30,13 @@
         const icons = {
             search: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>',
             download: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
+            upload: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>',
             building: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"></path><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"></path></svg>',
             scale: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="M7 21h10"></path><path d="M12 3v18"></path></svg>',
             user: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>',
-            alert: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>'
+            alert: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>',
+            calendar: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>',
+            filter: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>'
         };
 
         // State management
@@ -46,21 +49,90 @@
             filterCriteria: {
                 attorney: 'all',
                 plaintiff: 'all',
-                status: 'all'
+                status: 'all',
+                startDate: getDateDaysAgo(365),
+                endDate: getTodayDate()
+            },
+            bulkSearchNames: [],
+            showBulkSearch: false,
+            pagination: {
+                currentPage: 1,
+                perPage: 1000, // Changed from 25 to 1000 to get more results
+                totalPages: 1,
+                totalItems: 0
             }
         };
 
         let charts = {};
 
+        // Helper functions for date handling
+        function getTodayDate() {
+            const today = new Date();
+            return today.toISOString().split('T')[0]; // Returns YYYY-MM-DD
+        }
+
+        function getDateDaysAgo(days) {
+            const date = new Date();
+            date.setDate(date.getDate() - days);
+            return date.toISOString().split('T')[0]; // Returns YYYY-MM-DD
+        }
+
+        function formatDateForDisplay(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+        }
+
+        function formatDateForAPI(dateString) {
+            // Convert YYYY-MM-DD to MM/DD/YYYY for Xano
+            const [year, month, day] = dateString.split('-');
+            return `${month}/${day}/${year}`;
+        }
+
         // Fetch data
         async function fetchData() {
             try {
-                const response = await fetch('https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainers');
+                state.loading = true;
+                render();
+
+                // Build query parameters - no pagination
+                const params = new URLSearchParams();
+
+                // Add date range filters
+                if (state.filterCriteria.startDate) {
+                    params.append('start_date', formatDateForAPI(state.filterCriteria.startDate));
+                }
+                if (state.filterCriteria.endDate) {
+                    params.append('end_date', formatDateForAPI(state.filterCriteria.endDate));
+                }
+
+                // Add other filters if they have actual values (not 'all')
+                if (state.filterCriteria.status && state.filterCriteria.status !== 'all') {
+                    params.append('Status', state.filterCriteria.status);
+                }
+                if (state.filterCriteria.attorney && state.filterCriteria.attorney !== 'all') {
+                    params.append('Attorney', state.filterCriteria.attorney);
+                }
+                if (state.filterCriteria.plaintiff && state.filterCriteria.plaintiff !== 'all') {
+                    params.append('Plaintiff_Petitioner', state.filterCriteria.plaintiff);
+                }
+
+                // Build URL
+                const queryString = params.toString();
+                const url = `https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainers?${queryString}`;
+                
+                console.log('Fetching:', url); // Debug log
+                
+                const response = await fetch(url);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
+                
                 const result = await response.json();
+                
+                // Handle response - no pagination
                 state.data = result;
+                state.pagination.totalItems = result.length;
+                
                 state.loading = false;
                 render();
             } catch (error) {
@@ -68,6 +140,20 @@
                 state.error = error.message;
                 state.loading = false;
                 render();
+            }
+        }
+
+        // Fetch all data for analytics (needed for attorney/plaintiff lists and charts)
+        async function fetchAllForAnalytics() {
+            try {
+                // Fetch without filters to get full dataset for dropdowns and analytics
+                const response = await fetch('https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainers?per_page=1000');
+                if (!response.ok) return [];
+                const result = await response.json();
+                return result.items || result;
+            } catch (error) {
+                console.error('Error fetching analytics data:', error);
+                return [];
             }
         }
 
@@ -85,6 +171,21 @@
                 filtered = filtered.filter(d => d.Status === state.filterCriteria.status);
             }
 
+            // Date filtering now happens server-side in Xano!
+            // No need for client-side date filtering anymore
+
+            // Bulk name search
+            if (state.bulkSearchNames.length > 0) {
+                filtered = filtered.filter(d => {
+                    const defendantName = (d.Defendant_Respondent || '').toLowerCase();
+                    return state.bulkSearchNames.some(searchName => {
+                        const search = searchName.toLowerCase().trim();
+                        return defendantName.includes(search);
+                    });
+                });
+            }
+
+            // Regular search
             if (state.searchTerm) {
                 filtered = filtered.filter(d => 
                     d.Defendant_Respondent?.toLowerCase().includes(state.searchTerm.toLowerCase()) ||
@@ -125,13 +226,6 @@
                 .sort((a, b) => b.count - a.count)
                 .slice(0, 15);
 
-            const corporateLandlords = processedData.filter(d => 
-                d.Plaintiff_Petitioner?.includes('LLC') || 
-                d.Plaintiff_Petitioner?.includes('LP') ||
-                d.Plaintiff_Petitioner?.includes('CORP') ||
-                d.Plaintiff_Petitioner?.includes('INC')
-            ).length;
-
             const proSeCount = processedData.filter(d => 
                 d.Attorney?.includes('PRS') || d.Attorney?.trim() === ','
             ).length;
@@ -141,8 +235,6 @@
                 plaintiffData,
                 dailyFilings,
                 totalCases: processedData.length,
-                corporateLandlords,
-                individualLandlords: processedData.length - corporateLandlords,
                 representedByAttorney: processedData.length - proSeCount,
                 proSe: proSeCount
             };
@@ -266,6 +358,63 @@
             a.click();
         }
 
+        // Bulk search functions
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                parseNameList(content);
+            };
+            reader.readAsText(file);
+        }
+
+        function parseNameList(text) {
+            // Handle CSV, comma-delimited, or newline-separated
+            let names = [];
+            
+            // First try splitting by newlines
+            if (text.includes('\n')) {
+                names = text.split('\n');
+            } 
+            // Then try comma-separated
+            else if (text.includes(',')) {
+                names = text.split(',');
+            }
+            // Otherwise treat as single name
+            else {
+                names = [text];
+            }
+
+            // Clean up names
+            names = names
+                .map(name => name.trim())
+                .filter(name => name.length > 0)
+                // Remove CSV header if it looks like one
+                .filter(name => !name.toLowerCase().match(/^(name|defendant|tenant|respondent)/));
+
+            state.bulkSearchNames = names;
+            state.showBulkSearch = true;
+            render();
+        }
+
+        function clearBulkSearch() {
+            state.bulkSearchNames = [];
+            state.showBulkSearch = false;
+            const fileInput = document.getElementById('nameFileInput');
+            if (fileInput) fileInput.value = '';
+            render();
+        }
+
+        function handleTextareaSearch() {
+            const textarea = document.getElementById('bulkSearchTextarea');
+            if (textarea) {
+                parseNameList(textarea.value);
+            }
+        }
+
         // Render functions
         function render() {
             const app = document.getElementById('app');
@@ -299,6 +448,8 @@
             }
 
             const analytics = getAnalytics();
+            
+            // For dropdowns, we need unique values from current data
             const uniqueAttorneys = [...new Set(state.data.map(d => d.Attorney))].sort();
             const uniquePlaintiffs = [...new Set(state.data.map(d => d.Plaintiff_Petitioner))].sort();
 
@@ -315,10 +466,73 @@
                                     </h1>
                                     <p class="text-gray-600 mt-1">Nashville Sessions Court - Defense Analysis Tool</p>
                                 </div>
-                                <button onclick="exportToCSV()" class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                                    ${icons.download}
-                                    Export Data
-                                </button>
+                                <div class="flex gap-2">
+                                    <button onclick="document.getElementById('bulkSearchModal').classList.remove('hidden')" class="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                                        ${icons.upload}
+                                        Bulk Search
+                                    </button>
+                                    <button onclick="exportToCSV()" class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                                        ${icons.download}
+                                        Export Data
+                                    </button>
+                                </div>
+                            </div>
+
+                            ${state.showBulkSearch ? `
+                                <div class="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="font-semibold text-purple-900">Bulk Search Active</p>
+                                            <p class="text-sm text-purple-700">Searching for ${state.bulkSearchNames.length} name(s) | Found ${getProcessedData().length} match(es)</p>
+                                        </div>
+                                        <button onclick="clearBulkSearch()" class="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition text-sm">
+                                            Clear Search
+                                        </button>
+                                    </div>
+                                    <details class="mt-2">
+                                        <summary class="cursor-pointer text-sm text-purple-700 hover:text-purple-900">Show search names</summary>
+                                        <div class="mt-2 p-2 bg-white rounded text-sm max-h-40 overflow-y-auto">
+                                            ${state.bulkSearchNames.map(name => `<div class="text-gray-700">• ${name}</div>`).join('')}
+                                        </div>
+                                    </details>
+                                </div>
+                            ` : ''}
+
+                            <!-- Date Range Filter -->
+                            <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h3 class="font-semibold text-blue-900">Date Range Filter</h3>
+                                    <div class="flex gap-2 flex-wrap">
+                                        <button onclick="setDatePreset(30)" class="px-2 py-1 text-xs bg-white border border-blue-300 rounded hover:bg-blue-100 transition">30 Days</button>
+                                        <button onclick="setDatePreset(90)" class="px-2 py-1 text-xs bg-white border border-blue-300 rounded hover:bg-blue-100 transition">90 Days</button>
+                                        <button onclick="setDatePreset(180)" class="px-2 py-1 text-xs bg-white border border-blue-300 rounded hover:bg-blue-100 transition">6 Months</button>
+                                        <button onclick="setDatePreset(365)" class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition">1 Year</button>
+                                        <button onclick="setDatePreset(730)" class="px-2 py-1 text-xs bg-white border border-blue-300 rounded hover:bg-blue-100 transition">2 Years</button>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-blue-900 mb-1">Start Date</label>
+                                        <input 
+                                            type="date" 
+                                            value="${state.filterCriteria.startDate}"
+                                            onchange="updateDateRange(this.value, state.filterCriteria.endDate)"
+                                            class="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-blue-900 mb-1">End Date</label>
+                                        <input 
+                                            type="date" 
+                                            value="${state.filterCriteria.endDate}"
+                                            onchange="updateDateRange(state.filterCriteria.startDate, this.value)"
+                                            class="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                                <p class="text-xs text-blue-700 mt-2">
+                                    Showing cases filed between ${formatDateForDisplay(state.filterCriteria.startDate)} and ${formatDateForDisplay(state.filterCriteria.endDate)}
+                                </p>
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -421,7 +635,92 @@
                         <!-- Footer -->
                         <div class="mt-6 bg-white rounded-lg shadow-sm p-4 text-center text-sm text-gray-600">
                             <p>Data from Nashville Sessions Court | Last Updated: ${new Date().toLocaleString()}</p>
-                        
+                            <p class="mt-1">For eviction defense support, contact Legal Aid Society or Nashville Conflict Resolution Center</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bulk Search Modal -->
+                <div id="bulkSearchModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-50">
+                    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h2 class="text-2xl font-bold text-gray-900">Bulk Name Search</h2>
+                                <button onclick="document.getElementById('bulkSearchModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <p class="text-gray-600 mb-4">Search for multiple defendants at once. Upload a file or paste names below.</p>
+
+                            <!-- File Upload -->
+                            <div class="mb-6">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Upload File</label>
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-purple-500 transition">
+                                    <input type="file" id="nameFileInput" accept=".csv,.txt" onchange="handleFileUpload(event)" class="hidden" />
+                                    <label for="nameFileInput" class="cursor-pointer">
+                                        <svg class="mx-auto h-12 w-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                        </svg>
+                                        <p class="text-sm text-gray-600">
+                                            <span class="text-purple-600 font-semibold">Click to upload</span> or drag and drop
+                                        </p>
+                                        <p class="text-xs text-gray-500 mt-1">CSV or TXT file</p>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="mb-6">
+                                <div class="flex items-center mb-2">
+                                    <div class="flex-1 border-t border-gray-300"></div>
+                                    <span class="px-3 text-sm text-gray-500">OR</span>
+                                    <div class="flex-1 border-t border-gray-300"></div>
+                                </div>
+                            </div>
+
+                            <!-- Text Input -->
+                            <div class="mb-6">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Paste Names</label>
+                                <textarea 
+                                    id="bulkSearchTextarea"
+                                    rows="8" 
+                                    placeholder="Enter names (one per line, comma-separated, or from CSV)&#10;&#10;Example:&#10;JUAN JOSE CASTRO&#10;JOSEPH KILLINGSWORTH&#10;JORGE DIAZ SALAMANCA"
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
+                                ></textarea>
+                                <p class="text-xs text-gray-500 mt-2">
+                                    Supports multiple formats: one name per line, comma-separated, or CSV paste
+                                </p>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="flex gap-3">
+                                <button 
+                                    onclick="handleTextareaSearch(); document.getElementById('bulkSearchModal').classList.add('hidden')"
+                                    class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold"
+                                >
+                                    Search Names
+                                </button>
+                                <button 
+                                    onclick="document.getElementById('bulkSearchModal').classList.add('hidden')"
+                                    class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+
+                            <!-- Info Box -->
+                            <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <h4 class="font-semibold text-blue-900 text-sm mb-2">How it works:</h4>
+                                <ul class="text-xs text-blue-800 space-y-1">
+                                    <li>• Searches the "Defendant/Respondent" field for partial matches</li>
+                                    <li>• Automatically removes CSV headers (name, defendant, tenant, respondent)</li>
+                                    <li>• Case-insensitive matching</li>
+                                    <li>• Results can be exported to CSV for further analysis</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -439,14 +738,7 @@
 
             if (state.selectedView === 'overview') {
                 viewContent.innerHTML = `
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="bg-white rounded-lg shadow-sm p-6">
-                            <h3 class="text-lg font-semibold mb-4">Corporate vs Individual Landlords</h3>
-                            <div class="chart-container">
-                                <canvas id="corporateChart"></canvas>
-                            </div>
-                        </div>
-
+                    <div class="grid grid-cols-1 gap-6">
                         <div class="bg-white rounded-lg shadow-sm p-6">
                             <h3 class="text-lg font-semibold mb-4">Representation Status</h3>
                             <div class="chart-container">
@@ -454,7 +746,7 @@
                             </div>
                         </div>
 
-                        <div class="bg-white rounded-lg shadow-sm p-6 lg:col-span-2">
+                        <div class="bg-white rounded-lg shadow-sm p-6">
                             <h3 class="text-lg font-semibold mb-4">Top 10 Filing Attorneys</h3>
                             <div class="chart-container">
                                 <canvas id="attorneyChart"></canvas>
@@ -468,10 +760,6 @@
                 `;
 
                 setTimeout(() => {
-                    createPieChart('corporateChart', 
-                        [analytics.corporateLandlords, analytics.individualLandlords],
-                        ['Corporate Landlords', 'Individual Landlords']
-                    );
                     createPieChart('representationChart',
                         [analytics.representedByAttorney, analytics.proSe],
                         ['Attorney Represented', 'Pro Se']
@@ -520,10 +808,10 @@
                         <div class="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
                             <h4 class="font-semibold text-red-900 mb-2">Landlord Pattern Analysis:</h4>
                             <ul class="text-sm text-red-800 space-y-1">
-                                <li>• Corporate landlords often have more resources for litigation</li>
                                 <li>• Serial evictors may indicate systemic housing quality issues</li>
-                                <li>• Track repeated filings for pattern of retaliatory evictions</li>
+                                <li>• Track repeated filings for patterns of retaliatory evictions</li>
                                 <li>• Large property managers may have consistent procedural approaches</li>
+                                <li>• Compare filing volumes across properties and management companies</li>
                             </ul>
                         </div>
                     </div>
@@ -589,7 +877,8 @@
                                                 </div>
                                                 ${(record.Plaintiff_Petitioner?.includes('LLC') || 
                                                    record.Plaintiff_Petitioner?.includes('LP') ||
-                                                   record.Plaintiff_Petitioner?.includes('CORP')) ? 
+                                                   record.Plaintiff_Petitioner?.includes('CORP') ||
+                                                   record.Plaintiff_Petitioner?.includes('INC')) ? 
                                                     '<span class="inline-block px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded mt-1">Corporate</span>' : ''
                                                 }
                                             </td>
@@ -614,6 +903,13 @@
                                 </tbody>
                             </table>
                         </div>
+
+                        <!-- Total Count -->
+                        <div class="mt-6 border-t pt-4">
+                            <div class="text-sm text-gray-600 text-center">
+                                Showing ${processedData.length} cases
+                            </div>
+                        </div>
                     </div>
                 `;
             }
@@ -622,12 +918,25 @@
         // Event handlers
         function updateSearch(value) {
             state.searchTerm = value;
+            // Note: Search is client-side for now. Could be moved to API with Defendant_Respondent parameter
             render();
         }
 
         function updateFilter(type, value) {
             state.filterCriteria[type] = value;
-            render();
+            fetchData();
+        }
+
+        function updateDateRange(startDate, endDate) {
+            state.filterCriteria.startDate = startDate;
+            state.filterCriteria.endDate = endDate;
+            fetchData();
+        }
+
+        function setDatePreset(days) {
+            const endDate = getTodayDate();
+            const startDate = getDateDaysAgo(days);
+            updateDateRange(startDate, endDate);
         }
 
         function changeView(view) {
