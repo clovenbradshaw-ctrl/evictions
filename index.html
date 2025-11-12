@@ -498,6 +498,28 @@
         function processData() {
             let filtered = state.data;
 
+            // Apply date range filter (client-side fallback in case API doesn't support it)
+            if (state.filterCriteria.startDate || state.filterCriteria.endDate) {
+                filtered = filtered.filter(record => {
+                    if (!record.File_Date) return false;
+                    
+                    const fileDate = new Date(record.File_Date);
+                    
+                    if (state.filterCriteria.startDate) {
+                        const startDate = new Date(state.filterCriteria.startDate);
+                        if (fileDate < startDate) return false;
+                    }
+                    
+                    if (state.filterCriteria.endDate) {
+                        const endDate = new Date(state.filterCriteria.endDate);
+                        endDate.setHours(23, 59, 59, 999); // Include the entire end date
+                        if (fileDate > endDate) return false;
+                    }
+                    
+                    return true;
+                });
+            }
+
             // Apply search filter
             if (state.searchTerm) {
                 const searchLower = state.searchTerm.toLowerCase();
