@@ -6,6 +6,7 @@
     <title>Eviction Detainer Dashboard - Enhanced</title>
     <link rel="icon" type="image/png" href="https://storage.googleapis.com/intelechia-content/im/eviction%20prevention%20logo.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuzzysort@2.0.4/fuzzysort.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -148,6 +149,7 @@
                 selectedBucket: 'all',
                 searchTerm: '',
                 bulkSearchNames: [],
+                fuzzyThreshold: 0.7, // 0.0 = exact match only, 1.0 = very loose matching
                 filterCriteria: {
                     attorney: 'all',
                     plaintiff: 'all',
@@ -164,6 +166,7 @@
                 selectedBucket: state.selectedBucket,
                 searchTerm: state.searchTerm,
                 bulkSearchNames: state.bulkSearchNames,
+                fuzzyThreshold: state.fuzzyThreshold,
                 filterCriteria: state.filterCriteria
             };
             localStorage.setItem('eviction_settings', JSON.stringify(settings));
@@ -179,6 +182,7 @@
             selectedView: savedSettings.selectedView,
             selectedBucket: savedSettings.selectedBucket,
             filterCriteria: savedSettings.filterCriteria,
+            fuzzyThreshold: savedSettings.fuzzyThreshold !== undefined ? savedSettings.fuzzyThreshold : 0.7,
             showBucketManager: false,
             showBulkSearch: false,
             showSettingsMenu: false,
@@ -318,8 +322,23 @@
                 );
             }
 
-            // Apply bulk search filter
-            if (state.bulkSearchNames.length > 0) {
+            // Apply bulk search filter with fuzzy matching
+            if (state.bulkSearchNames.length > 0 && typeof fuzzysort !== 'undefined') {
+                filtered = filtered.filter(record => {
+                    const defendant = record.Defendant_Respondent || '';
+                    
+                    // Try fuzzy matching for each search name
+                    return state.bulkSearchNames.some(searchName => {
+                        const result = fuzzysort.single(searchName, defendant);
+                        // Score ranges from -Infinity (no match) to ~0 (perfect match)
+                        // We convert threshold (0-1) to a score threshold
+                        // Higher threshold = more strict matching
+                        const scoreThreshold = -1000 * (1 - state.fuzzyThreshold);
+                        return result && result.score > scoreThreshold;
+                    });
+                });
+            } else if (state.bulkSearchNames.length > 0) {
+                // Fallback to simple matching if fuzzysort not loaded
                 filtered = filtered.filter(record => {
                     const defendant = (record.Defendant_Respondent || '').toLowerCase();
                     return state.bulkSearchNames.some(name => 
@@ -606,26 +625,75 @@
         }
 
         function renderBulkSearchModal() {
+            const thresholdPercentage = Math.round(state.fuzzyThreshold * 100);
+            const thresholdLabel = 
+                state.fuzzyThreshold >= 0.9 ? 'Very Strict' :
+                state.fuzzyThreshold >= 0.7 ? 'Strict' :
+                state.fuzzyThreshold >= 0.5 ? 'Moderate' :
+                state.fuzzyThreshold >= 0.3 ? 'Loose' : 'Very Loose';
+            
             return `
                 <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target === this) toggleBulkSearch()">
                     <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full m-4">
                         <div class="border-b px-6 py-4 flex justify-between items-center">
-                            <h2 class="text-xl font-bold">Bulk Name Search</h2>
+                            <h2 class="text-xl font-bold">Bulk Name Search with Fuzzy Matching</h2>
                             <button onclick="toggleBulkSearch()" class="text-gray-500 hover:text-gray-700">
                                 ${icons.x}
                             </button>
                         </div>
                         
                         <div class="p-6 space-y-4">
-                            <p class="text-sm text-gray-600">
-                                Enter one name per line. The search will find any defendant whose name contains any of these search terms.
-                            </p>
-                            
-                            <textarea 
-                                id="bulkSearchInput"
-                                placeholder="John Smith&#10;Jane Doe&#10;Robert Johnson"
-                                class="w-full h-64 px-4 py-2 border rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >${state.bulkSearchNames.join('\n')}</textarea>
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <h3 class="font-semibold text-blue-900 mb-2">🎯 Fuzzy Matching</h3>
+                                <p class="text-sm text-blue-800">
+                                    Fuzzy matching finds names even with typos, misspellings, or partial matches. 
+                                    For example, "John Smith" will match "Jon Smyth" or "Johnny Smith".
+                                </p>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="flex items-center justify-between">
+                                    <span class="text-sm font-medium text-gray-700">Match Strictness</span>
+                                    <span class="text-sm px-3 py-1 rounded ${
+                                        state.fuzzyThreshold >= 0.7 ? 'bg-green-100 text-green-800' :
+                                        state.fuzzyThreshold >= 0.5 ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-orange-100 text-orange-800'
+                                    }">
+                                        ${thresholdLabel} (${thresholdPercentage}%)
+                                    </span>
+                                </label>
+                                <input type="range" 
+                                    min="0" 
+                                    max="100" 
+                                    value="${thresholdPercentage}"
+                                    oninput="updateFuzzyThreshold(this.value / 100)"
+                                    class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                <div class="flex justify-between text-xs text-gray-500">
+                                    <span>Loose (more matches)</span>
+                                    <span>Strict (exact matches)</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600">
+                                <p class="font-medium mb-1">Threshold Guide:</p>
+                                <ul class="space-y-1">
+                                    <li>• <strong>Very Strict (90-100%):</strong> Almost exact matches only</li>
+                                    <li>• <strong>Strict (70-89%):</strong> Minor typos allowed (recommended)</li>
+                                    <li>• <strong>Moderate (50-69%):</strong> More flexible matching</li>
+                                    <li>• <strong>Loose (0-49%):</strong> Very forgiving, may include false positives</li>
+                                </ul>
+                            </div>
+
+                            <div>
+                                <label class="text-sm font-medium text-gray-700 mb-2 block">
+                                    Names to Search (one per line)
+                                </label>
+                                <textarea 
+                                    id="bulkSearchInput"
+                                    placeholder="John Smith&#10;Jane Doe&#10;Robert Johnson"
+                                    class="w-full h-64 px-4 py-2 border rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >${state.bulkSearchNames.join('\n')}</textarea>
+                            </div>
                             
                             <div class="flex justify-between items-center">
                                 <button onclick="clearBulkSearch(); toggleBulkSearch()" 
@@ -883,7 +951,17 @@
                                     <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 flex items-center justify-between">
                                         <div class="flex items-center space-x-2">
                                             <span class="text-sm font-medium text-indigo-900">
-                                                Bulk Search Active: ${state.bulkSearchNames.length} names
+                                                🎯 Bulk Search Active: ${state.bulkSearchNames.length} names
+                                            </span>
+                                            <span class="text-xs px-2 py-0.5 rounded ${
+                                                state.fuzzyThreshold >= 0.7 ? 'bg-green-100 text-green-700' :
+                                                state.fuzzyThreshold >= 0.5 ? 'bg-yellow-100 text-yellow-700' :
+                                                'bg-orange-100 text-orange-700'
+                                            }">
+                                                ${state.fuzzyThreshold >= 0.9 ? 'Very Strict' :
+                                                  state.fuzzyThreshold >= 0.7 ? 'Strict' :
+                                                  state.fuzzyThreshold >= 0.5 ? 'Moderate' :
+                                                  state.fuzzyThreshold >= 0.3 ? 'Loose' : 'Very Loose'}
                                             </span>
                                             <button onclick="toggleBulkSearch()" 
                                                 class="text-xs text-indigo-600 hover:text-indigo-800 underline">
@@ -1371,6 +1449,12 @@
             render();
         }
 
+        function updateFuzzyThreshold(value) {
+            state.fuzzyThreshold = parseFloat(value);
+            saveSettings();
+            render();
+        }
+
         // Settings management
         function showSettingsMenu() {
             state.showSettingsMenu = !state.showSettingsMenu;
@@ -1386,6 +1470,7 @@
                     selectedBucket: state.selectedBucket,
                     searchTerm: state.searchTerm,
                     bulkSearchNames: state.bulkSearchNames,
+                    fuzzyThreshold: state.fuzzyThreshold,
                     filterCriteria: state.filterCriteria
                 },
                 tabOrder: state.tabOrder,
@@ -1420,6 +1505,7 @@
                             state.selectedBucket = imported.settings.selectedBucket || 'all';
                             state.searchTerm = imported.settings.searchTerm || '';
                             state.bulkSearchNames = imported.settings.bulkSearchNames || [];
+                            state.fuzzyThreshold = imported.settings.fuzzyThreshold !== undefined ? imported.settings.fuzzyThreshold : 0.7;
                             state.filterCriteria = imported.settings.filterCriteria || getDefaultSettings().filterCriteria;
                             saveSettings();
                         }
@@ -1507,6 +1593,7 @@
                                     <li>✓ Custom buckets and rules</li>
                                     <li>✓ Search filters and date ranges</li>
                                     <li>✓ Bulk search lists</li>
+                                    <li>✓ Fuzzy matching threshold</li>
                                     <li>✓ Selected view and bucket</li>
                                 </ul>
                                 <p class="text-xs text-blue-600">Using ${storageSize} KB of storage</p>
