@@ -8,6 +8,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fuzzysort@2.0.4/fuzzysort.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-o9N1j7kGStbXkIBn0hUhtPp1pXgHkRbqu+eZ8H8G1r0=" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9c0QwLrjoh9g32nY0t1tcHTfbvZ4sq+0uwl3tGIU3M=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <style>
         body {
             margin: 0;
@@ -217,23 +222,47 @@
                 transition: max-height 0.3s ease;
             }
         }
-        
+
         @media (min-width: 769px) {
             .mobile-cards {
                 display: none;
             }
-            
+
             .desktop-table {
                 display: table;
             }
-            
+
             .mobile-menu-button {
                 display: none;
             }
-            
+
             .mobile-filter-toggle {
                 display: none;
             }
+        }
+
+        .map-container {
+            position: relative;
+            height: 600px;
+            width: 100%;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+        @media (max-width: 768px) {
+            .map-container {
+                height: 400px;
+            }
+        }
+
+        .leaflet-popup-content {
+            margin: 8px;
+            line-height: 1.4;
+            font-size: 13px;
+        }
+
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
         }
     </style>
 </head>
@@ -250,6 +279,10 @@
             scale: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"></path><path d="M7 21h10"></path><path d="M12 3v18"></path></svg>',
             user: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>',
             alert: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>',
+            map: '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>',
+            mapPin: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>',
+            mail: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>',
+            phone: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>',
             calendar: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>',
             filter: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>',
             folder: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>',
@@ -269,6 +302,8 @@
         // Default tabs if no custom order exists
         const defaultTabs = [
             { id: 'overview', label: 'Overview', icon: 'building' },
+            { id: 'districts', label: 'Districts', icon: 'mapPin' },
+            { id: 'map', label: 'Map', icon: 'map' },
             { id: 'landlords', label: 'Top Landlords', icon: 'building' },
             { id: 'attorneys', label: 'Top Attorneys', icon: 'scale' },
             { id: 'timeline', label: 'Timeline', icon: 'calendar' },
@@ -377,6 +412,8 @@
             tabEditMode: false,
             tabOrder: loadTabOrder(),
             buckets: loadBuckets(),
+            councilDistrictCache: {},
+            enrichmentInProgress: false,
             pagination: {
                 currentPage: 1,
                 perPage: 1000,
@@ -384,6 +421,9 @@
                 totalItems: 0
             }
         };
+
+        let map = null;
+        let markerClusterGroup = null;
 
         function saveTabOrder(order) {
             localStorage.setItem('eviction_tab_order', JSON.stringify(order));
@@ -483,15 +523,192 @@
                 
                 state.data = result;
                 state.pagination.totalItems = result.length;
-                
+
                 state.loading = false;
                 render();
+
+                // Enrich council data in background
+                enrichCouncilData();
             } catch (error) {
                 console.error('Error fetching data:', error);
                 state.error = error.message;
                 state.loading = false;
                 render();
             }
+        }
+
+        async function lookupCouncilDistrict(latitude, longitude) {
+            if (!latitude || !longitude) return null;
+
+            const cacheKey = `${latitude},${longitude}`;
+            if (state.councilDistrictCache[cacheKey]) {
+                return state.councilDistrictCache[cacheKey];
+            }
+
+            try {
+                const url = `https://maps.nashville.gov/arcgis/rest/services/Elections/Precincts/MapServer/1/query?geometry=${longitude},${latitude}&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=false&f=json`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.features && data.features.length > 0) {
+                    const attrs = data.features[0].attributes || {};
+                    const districtMatch = attrs.DistrictName ? attrs.DistrictName.match(/\d+/) : null;
+                    const districtInfo = {
+                        districtName: attrs.DistrictName || null,
+                        districtNumber: districtMatch ? parseInt(districtMatch[0], 10) : null,
+                        representative: attrs.Representative || null,
+                        firstName: attrs.FirstName || null,
+                        lastName: attrs.LastName || null,
+                        email: attrs.Email || null,
+                        phone: attrs.BusinessPhone || null,
+                        website: attrs.Website || null
+                    };
+
+                    state.councilDistrictCache[cacheKey] = districtInfo;
+                    return districtInfo;
+                }
+            } catch (error) {
+                console.error('Error looking up council district:', error);
+            }
+
+            return null;
+        }
+
+        async function enrichCouncilData() {
+            if (state.enrichmentInProgress) return;
+
+            const casesNeedingEnrichment = state.data.filter(record =>
+                record.latitude && record.longitude && !record.council_district
+            );
+
+            if (casesNeedingEnrichment.length === 0) return;
+
+            state.enrichmentInProgress = true;
+
+            for (let i = 0; i < casesNeedingEnrichment.length; i += 10) {
+                const batch = casesNeedingEnrichment.slice(i, i + 10);
+                await Promise.all(batch.map(async (record) => {
+                    const councilInfo = await lookupCouncilDistrict(record.latitude, record.longitude);
+                    if (councilInfo) {
+                        record.council_district = councilInfo.districtName;
+                        record.council_district_number = councilInfo.districtNumber;
+                        record.council_representative = councilInfo.representative;
+                        record.council_contact = councilInfo;
+                    }
+                }));
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            state.enrichmentInProgress = false;
+            render();
+        }
+
+        function initializeMap() {
+            if (typeof L === 'undefined') return;
+
+            if (map) {
+                map.remove();
+            }
+
+            map = L.map('evictionMap').setView([36.1627, -86.7816], 11);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            markerClusterGroup = L.markerClusterGroup({
+                chunkedLoading: true,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                zoomToBoundsOnClick: true
+            });
+
+            map.addLayer(markerClusterGroup);
+        }
+
+        function populateMap(data) {
+            if (!map || !markerClusterGroup) return;
+
+            markerClusterGroup.clearLayers();
+            const geocodedData = data.filter(record => record.latitude && record.longitude);
+
+            geocodedData.forEach(record => {
+                const statusColor = record.Status === 'PENDING' ? 'red' : 'blue';
+                const icon = L.divIcon({
+                    className: 'custom-marker',
+                    html: `<div style="background-color: ${statusColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 4px rgba(0,0,0,0.3);"></div>`,
+                    iconSize: [12, 12]
+                });
+
+                const marker = L.marker([record.latitude, record.longitude], { icon });
+                const phoneDigits = record.council_contact?.phone ? record.council_contact.phone.replace(/\D/g, '') : '';
+
+                marker.bindPopup(`
+                    <div style="min-width: 200px;">
+                        <strong>${record.Docket_Number}</strong><br>
+                        <span style="font-size: 11px;">Filed: ${record.File_Date}</span><br>
+                        <span style="display: inline-block; margin-top: 4px; padding: 2px 6px; background: ${record.Status === 'PENDING' ? '#fee2e2' : '#e5e7eb'}; color: ${record.Status === 'PENDING' ? '#991b1b' : '#374151'}; border-radius: 4px; font-size: 10px;">
+                            ${record.Status}
+                        </span>
+                        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+                            <strong style="font-size: 11px;">Defendant:</strong><br>
+                            <span style="font-size: 11px;">${record.Defendant_Respondent || 'Unknown'}</span>
+                        </div>
+                        ${record.formatted_address ? `
+                            <div style="margin-top: 4px;">
+                                <strong style="font-size: 11px;">Address:</strong><br>
+                                <span style="font-size: 11px;">${record.formatted_address}</span>
+                            </div>
+                        ` : ''}
+                        ${record.council_contact ? `
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+                                <strong style="font-size: 11px;">District ${record.council_district_number || ''}</strong><br>
+                                <span style="font-size: 10px;">${record.council_representative || ''}</span>
+                                <div style="margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap;">
+                                    ${record.council_contact.email ? `
+                                        <a href="mailto:${record.council_contact.email}"
+                                           style="display: inline-block; padding: 4px 8px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; font-size: 10px;">
+                                            📧 Email
+                                        </a>
+                                    ` : ''}
+                                    ${phoneDigits ? `
+                                        <a href="tel:${phoneDigits}"
+                                           style="display: inline-block; padding: 4px 8px; background: #10b981; color: white; text-decoration: none; border-radius: 4px; font-size: 10px;">
+                                            📞 ${record.council_contact.phone}
+                                        </a>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `);
+
+                markerClusterGroup.addLayer(marker);
+            });
+        }
+
+        function filterByDistrict(districtNumber) {
+            const existingBucket = state.buckets.find(b => b.id === `district_${districtNumber}`);
+            if (!existingBucket) {
+                const newBucket = {
+                    id: `district_${districtNumber}`,
+                    name: `District ${districtNumber}`,
+                    color: 'blue',
+                    rules: [
+                        { field: 'council_district_number', operator: 'equals', value: districtNumber.toString(), caseSensitive: false }
+                    ],
+                    matchType: 'any'
+                };
+                state.buckets.push(newBucket);
+                saveBuckets(state.buckets);
+            }
+
+            state.selectedBucket = `district_${districtNumber}`;
+            state.selectedView = 'cases';
+            saveSettings();
+            render();
         }
 
         // Data processing
@@ -527,7 +744,9 @@
                     (record.Defendant_Respondent?.toLowerCase().includes(searchLower)) ||
                     (record.Plaintiff_Petitioner?.toLowerCase().includes(searchLower)) ||
                     (record.Docket_Number?.toLowerCase().includes(searchLower)) ||
-                    (record.Attorney?.toLowerCase().includes(searchLower))
+                    (record.Attorney?.toLowerCase().includes(searchLower)) ||
+                    (record.formatted_address?.toLowerCase().includes(searchLower)) ||
+                    (record.council_representative?.toLowerCase().includes(searchLower))
                 );
             }
 
@@ -572,15 +791,18 @@
                 totalCases: data.length,
                 pendingCases: data.filter(r => r.Status === 'PENDING').length,
                 resolvedCases: data.filter(r => r.Status !== 'PENDING').length,
-                corporateLandlords: data.filter(r => 
-                    r.Plaintiff_Petitioner?.includes('LLC') || 
+                corporateLandlords: data.filter(r =>
+                    r.Plaintiff_Petitioner?.includes('LLC') ||
                     r.Plaintiff_Petitioner?.includes('LP') ||
                     r.Plaintiff_Petitioner?.includes('CORP') ||
                     r.Plaintiff_Petitioner?.includes('INC')
                 ).length,
-                proSeDefendants: data.filter(r => 
+                proSeDefendants: data.filter(r =>
                     r.Attorney?.includes('PRS') || r.Attorney?.trim() === ','
                 ).length,
+                geocodedCases: data.filter(r => r.latitude && r.longitude).length,
+                casesWithDistrict: data.filter(r => r.council_district).length,
+                districtStats: {},
                 attorneyData: [],
                 plaintiffData: [],
                 dailyFilings: {},
@@ -622,6 +844,32 @@
                     analytics.dailyFilings[date] = 0;
                 }
                 analytics.dailyFilings[date]++;
+            });
+
+            data.forEach(record => {
+                if (record.council_district_number) {
+                    const distNum = record.council_district_number;
+                    if (!analytics.districtStats[distNum]) {
+                        analytics.districtStats[distNum] = {
+                            number: distNum,
+                            name: record.council_district || `District ${distNum}`,
+                            representative: record.council_representative || null,
+                            contact: record.council_contact || null,
+                            total: 0,
+                            pending: 0,
+                            addresses: new Set()
+                        };
+                    }
+
+                    const district = analytics.districtStats[distNum];
+                    district.total++;
+                    if (record.Status === 'PENDING') {
+                        district.pending++;
+                    }
+                    if (record.formatted_address) {
+                        district.addresses.add(record.formatted_address);
+                    }
+                }
             });
 
             // Bucket statistics
@@ -719,14 +967,17 @@
         // Export to CSV
         function exportToCSV() {
             const data = processData();
-            const headers = ['Docket Number', 'File Date', 'Plaintiff', 'Defendant', 'Attorney', 'Status'];
+            const headers = ['Docket Number', 'File Date', 'Plaintiff', 'Defendant', 'Attorney', 'Status', 'Address', 'Council District', 'Representative'];
             const rows = data.map(r => [
                 r.Docket_Number,
                 r.File_Date,
                 r.Plaintiff_Petitioner,
                 r.Defendant_Respondent,
                 r.Attorney,
-                r.Status
+                r.Status,
+                r.formatted_address || '',
+                r.council_district || '',
+                r.council_representative || ''
             ]);
 
             let csv = headers.join(',') + '\n';
@@ -972,6 +1223,9 @@
                                                         <option value="Attorney" ${rule.field === 'Attorney' ? 'selected' : ''}>Attorney</option>
                                                         <option value="Status" ${rule.field === 'Status' ? 'selected' : ''}>Status</option>
                                                         <option value="Docket_Number" ${rule.field === 'Docket_Number' ? 'selected' : ''}>Docket #</option>
+                                                        <option value="formatted_address" ${rule.field === 'formatted_address' ? 'selected' : ''}>Address</option>
+                                                        <option value="council_district_number" ${rule.field === 'council_district_number' ? 'selected' : ''}>District #</option>
+                                                        <option value="council_representative" ${rule.field === 'council_representative' ? 'selected' : ''}>Representative</option>
                                                     </select>
                                                     
                                                     <select onchange="updateBucketRule(${index}, ${ruleIndex}, 'operator', this.value)" 
@@ -1397,6 +1651,28 @@
                                 <div class="text-yellow-600">${icons.user}</div>
                             </div>
                         </div>
+
+                        <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Geocoded Cases</p>
+                                    <p class="text-2xl md:text-3xl font-bold text-green-600 mt-2">${analytics.geocodedCases}</p>
+                                    <p class="text-xs text-gray-500 mt-1">${analytics.totalCases ? ((analytics.geocodedCases / analytics.totalCases) * 100).toFixed(1) : '0.0'}% mapped</p>
+                                </div>
+                                <div class="text-green-600">${icons.mapPin}</div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-lg shadow-sm p-4 md:p-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Districts Tracked</p>
+                                    <p class="text-2xl md:text-3xl font-bold text-purple-600 mt-2">${Object.keys(analytics.districtStats).length}</p>
+                                    <p class="text-xs text-gray-500 mt-1">${analytics.casesWithDistrict} cases</p>
+                                </div>
+                                <div class="text-purple-600">${icons.building}</div>
+                            </div>
+                        </div>
                     </div>
 
                     ${state.buckets.length > 0 ? `
@@ -1422,6 +1698,97 @@
                         </div>
                     ` : ''}
                 `;
+
+            } else if (state.selectedView === 'districts') {
+                const sortedDistricts = Object.values(analytics.districtStats)
+                    .map(d => ({ ...d, addresses: d.addresses || new Set() }))
+                    .sort((a, b) => b.total - a.total);
+
+                viewContent.innerHTML = `
+                    <div class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-white rounded-lg shadow-sm p-6">
+                                <p class="text-sm text-gray-600">Districts with Evictions</p>
+                                <p class="text-3xl font-bold text-gray-900 mt-2">${sortedDistricts.length}</p>
+                            </div>
+                            <div class="bg-white rounded-lg shadow-sm p-6">
+                                <p class="text-sm text-gray-600">Highest Activity</p>
+                                <p class="text-2xl font-bold text-red-600 mt-2">District ${sortedDistricts[0]?.number ?? 'N/A'}</p>
+                                <p class="text-sm text-gray-600">${sortedDistricts[0]?.total ?? 0} cases</p>
+                            </div>
+                            <div class="bg-white rounded-lg shadow-sm p-6">
+                                <p class="text-sm text-gray-600">With District Data</p>
+                                <p class="text-3xl font-bold text-blue-600 mt-2">${analytics.casesWithDistrict}</p>
+                                <p class="text-xs text-gray-500 mt-1">${analytics.totalCases ? ((analytics.casesWithDistrict / analytics.totalCases) * 100).toFixed(1) : '0.0'}% of total</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-lg shadow-sm p-6">
+                            <h3 class="text-lg font-semibold mb-4">Evictions by Council District</h3>
+                            <div class="space-y-4">
+                                ${sortedDistricts.map(district => `
+                                    <div class="border rounded-lg p-4 hover:shadow-md transition">
+                                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                            <div class="flex-1">
+                                                <div class="flex items-center gap-3 mb-2">
+                                                    <span class="text-2xl font-bold text-blue-600">${district.number}</span>
+                                                    <div>
+                                                        <h4 class="font-semibold text-gray-900">${district.representative || 'Unknown'}</h4>
+                                                        <p class="text-sm text-gray-600">${district.name || ''}</p>
+                                                    </div>
+                                                </div>
+                                                <div class="flex gap-4 text-sm flex-wrap">
+                                                    <span class="text-gray-700"><span class="font-semibold">${district.total}</span> total</span>
+                                                    <span class="text-red-600"><span class="font-semibold">${district.pending}</span> pending</span>
+                                                    <span class="text-gray-600"><span class="font-semibold">${district.addresses?.size || 0}</span> addresses</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="flex flex-col sm:flex-row gap-2">
+                                                ${district.contact?.email ? `
+                                                    <a href="mailto:${district.contact.email}?subject=${encodeURIComponent('Eviction Cases in District ' + district.number)}&body=${encodeURIComponent(`Dear ${district.contact.firstName || ''} ${district.contact.lastName || ''},\n\nI am writing about the ${district.total} eviction cases in District ${district.number}, with ${district.pending} cases pending.\n\n`)}"
+                                                       class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm flex items-center gap-2 whitespace-nowrap">
+                                                        ${icons.mail} <span>Email</span>
+                                                    </a>
+                                                ` : ''}
+                                                ${district.contact?.phone ? `
+                                                    <a href="tel:${district.contact.phone.replace(/\\D/g, '')}"
+                                                       class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center gap-2 whitespace-nowrap">
+                                                        ${icons.phone} <span>${district.contact.phone}</span>
+                                                    </a>
+                                                ` : ''}
+                                                <button onclick="filterByDistrict(${district.number})"
+                                                        class="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm flex items-center gap-2">
+                                                    ${icons.search} <span>View Cases</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+            } else if (state.selectedView === 'map') {
+                viewContent.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="bg-white rounded-lg shadow-sm p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold">Eviction Case Locations</h3>
+                                <div class="text-sm text-gray-600">
+                                    ${analytics.geocodedCases} of ${analytics.totalCases} cases geocoded (${analytics.totalCases ? ((analytics.geocodedCases / analytics.totalCases) * 100).toFixed(1) : '0.0'}%)
+                                </div>
+                            </div>
+                            <div id="evictionMap" class="map-container"></div>
+                        </div>
+                    </div>
+                `;
+
+                setTimeout(() => {
+                    initializeMap();
+                    populateMap(processedData);
+                }, 100);
 
             } else if (state.selectedView === 'attorneys') {
                 // Show fewer items on mobile
@@ -1597,6 +1964,30 @@
                                                                 ${b.name}
                                                             </span>
                                                         `).join('')}
+                                                    </div>
+                                                </div>
+                                            ` : ''}
+
+                                            ${record.council_contact ? `
+                                                <div class="pt-2 border-t mt-2">
+                                                    <div class="flex items-center justify-between">
+                                                        <span class="text-xs text-gray-600">
+                                                            District ${record.council_district_number}: ${record.council_representative || 'Unknown'}
+                                                        </span>
+                                                        <div class="flex gap-1">
+                                                            ${record.council_contact.email ? `
+                                                                <a href="mailto:${record.council_contact.email}?subject=${encodeURIComponent('Case ' + record.Docket_Number)}"
+                                                                   class="p-1 text-blue-600 hover:bg-blue-50 rounded">
+                                                                    ${icons.mail}
+                                                                </a>
+                                                            ` : ''}
+                                                            ${record.council_contact.phone ? `
+                                                                <a href="tel:${record.council_contact.phone.replace(/\\D/g, '')}"
+                                                                   class="p-1 text-green-600 hover:bg-green-50 rounded">
+                                                                    ${icons.phone}
+                                                                </a>
+                                                            ` : ''}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ` : ''}
