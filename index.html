@@ -471,11 +471,6 @@
             return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
         }
 
-        function formatDateForAPI(dateString) {
-            const [year, month, day] = dateString.split('-');
-            return `${month}/${day}/${year}`;
-        }
-
         // Bucket matching logic
         function recordMatchesBucket(record, bucket) {
             if (bucket.matchType === 'all') {
@@ -537,10 +532,10 @@
                 const params = new URLSearchParams();
 
                 if (state.filterCriteria.startDate) {
-                    params.append('start_date', formatDateForAPI(state.filterCriteria.startDate));
+                    params.append('start_date', state.filterCriteria.startDate);
                 }
                 if (state.filterCriteria.endDate) {
-                    params.append('end_date', formatDateForAPI(state.filterCriteria.endDate));
+                    params.append('end_date', state.filterCriteria.endDate);
                 }
                 if (state.filterCriteria.status && state.filterCriteria.status !== 'all') {
                     params.append('Status', state.filterCriteria.status);
@@ -584,13 +579,30 @@
                     headers[apiConfig.authHeaderName] = apiConfig.authHeaderValue;
                 }
 
+                console.log('Fetching from URL:', requestUrl);
+
                 const response = await fetch(requestUrl, { headers });
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
                 const result = await response.json();
-                const normalizedResult = Array.isArray(result) ? result.map(normalizeRecord) : [];
+                console.log('Received data:', result);
+
+                if (!result) {
+                    throw new Error('No data received from API');
+                }
+
+                const normalizedResult = Array.isArray(result)
+                    ? result.map(normalizeRecord)
+                    : (Array.isArray(result.items) ? result.items.map(normalizeRecord) : []);
+
+                console.log('Data length:', normalizedResult.length);
 
                 state.data = normalizedResult;
                 state.pagination.totalItems = normalizedResult.length;
@@ -613,7 +625,9 @@
         async function lookupCouncilDistrict(latitude, longitude) {
             if (!latitude || !longitude) return null;
 
-            const cacheKey = `${latitude},${longitude}`;
+            const latNumber = Number(latitude);
+            const lonNumber = Number(longitude);
+            const cacheKey = `${Number.isFinite(latNumber) ? latNumber.toFixed(6) : latitude},${Number.isFinite(lonNumber) ? lonNumber.toFixed(6) : longitude}`;
             if (state.councilDistrictCache[cacheKey]) {
                 return state.councilDistrictCache[cacheKey];
             }
