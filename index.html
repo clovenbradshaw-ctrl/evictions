@@ -376,6 +376,11 @@
                     status: 'all',
                     startDate: getDateDaysAgo(365),
                     endDate: getTodayDate()
+                },
+                apiConfig: {
+                    baseUrl: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainers',
+                    authHeaderName: '',
+                    authHeaderValue: ''
                 }
             };
         }
@@ -387,13 +392,15 @@
                 searchTerm: state.searchTerm,
                 bulkSearchNames: state.bulkSearchNames,
                 fuzzyThreshold: state.fuzzyThreshold,
-                filterCriteria: state.filterCriteria
+                filterCriteria: state.filterCriteria,
+                apiConfig: state.apiConfig
             };
             localStorage.setItem('eviction_settings', JSON.stringify(settings));
         }
 
         // State management with localStorage support
         const savedSettings = loadSettings();
+        const defaultSettings = getDefaultSettings();
         let state = {
             data: [],
             loading: true,
@@ -401,14 +408,16 @@
             searchTerm: savedSettings.searchTerm,
             selectedView: savedSettings.selectedView,
             selectedBucket: savedSettings.selectedBucket,
-            filterCriteria: savedSettings.filterCriteria,
+            filterCriteria: savedSettings.filterCriteria
+                ? { ...defaultSettings.filterCriteria, ...savedSettings.filterCriteria }
+                : { ...defaultSettings.filterCriteria },
             fuzzyThreshold: savedSettings.fuzzyThreshold !== undefined ? savedSettings.fuzzyThreshold : 0.7,
             showBucketManager: false,
             showBulkSearch: false,
             showSettingsMenu: false,
             showMobileMenu: false,
             filtersExpanded: false,
-            bulkSearchNames: savedSettings.bulkSearchNames,
+            bulkSearchNames: savedSettings.bulkSearchNames ? [...savedSettings.bulkSearchNames] : [],
             tabEditMode: false,
             tabOrder: loadTabOrder(),
             buckets: loadBuckets(),
@@ -419,7 +428,8 @@
                 perPage: 1000,
                 totalPages: 1,
                 totalItems: 0
-            }
+            },
+            apiConfig: { ...defaultSettings.apiConfig, ...(savedSettings.apiConfig || {}) }
         };
 
         let map = null;
@@ -433,6 +443,15 @@
         function saveBuckets(buckets) {
             localStorage.setItem('eviction_buckets', JSON.stringify(buckets));
             state.buckets = buckets;
+        }
+
+        function escapeAttribute(value) {
+            if (value === null || value === undefined) return '';
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
         }
 
         // Helper functions for date handling
@@ -511,6 +530,7 @@
         // Fetch data
         async function fetchData() {
             try {
+                state.error = null;
                 state.loading = true;
                 render();
 
@@ -533,13 +553,42 @@
                 }
 
                 const queryString = params.toString();
-                const url = `https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainers?${queryString}`;
-                
-                const response = await fetch(url);
+                const apiConfig = state.apiConfig || getDefaultSettings().apiConfig;
+                const baseUrl = apiConfig.baseUrl ? apiConfig.baseUrl.trim() : '';
+
+                if (!baseUrl) {
+                    throw new Error('API base URL is not configured. Update it from Settings.');
+                }
+
+                let requestUrl = baseUrl;
+                try {
+                    const url = new URL(baseUrl);
+                    if (queryString) {
+                        const existingParams = url.search ? url.search.replace(/^\?/, '') : '';
+                        const combined = existingParams ? `${existingParams}&${queryString}` : queryString;
+                        url.search = combined;
+                    }
+                    requestUrl = url.toString();
+                } catch (urlError) {
+                    if (queryString) {
+                        const needsSeparator = !baseUrl.includes('?');
+                        const separator = needsSeparator
+                            ? '?'
+                            : (baseUrl.endsWith('?') || baseUrl.endsWith('&') ? '' : '&');
+                        requestUrl = `${baseUrl}${separator}${queryString}`;
+                    }
+                }
+
+                const headers = { Accept: 'application/json' };
+                if (apiConfig.authHeaderName && apiConfig.authHeaderValue) {
+                    headers[apiConfig.authHeaderName] = apiConfig.authHeaderValue;
+                }
+
+                const response = await fetch(requestUrl, { headers });
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 const result = await response.json();
                 const normalizedResult = Array.isArray(result) ? result.map(normalizeRecord) : [];
 
@@ -553,7 +602,9 @@
                 enrichCouncilData();
             } catch (error) {
                 console.error('Error fetching data:', error);
-                state.error = error.message;
+                const message = error && error.message ? error.message : 'Unknown error';
+                const sanitizedMessage = message.endsWith('.') ? message.slice(0, -1) : message;
+                state.error = `${sanitizedMessage}. Please verify the API configuration in Settings.`;
                 state.loading = false;
                 render();
             }
@@ -2254,6 +2305,16 @@
             render();
         }
 
+        function updateApiConfig(field, value) {
+            const currentConfig = state.apiConfig || getDefaultSettings().apiConfig;
+            state.apiConfig = {
+                ...currentConfig,
+                [field]: value
+            };
+            saveSettings();
+            render();
+        }
+
         function toggleMobileMenu() {
             state.showMobileMenu = !state.showMobileMenu;
             render();
@@ -2297,7 +2358,8 @@
                     searchTerm: state.searchTerm,
                     bulkSearchNames: state.bulkSearchNames,
                     fuzzyThreshold: state.fuzzyThreshold,
-                    filterCriteria: state.filterCriteria
+                    filterCriteria: state.filterCriteria,
+                    apiConfig: state.apiConfig
                 },
                 tabOrder: state.tabOrder,
                 buckets: state.buckets
@@ -2333,6 +2395,7 @@
                             state.bulkSearchNames = imported.settings.bulkSearchNames || [];
                             state.fuzzyThreshold = imported.settings.fuzzyThreshold !== undefined ? imported.settings.fuzzyThreshold : 0.7;
                             state.filterCriteria = imported.settings.filterCriteria || getDefaultSettings().filterCriteria;
+                            state.apiConfig = imported.settings.apiConfig || getDefaultSettings().apiConfig;
                             saveSettings();
                         }
                         
@@ -2371,6 +2434,7 @@
                 state.searchTerm = defaults.searchTerm;
                 state.bulkSearchNames = defaults.bulkSearchNames;
                 state.filterCriteria = defaults.filterCriteria;
+                state.apiConfig = defaults.apiConfig;
                 state.tabOrder = defaultTabs;
                 state.buckets = loadBuckets();
                 state.showSettingsMenu = false;
@@ -2425,8 +2489,45 @@
                                 <p class="text-xs text-blue-600">Using ${storageSize} KB of storage</p>
                             </div>
 
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3">
+                                <h3 class="font-semibold text-gray-800">🔌 Data Source</h3>
+                                <div class="space-y-2">
+                                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide">API Base URL</label>
+                                    <input
+                                        type="url"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        placeholder="https://example.com/api/detainers"
+                                        value="${escapeAttribute((state.apiConfig && state.apiConfig.baseUrl) || '')}"
+                                        oninput="updateApiConfig('baseUrl', this.value)"
+                                    />
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div class="space-y-2">
+                                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Auth Header Name</label>
+                                        <input
+                                            type="text"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                            placeholder="e.g. X-API-Key"
+                                            value="${escapeAttribute((state.apiConfig && state.apiConfig.authHeaderName) || '')}"
+                                            oninput="updateApiConfig('authHeaderName', this.value)"
+                                        />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide">Auth Header Value</label>
+                                        <input
+                                            type="text"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                            placeholder="API key (optional)"
+                                            value="${escapeAttribute((state.apiConfig && state.apiConfig.authHeaderValue) || '')}"
+                                            oninput="updateApiConfig('authHeaderValue', this.value)"
+                                        />
+                                    </div>
+                                </div>
+                                <p class="text-[11px] text-gray-500">Updates are saved automatically. If data fails to load, confirm the URL and credentials here.</p>
+                            </div>
+
                             <div class="space-y-2">
-                                <button onclick="exportSettings()" 
+                                <button onclick="exportSettings()"
                                     class="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2">
                                     ${icons.download}
                                     <span>Export Settings</span>
