@@ -525,12 +525,12 @@
         // Fetch data
         async function fetchData() {
             try {
-                state.error = null;
                 state.loading = true;
                 render();
 
                 const params = new URLSearchParams();
 
+                // Use ISO date format (YYYY-MM-DD) - no conversion needed
                 if (state.filterCriteria.startDate) {
                     params.append('start_date', state.filterCriteria.startDate);
                 }
@@ -548,75 +548,62 @@
                 }
 
                 const queryString = params.toString();
-                const apiConfig = state.apiConfig || getDefaultSettings().apiConfig;
-                const baseUrl = apiConfig.baseUrl ? apiConfig.baseUrl.trim() : '';
+                const url = `https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainers${queryString ? '?' + queryString : ''}`;
 
-                if (!baseUrl) {
-                    throw new Error('API base URL is not configured. Update it from Settings.');
-                }
+                console.log('Fetching from URL:', url);
 
-                let requestUrl = baseUrl;
-                try {
-                    const url = new URL(baseUrl);
-                    if (queryString) {
-                        const existingParams = url.search ? url.search.replace(/^\?/, '') : '';
-                        const combined = existingParams ? `${existingParams}&${queryString}` : queryString;
-                        url.search = combined;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
                     }
-                    requestUrl = url.toString();
-                } catch (urlError) {
-                    if (queryString) {
-                        const needsSeparator = !baseUrl.includes('?');
-                        const separator = needsSeparator
-                            ? '?'
-                            : (baseUrl.endsWith('?') || baseUrl.endsWith('&') ? '' : '&');
-                        requestUrl = `${baseUrl}${separator}${queryString}`;
-                    }
-                }
+                });
 
-                const headers = { Accept: 'application/json' };
-                if (apiConfig.authHeaderName && apiConfig.authHeaderValue) {
-                    headers[apiConfig.authHeaderName] = apiConfig.authHeaderValue;
-                }
-
-                console.log('Fetching from URL:', requestUrl);
-
-                const response = await fetch(requestUrl, { headers });
                 console.log('Response status:', response.status);
-                console.log('Response headers:', [...response.headers.entries()]);
+                console.log('Response ok:', response.ok);
 
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Error response:', errorText);
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                 }
 
                 const result = await response.json();
                 console.log('Received data:', result);
+                console.log('Data type:', typeof result);
+                console.log('Is array:', Array.isArray(result));
+                console.log('Data length:', Array.isArray(result) ? result.length : 'not an array');
 
-                if (!result) {
-                    throw new Error('No data received from API');
+                // Handle different response formats
+                let normalizedResult;
+                if (Array.isArray(result)) {
+                    normalizedResult = result.map(normalizeRecord);
+                } else if (result && result.items && Array.isArray(result.items)) {
+                    normalizedResult = result.items.map(normalizeRecord);
+                } else if (result && result.data && Array.isArray(result.data)) {
+                    normalizedResult = result.data.map(normalizeRecord);
+                } else if (result && typeof result === 'object') {
+                    // Single object returned, wrap in array
+                    normalizedResult = [normalizeRecord(result)];
+                } else {
+                    console.error('Unexpected data format:', result);
+                    normalizedResult = [];
                 }
 
-                const normalizedResult = Array.isArray(result)
-                    ? result.map(normalizeRecord)
-                    : (Array.isArray(result.items) ? result.items.map(normalizeRecord) : []);
-
-                console.log('Data length:', normalizedResult.length);
+                console.log('Normalized result length:', normalizedResult.length);
 
                 state.data = normalizedResult;
                 state.pagination.totalItems = normalizedResult.length;
 
                 state.loading = false;
+                state.error = null;
                 render();
 
                 // Enrich council data in background
                 enrichCouncilData();
             } catch (error) {
                 console.error('Error fetching data:', error);
-                const message = error && error.message ? error.message : 'Unknown error';
-                const sanitizedMessage = message.endsWith('.') ? message.slice(0, -1) : message;
-                state.error = `${sanitizedMessage}. Please verify the API configuration in Settings.`;
+                state.error = error.message;
                 state.loading = false;
                 render();
             }
@@ -627,7 +614,7 @@
 
             const latNumber = Number(latitude);
             const lonNumber = Number(longitude);
-            const cacheKey = `${Number.isFinite(latNumber) ? latNumber.toFixed(6) : latitude},${Number.isFinite(lonNumber) ? lonNumber.toFixed(6) : longitude}`;
+            const cacheKey = `${parseFloat(latitude).toFixed(6)},${parseFloat(longitude).toFixed(6)}`;
             if (state.councilDistrictCache[cacheKey]) {
                 return state.councilDistrictCache[cacheKey];
             }
