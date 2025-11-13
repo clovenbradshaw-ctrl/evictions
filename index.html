@@ -490,6 +490,24 @@
             }
         }
 
+        function normalizeRecord(record) {
+            const normalized = { ...record };
+
+            const formattedAddress = normalized.formatted_address ?? normalized.address_formatted;
+            if (formattedAddress !== undefined) {
+                normalized.formatted_address = formattedAddress;
+                normalized.address_formatted = formattedAddress;
+            }
+
+            const councilRepresentative = normalized.council_representative ?? normalized.council_member;
+            if (councilRepresentative !== undefined) {
+                normalized.council_representative = councilRepresentative;
+                normalized.council_member = councilRepresentative;
+            }
+
+            return normalized;
+        }
+
         // Fetch data
         async function fetchData() {
             try {
@@ -523,9 +541,10 @@
                 }
                 
                 const result = await response.json();
-                
-                state.data = result;
-                state.pagination.totalItems = result.length;
+                const normalizedResult = Array.isArray(result) ? result.map(normalizeRecord) : [];
+
+                state.data = normalizedResult;
+                state.pagination.totalItems = normalizedResult.length;
 
                 state.loading = false;
                 render();
