@@ -467,7 +467,10 @@
         }
 
         function matchesRule(record, rule) {
-            const fieldValue = record[rule.field] || '';
+            const rawFieldValue = record[rule.field];
+            const fieldValue = rawFieldValue === undefined || rawFieldValue === null
+                ? ''
+                : String(rawFieldValue);
             const searchValue = rule.caseSensitive ? rule.value : rule.value.toLowerCase();
             const recordValue = rule.caseSensitive ? fieldValue : fieldValue.toLowerCase();
 
@@ -690,22 +693,39 @@
         }
 
         function filterByDistrict(districtNumber) {
-            const existingBucket = state.buckets.find(b => b.id === `district_${districtNumber}`);
+            const bucketId = `district_${districtNumber}`;
+            const existingBucket = state.buckets.find(b => b.id === bucketId);
             if (!existingBucket) {
-                const newBucket = {
-                    id: `district_${districtNumber}`,
-                    name: `District ${districtNumber}`,
-                    color: 'blue',
-                    rules: [
-                        { field: 'council_district_number', operator: 'equals', value: districtNumber.toString(), caseSensitive: false }
-                    ],
-                    matchType: 'any'
-                };
+                let newBucket;
+                if (districtNumber === 'unknown') {
+                    newBucket = {
+                        id: bucketId,
+                        name: 'Unknown Council Member',
+                        color: 'gray',
+                        rules: [
+                            { field: 'formatted_address', operator: 'contains', value: 'nashville tn', caseSensitive: false },
+                            { field: 'formatted_address', operator: 'contains', value: 'nashville, tn', caseSensitive: false },
+                            { field: 'formatted_address', operator: 'contains', value: '1 public square', caseSensitive: false }
+                        ],
+                        matchType: 'any'
+                    };
+                } else {
+                    const districtValue = districtNumber.toString();
+                    newBucket = {
+                        id: bucketId,
+                        name: `District ${districtValue}`,
+                        color: 'blue',
+                        rules: [
+                            { field: 'council_district_number', operator: 'equals', value: districtValue, caseSensitive: false }
+                        ],
+                        matchType: 'any'
+                    };
+                }
                 state.buckets.push(newBucket);
                 saveBuckets(state.buckets);
             }
 
-            state.selectedBucket = `district_${districtNumber}`;
+            state.selectedBucket = bucketId;
             state.selectedView = 'cases';
             saveSettings();
             render();
@@ -846,8 +866,27 @@
                 analytics.dailyFilings[date]++;
             });
 
+            const normalizeUnknownAddress = (address) => address.trim().toLowerCase();
+            const isUnknownBusinessAddress = (address) => {
+                if (!address) return false;
+                const normalized = normalizeUnknownAddress(address);
+                return normalized === 'nashville tn'
+                    || normalized === 'nashville, tn'
+                    || normalized === 'nashville tn 37201'
+                    || normalized === 'nashville, tn 37201'
+                    || normalized.startsWith('nashville tn ')
+                    || normalized.startsWith('nashville tn,')
+                    || normalized.startsWith('nashville, tn ')
+                    || normalized.startsWith('nashville, tn,')
+                    || normalized.includes('1 public square');
+            };
+
             data.forEach(record => {
-                if (record.council_district_number) {
+                const formattedAddress = record.formatted_address || '';
+                const hasDistrictNumber = Boolean(record.council_district_number);
+                const unknownAddress = isUnknownBusinessAddress(formattedAddress);
+
+                if (hasDistrictNumber && !unknownAddress) {
                     const distNum = record.council_district_number;
                     if (!analytics.districtStats[distNum]) {
                         analytics.districtStats[distNum] = {
@@ -857,7 +896,8 @@
                             contact: record.council_contact || null,
                             total: 0,
                             pending: 0,
-                            addresses: new Set()
+                            addresses: new Set(),
+                            filterValue: String(distNum)
                         };
                     }
 
@@ -866,8 +906,40 @@
                     if (record.Status === 'PENDING') {
                         district.pending++;
                     }
-                    if (record.formatted_address) {
-                        district.addresses.add(record.formatted_address);
+                    if (formattedAddress) {
+                        district.addresses.add(formattedAddress);
+                    }
+                    if (record.council_representative) {
+                        district.representative = record.council_representative;
+                    }
+                    if (record.council_district) {
+                        district.name = record.council_district;
+                    }
+                    if (record.council_contact) {
+                        district.contact = record.council_contact;
+                    }
+                } else if (unknownAddress) {
+                    const unknownKey = 'unknown';
+                    if (!analytics.districtStats[unknownKey]) {
+                        analytics.districtStats[unknownKey] = {
+                            number: 'Unknown',
+                            name: 'Unknown Council Member',
+                            representative: 'Unknown',
+                            contact: null,
+                            total: 0,
+                            pending: 0,
+                            addresses: new Set(),
+                            filterValue: 'unknown'
+                        };
+                    }
+
+                    const unknownDistrict = analytics.districtStats[unknownKey];
+                    unknownDistrict.total++;
+                    if (record.Status === 'PENDING') {
+                        unknownDistrict.pending++;
+                    }
+                    if (formattedAddress) {
+                        unknownDistrict.addresses.add(formattedAddress);
                     }
                 }
             });
@@ -1757,10 +1829,12 @@
                                                         ${icons.phone} <span>${district.contact.phone}</span>
                                                     </a>
                                                 ` : ''}
-                                                <button onclick="filterByDistrict(${district.number})"
-                                                        class="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm flex items-center gap-2">
-                                                    ${icons.search} <span>View Cases</span>
-                                                </button>
+                                                ${district.filterValue ? `
+                                                    <button onclick="filterByDistrict('${district.filterValue.replace(/'/g, "\\'")}')"
+                                                            class="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm flex items-center gap-2">
+                                                        ${icons.search} <span>View Cases</span>
+                                                    </button>
+                                                ` : ''}
                                             </div>
                                         </div>
                                     </div>
