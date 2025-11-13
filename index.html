@@ -530,12 +530,14 @@
 
                 const params = new URLSearchParams();
 
-                // Use ISO date format (YYYY-MM-DD) - no conversion needed
+                // Convert dates from YYYY-MM-DD to MM/DD/YYYY format for the API
                 if (state.filterCriteria.startDate) {
-                    params.append('start_date', state.filterCriteria.startDate);
+                    const [year, month, day] = state.filterCriteria.startDate.split('-');
+                    params.append('start_date', `${month}/${day}/${year}`);
                 }
                 if (state.filterCriteria.endDate) {
-                    params.append('end_date', state.filterCriteria.endDate);
+                    const [year, month, day] = state.filterCriteria.endDate.split('-');
+                    params.append('end_date', `${month}/${day}/${year}`);
                 }
                 if (state.filterCriteria.status && state.filterCriteria.status !== 'all') {
                     params.append('Status', state.filterCriteria.status);
