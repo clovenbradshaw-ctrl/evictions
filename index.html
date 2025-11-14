@@ -465,6 +465,53 @@
             initCharts();
         });
 
+        function cleanAttorney(attorney) {
+            if (!attorney) return '';
+
+            const proSeTokens = new Set([
+                'PRO SE',
+                'PRO-SE',
+                'PROSE',
+                'PRO SE LITIGANT',
+                'PRS'
+            ]);
+
+            const segments = String(attorney)
+                .replace(/\s+/g, ' ')
+                .replace(/\s*,\s*/g, ', ')
+                .trim()
+                .split(',')
+                .map(segment => segment.replace(/\s+/g, ' ').trim())
+                .filter(Boolean);
+
+            const normalizedSegments = [];
+            const seen = new Set();
+
+            for (const segment of segments) {
+                const cleanedSegment = segment
+                    .replace(/^[^A-Za-z0-9'&.-]+/, '')
+                    .replace(/[^A-Za-z0-9'&.-]+$/, '')
+                    .trim();
+
+                if (!cleanedSegment) continue;
+
+                const comparisonValue = cleanedSegment.replace(/\./g, '').toUpperCase();
+                if (proSeTokens.has(comparisonValue)) {
+                    continue;
+                }
+
+                if (seen.has(comparisonValue)) continue;
+                seen.add(comparisonValue);
+                normalizedSegments.push(cleanedSegment);
+            }
+
+            if (normalizedSegments.length === 0) {
+                return 'Pro Se';
+            }
+
+            return normalizedSegments.join(', ');
+        }
+
         async function loadData() {
             try {
                 updateStatus('Loading data from public records API...', 'loading');
@@ -517,7 +564,7 @@
                 Address: record.address_formatted || record.formatted_address || record.address || '',
                 District: record.council_district_number || record.council_district || 'Unknown',
                 Case_Number: record.Docket_Number || record.Case_Number || record.case_number || record.id || '',
-                Attorney: record.Attorney || record.attorney || '',
+                Attorney: cleanAttorney(record.Attorney || record.attorney || ''),
                 CouncilMember: record.council_member || '',
                 individual_ll: record.individual_ll === "1" || record.individual_ll === true || record.individual_ll === 'true'
             };
