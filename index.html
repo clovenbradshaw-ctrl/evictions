@@ -112,7 +112,43 @@
             border-color: var(--primary);
             box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
-        
+
+        .view-toggle {
+            padding: 6px 16px;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: 1px solid #e5e7eb;
+            color: #4b5563;
+            background: #f9fafb;
+            transition: all 0.2s ease;
+        }
+
+        .view-toggle.active {
+            background: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+        }
+
+        .pivot-option {
+            padding: 4px 14px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid #e5e7eb;
+            color: #4b5563;
+            background: #ffffff;
+            transition: all 0.2s ease;
+        }
+
+        .pivot-option.active {
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-color: #bfdbfe;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.15);
+        }
+
         .btn {
             padding: 10px 20px;
             border-radius: 8px;
@@ -436,15 +472,29 @@
 
         <!-- Data Grid -->
         <div class="data-card p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-900">
-                    Eviction Records 
-                    <span id="recordCount" class="text-sm font-normal text-gray-500"></span>
-                </h2>
-                <div class="flex gap-2">
-                    <button onclick="exportCSV()" class="btn btn-primary">
-                        📥 Export CSV
-                    </button>
+            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900">
+                        Eviction Records
+                        <span id="recordCount" class="text-sm font-normal text-gray-500"></span>
+                    </h2>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 justify-end">
+                    <div class="flex items-center gap-2 bg-gray-100 rounded-full p-1">
+                        <button id="recordModeBtn" class="view-toggle active" onclick="setViewMode('records')">Records</button>
+                        <button id="pivotModeBtn" class="view-toggle" onclick="setViewMode('pivot')">Summary</button>
+                    </div>
+                    <div id="pivotDimensionControls" class="flex flex-wrap items-center gap-2 hidden">
+                        <span class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Group by</span>
+                        <button class="pivot-option active" data-pivot-dimension="plaintiff" onclick="setPivotDimension('plaintiff')">Landlord</button>
+                        <button class="pivot-option" data-pivot-dimension="attorney" onclick="setPivotDimension('attorney')">Attorney</button>
+                        <button class="pivot-option" data-pivot-dimension="district" onclick="setPivotDimension('district')">District</button>
+                    </div>
+                    <div>
+                        <button onclick="exportCSV()" class="btn btn-primary">
+                            📥 Export CSV
+                        </button>
+                    </div>
                 </div>
             </div>
             <div id="dataGrid" class="ag-theme-alpine"></div>
@@ -458,11 +508,46 @@
         let gridApi;
         let monthlyChart;
         let searchMatches = [];
+        let pivotData = [];
+        let viewMode = 'records';
+        let pivotDimension = 'plaintiff';
+
+        const pivotFieldMap = {
+            plaintiff: 'Plaintiff',
+            attorney: 'Attorney',
+            district: 'District'
+        };
+
+        const pivotDimensionLabels = {
+            plaintiff: 'Landlord',
+            attorney: 'Attorney',
+            district: 'District'
+        };
+
+        const recordColumnDefs = [
+            { field: 'File_Date', headerName: 'File Date', width: 110,
+              valueFormatter: params => new Date(params.value).toLocaleDateString() },
+            { field: 'Case_Number', headerName: 'Docket #', width: 120 },
+            { field: 'Plaintiff', headerName: 'Plaintiff/Landlord', width: 200 },
+            { field: 'Defendant', headerName: 'Defendant/Tenant', width: 200 },
+            { field: 'Attorney', headerName: 'Attorney', width: 150 },
+            { field: 'Address', headerName: 'Property Address', width: 300 },
+            { field: 'District', headerName: 'District', width: 90 },
+            { field: 'CouncilMember', headerName: 'Council', width: 120 },
+            { field: 'Status', headerName: 'Status', width: 100,
+              cellStyle: params => {
+                  if (params.value === 'PENDING') return { color: '#f59e0b', fontWeight: 'bold' };
+                  if (params.value === 'CLOSED') return { color: '#6b7280' };
+                  return null;
+              }
+            }
+        ];
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
             loadData();
             initCharts();
+            updatePivotControls();
         });
 
         function cleanAttorney(attorney) {
@@ -791,27 +876,8 @@
         }
 
         function initGrid() {
-            const columnDefs = [
-                { field: 'File_Date', headerName: 'File Date', width: 110, 
-                  valueFormatter: params => new Date(params.value).toLocaleDateString() },
-                { field: 'Case_Number', headerName: 'Docket #', width: 120 },
-                { field: 'Plaintiff', headerName: 'Plaintiff/Landlord', width: 200 },
-                { field: 'Defendant', headerName: 'Defendant/Tenant', width: 200 },
-                { field: 'Attorney', headerName: 'Attorney', width: 150 },
-                { field: 'Address', headerName: 'Property Address', width: 300 },
-                { field: 'District', headerName: 'District', width: 90 },
-                { field: 'CouncilMember', headerName: 'Council', width: 120 },
-                { field: 'Status', headerName: 'Status', width: 100,
-                  cellStyle: params => {
-                      if (params.value === 'PENDING') return { color: '#f59e0b', fontWeight: 'bold' };
-                      if (params.value === 'CLOSED') return { color: '#6b7280' };
-                      return null;
-                  }
-                }
-            ];
-
             const gridOptions = {
-                columnDefs: columnDefs,
+                columnDefs: recordColumnDefs,
                 rowData: filteredData,
                 defaultColDef: {
                     sortable: true,
@@ -825,13 +891,25 @@
                 animateRows: true,
                 onGridReady: params => {
                     gridApi = params.api;
+                    if (viewMode === 'pivot') {
+                        pivotData = buildPivotData(pivotDimension);
+                        gridApi.setColumnDefs(getPivotColumnDefs());
+                        gridApi.setRowData(pivotData);
+                    }
                     updateRecordCount();
                 }
             };
 
             const gridDiv = document.querySelector('#dataGrid');
             if (gridApi) {
-                gridApi.setRowData(filteredData);
+                if (viewMode === 'pivot') {
+                    pivotData = buildPivotData(pivotDimension);
+                    gridApi.setColumnDefs(getPivotColumnDefs());
+                    gridApi.setRowData(pivotData);
+                } else {
+                    gridApi.setColumnDefs(recordColumnDefs);
+                    gridApi.setRowData(filteredData);
+                }
             } else {
                 new agGrid.Grid(gridDiv, gridOptions);
             }
@@ -839,7 +917,25 @@
 
         function updateRecordCount() {
             const count = document.getElementById('recordCount');
-            count.textContent = `(${filteredData.length} records)`;
+            if (!count) return;
+
+            const displayedRows = gridApi ? gridApi.getDisplayedRowCount() : 0;
+
+            if (viewMode === 'pivot') {
+                const totalGroups = pivotData.length;
+                if (displayedRows && displayedRows !== totalGroups) {
+                    count.textContent = `(${displayedRows} of ${totalGroups} summary groups)`;
+                } else {
+                    count.textContent = `(${totalGroups} summary groups)`;
+                }
+            } else {
+                const totalRecords = filteredData.length;
+                if (displayedRows && displayedRows !== totalRecords) {
+                    count.textContent = `(${displayedRows} of ${totalRecords} records)`;
+                } else {
+                    count.textContent = `(${totalRecords} records)`;
+                }
+            }
         }
 
         function setSearchTab(tab) {
@@ -992,19 +1088,27 @@
             filteredData = allData.filter(record => {
                 // Status filter
                 if (status && record.Status !== status) return false;
-                
+
                 // Date filter
                 if (dateFrom || dateTo) {
                     const recordDate = new Date(record.File_Date);
                     if (dateFrom && recordDate < new Date(dateFrom)) return false;
                     if (dateTo && recordDate > new Date(dateTo)) return false;
                 }
-                
+
                 return true;
             });
-            
+
+            if (viewMode === 'pivot') {
+                pivotData = buildPivotData(pivotDimension);
+            }
+
             if (gridApi) {
-                gridApi.setRowData(filteredData);
+                if (viewMode === 'pivot') {
+                    gridApi.setRowData(pivotData);
+                } else {
+                    gridApi.setRowData(filteredData);
+                }
             }
             updateRecordCount();
             createDistrictMap();
@@ -1014,13 +1118,78 @@
             document.getElementById('statusFilter').value = '';
             document.getElementById('dateFrom').value = '';
             document.getElementById('dateTo').value = '';
-            
+
             filteredData = allData;
+            if (viewMode === 'pivot') {
+                pivotData = buildPivotData(pivotDimension);
+            }
             if (gridApi) {
-                gridApi.setRowData(filteredData);
+                if (viewMode === 'pivot') {
+                    gridApi.setRowData(pivotData);
+                } else {
+                    gridApi.setRowData(filteredData);
+                }
             }
             updateRecordCount();
             createDistrictMap();
+        }
+
+        function buildPivotData(dimension) {
+            const field = pivotFieldMap[dimension] || pivotFieldMap.plaintiff;
+            const summaries = new Map();
+
+            filteredData.forEach(record => {
+                const rawKey = record[field];
+                const key = rawKey && String(rawKey).trim() !== '' ? String(rawKey).trim() : 'Unknown';
+
+                if (!summaries.has(key)) {
+                    summaries.set(key, {
+                        groupKey: key,
+                        totalFilings: 0,
+                        pending: 0,
+                        closed: 0,
+                        other: 0,
+                        lastFiled: null,
+                        properties: new Set()
+                    });
+                }
+
+                const summary = summaries.get(key);
+                summary.totalFilings += 1;
+
+                if (record.Status === 'PENDING') {
+                    summary.pending += 1;
+                } else if (record.Status === 'CLOSED') {
+                    summary.closed += 1;
+                } else {
+                    summary.other += 1;
+                }
+
+                if (record.File_Date) {
+                    const fileDate = new Date(record.File_Date);
+                    if (!isNaN(fileDate)) {
+                        if (!summary.lastFiled || fileDate > summary.lastFiled) {
+                            summary.lastFiled = fileDate;
+                        }
+                    }
+                }
+
+                if (record.Address) {
+                    summary.properties.add(String(record.Address).trim().toLowerCase());
+                }
+            });
+
+            return Array.from(summaries.values())
+                .map(summary => ({
+                    groupKey: summary.groupKey,
+                    totalFilings: summary.totalFilings,
+                    pending: summary.pending,
+                    closed: summary.closed,
+                    other: summary.other,
+                    lastFiled: summary.lastFiled ? summary.lastFiled.toISOString() : '',
+                    uniqueProperties: summary.properties.size
+                }))
+                .sort((a, b) => b.totalFilings - a.totalFilings);
         }
 
         function filterByDistrict(district) {
@@ -1029,20 +1198,119 @@
             } else {
                 filteredData = allData.filter(r => r.District == district);
             }
-            
+
+            if (viewMode === 'pivot') {
+                pivotData = buildPivotData(pivotDimension);
+            }
+
             if (gridApi) {
-                gridApi.setRowData(filteredData);
+                if (viewMode === 'pivot') {
+                    gridApi.setRowData(pivotData);
+                } else {
+                    gridApi.setRowData(filteredData);
+                }
             }
             updateRecordCount();
-            
+
             // Update status message without exact counts
             const filterMsg = district === 'Unknown' ? 'unverified districts' : `District ${district}`;
             updateStatus(`Showing records for ${filterMsg}`, 'success');
         }
 
+        function getPivotColumnDefs() {
+            const label = pivotDimensionLabels[pivotDimension] || 'Group';
+
+            return [
+                { field: 'groupKey', headerName: label, flex: 2, minWidth: 160 },
+                { field: 'totalFilings', headerName: 'Total Filings', width: 140, sort: 'desc', sortIndex: 0 },
+                { field: 'pending', headerName: 'Pending', width: 120 },
+                { field: 'closed', headerName: 'Closed', width: 120 },
+                { field: 'other', headerName: 'Other Status', width: 140 },
+                { field: 'lastFiled', headerName: 'Last Filing', width: 140,
+                  valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '' },
+                { field: 'uniqueProperties', headerName: 'Unique Properties', width: 160 }
+            ];
+        }
+
+        function setViewMode(mode) {
+            const nextMode = mode === 'pivot' ? 'pivot' : 'records';
+            if (viewMode === nextMode) {
+                updatePivotControls();
+                updateRecordCount();
+                return;
+            }
+
+            viewMode = nextMode;
+
+            if (viewMode === 'pivot') {
+                pivotData = buildPivotData(pivotDimension);
+            }
+
+            if (gridApi) {
+                if (viewMode === 'pivot') {
+                    gridApi.setColumnDefs(getPivotColumnDefs());
+                    gridApi.setRowData(pivotData);
+                } else {
+                    gridApi.setColumnDefs(recordColumnDefs);
+                    gridApi.setRowData(filteredData);
+                }
+            }
+
+            updatePivotControls();
+            updateRecordCount();
+        }
+
+        function setPivotDimension(dimension) {
+            if (!pivotFieldMap[dimension]) {
+                dimension = 'plaintiff';
+            }
+
+            if (pivotDimension === dimension) {
+                updatePivotControls();
+                return;
+            }
+
+            pivotDimension = dimension;
+
+            if (viewMode === 'pivot') {
+                pivotData = buildPivotData(pivotDimension);
+            }
+
+            if (viewMode === 'pivot' && gridApi) {
+                gridApi.setColumnDefs(getPivotColumnDefs());
+                gridApi.setRowData(pivotData);
+            }
+
+            updatePivotControls();
+            updateRecordCount();
+        }
+
+        function updatePivotControls() {
+            const recordBtn = document.getElementById('recordModeBtn');
+            const pivotBtn = document.getElementById('pivotModeBtn');
+            const pivotControls = document.getElementById('pivotDimensionControls');
+
+            if (recordBtn) {
+                recordBtn.classList.toggle('active', viewMode !== 'pivot');
+            }
+
+            if (pivotBtn) {
+                pivotBtn.classList.toggle('active', viewMode === 'pivot');
+            }
+
+            if (pivotControls) {
+                pivotControls.classList.toggle('hidden', viewMode !== 'pivot');
+            }
+
+            document.querySelectorAll('.pivot-option').forEach(button => {
+                const isActive = button.dataset.pivotDimension === pivotDimension;
+                button.classList.toggle('active', isActive);
+            });
+        }
+
         function exportCSV() {
             let csv = 'File Date,Docket Number,Plaintiff,Defendant,Attorney,Address,District,Council Member,Status\n';
-            
+
             filteredData.forEach(row => {
                 csv += `"${new Date(row.File_Date).toLocaleDateString()}","${row.Case_Number}","${row.Plaintiff}","${row.Defendant}","${row.Attorney}","${row.Address}","${row.District}","${row.CouncilMember}","${row.Status}"\n`;
             });
