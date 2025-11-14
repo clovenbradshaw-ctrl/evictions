@@ -503,6 +503,28 @@
         </div>
     </div>
 
+    <!-- Case Detail Modal -->
+    <div id="caseModal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-start md:items-center justify-center px-4 py-10 z-50 hidden" onclick="if (event.target === this) hideCaseModal()">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden transform transition-all">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+                <div>
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Case Detail</p>
+                    <h3 id="caseModalTitle" class="text-xl font-bold text-gray-900">Docket #</h3>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600 text-xl leading-none" onclick="hideCaseModal()" aria-label="Close case detail">
+                    &times;
+                </button>
+            </div>
+            <div id="caseModalContent" class="p-6">
+                <div id="caseModalMeta" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"></div>
+                <div>
+                    <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Parties &amp; Location</h4>
+                    <div id="caseModalDetails" class="space-y-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Global variables
         let allData = [];
@@ -891,6 +913,10 @@
                 pagination: true,
                 paginationPageSize: 20,
                 animateRows: true,
+                onRowClicked: event => {
+                    if (viewMode !== 'records') return;
+                    showCaseModal(event.data);
+                },
                 onGridReady: params => {
                     gridApi = params.api;
                     if (viewMode === 'pivot') {
@@ -939,6 +965,189 @@
                 }
             }
         }
+
+        function formatModalValue(value, { fallback = 'Not available', transform } = {}) {
+            if (value === null || value === undefined) return fallback;
+            let output = typeof transform === 'function' ? transform(value) : value;
+            if (typeof output === 'string') {
+                const trimmed = output.trim();
+                return trimmed.length > 0 ? trimmed : fallback;
+            }
+            if (Number.isFinite(output)) {
+                return output.toLocaleString();
+            }
+            return output || fallback;
+        }
+
+        function showCaseModal(record) {
+            if (!record) return;
+
+            const modal = document.getElementById('caseModal');
+            if (!modal) return;
+
+            const title = document.getElementById('caseModalTitle');
+            const metaContainer = document.getElementById('caseModalMeta');
+            const detailContainer = document.getElementById('caseModalDetails');
+
+            const formatDate = value => {
+                if (!value) return 'Not available';
+                const date = new Date(value);
+                if (Number.isNaN(date.getTime())) return formatModalValue(value);
+                return date.toLocaleDateString();
+            };
+
+            title.textContent = record.Case_Number ? `Docket #${record.Case_Number}` : 'Case Detail';
+
+            const statusValue = formatModalValue(record.Status || record.status || 'Unknown', {
+                transform: value => String(value).toUpperCase()
+            });
+            const statusClass = statusValue === 'PENDING'
+                ? 'text-orange-600'
+                : statusValue === 'CLOSED'
+                    ? 'text-gray-600'
+                    : 'text-gray-900';
+
+            const metaEntries = [
+                {
+                    label: 'Filed',
+                    value: formatDate(record.File_Date)
+                },
+                {
+                    label: 'Status',
+                    value: statusValue,
+                    className: statusClass
+                },
+                {
+                    label: 'District',
+                    value: formatModalValue(record.District || record.council_district_number || 'Unknown')
+                },
+                {
+                    label: 'Council',
+                    value: formatModalValue(record.CouncilMember || record.council_member || 'Unknown')
+                }
+            ];
+
+            metaContainer.innerHTML = '';
+            metaEntries.forEach(entry => {
+                const card = document.createElement('div');
+                card.className = 'p-4 bg-gray-50 rounded-lg border border-gray-100';
+
+                const labelEl = document.createElement('p');
+                labelEl.className = 'text-xs font-semibold text-gray-500 uppercase tracking-wide';
+                labelEl.textContent = entry.label;
+
+                const valueEl = document.createElement('p');
+                valueEl.className = `mt-1 text-base font-semibold ${entry.className || 'text-gray-900'}`;
+                valueEl.textContent = entry.value;
+
+                card.appendChild(labelEl);
+                card.appendChild(valueEl);
+                metaContainer.appendChild(card);
+            });
+
+            const details = [
+                { label: 'Docket #', value: record.Case_Number || record.case_number || record.id },
+                { label: 'Plaintiff / Landlord', value: record.Plaintiff || record.plaintiff },
+                { label: 'Defendant / Tenant', value: record.Defendant || record.defendant },
+                { label: 'Attorney of Record', value: record.Attorney || record.attorney },
+                { label: 'Possible Property Address*', value: record.Address || record.address_formatted || record.address },
+                { label: 'Case Notes', value: record.Notes || record.notes }
+            ];
+
+            const supplementalFields = [
+                { key: 'Disposition', label: 'Disposition' },
+                { key: 'Disposition_Date', label: 'Disposition Date', formatter: formatDate },
+                { key: 'Hearing_Date', label: 'Hearing Date', formatter: formatDate },
+                {
+                    key: 'Amount_Claimed',
+                    label: 'Amount Claimed',
+                    formatter: value => {
+                        const numeric = Number(value);
+                        return Number.isFinite(numeric) ? `$${numeric.toLocaleString()}` : formatModalValue(value);
+                    }
+                },
+                {
+                    key: 'Amount_Judgment',
+                    label: 'Judgment Amount',
+                    formatter: value => {
+                        const numeric = Number(value);
+                        return Number.isFinite(numeric) ? `$${numeric.toLocaleString()}` : formatModalValue(value);
+                    }
+                },
+                {
+                    key: 'individual_ll',
+                    label: 'Individual Landlord',
+                    formatter: value => (value === true || value === '1' || value === 1 ? 'Yes' : 'No')
+                }
+            ];
+
+            supplementalFields.forEach(field => {
+                const possibleKeys = typeof field.key === 'string'
+                    ? [field.key, field.key.toLowerCase()]
+                    : [field.key];
+
+                let fieldValue;
+                for (const key of possibleKeys) {
+                    if (key in record && record[key] !== undefined && record[key] !== null) {
+                        fieldValue = record[key];
+                        break;
+                    }
+                }
+
+                if (fieldValue !== undefined && fieldValue !== null && String(fieldValue).trim() !== '') {
+                    details.push({
+                        label: field.label,
+                        value: typeof field.formatter === 'function' ? field.formatter(fieldValue) : fieldValue
+                    });
+                }
+            });
+
+            detailContainer.innerHTML = '';
+            details
+                .filter(detail => detail.value !== undefined && detail.value !== null && String(detail.value).trim() !== '')
+                .forEach(detail => {
+                    const row = document.createElement('div');
+                    row.className = 'border border-gray-100 rounded-lg p-4';
+
+                    const labelEl = document.createElement('p');
+                    labelEl.className = 'text-xs font-semibold text-gray-500 uppercase tracking-wide';
+                    labelEl.textContent = detail.label;
+
+                    const valueEl = document.createElement('p');
+                    valueEl.className = 'mt-2 text-sm text-gray-900 leading-relaxed break-words';
+                    valueEl.textContent = typeof detail.value === 'string' ? detail.value.trim() : detail.value;
+
+                    row.appendChild(labelEl);
+                    row.appendChild(valueEl);
+                    detailContainer.appendChild(row);
+                });
+
+            if (!detailContainer.childElementCount) {
+                const emptyEl = document.createElement('p');
+                emptyEl.className = 'text-sm text-gray-500';
+                emptyEl.textContent = 'No additional details available for this record.';
+                detailContainer.appendChild(emptyEl);
+            }
+
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        }
+
+        function hideCaseModal() {
+            const modal = document.getElementById('caseModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                const modal = document.getElementById('caseModal');
+                if (modal && !modal.classList.contains('hidden')) {
+                    hideCaseModal();
+                }
+            }
+        });
 
         function setSearchTab(tab) {
             // Update tabs
