@@ -261,26 +261,54 @@
             cursor: pointer;
         }
         
-        .match-result {
-            padding: 12px;
-            border-bottom: 1px solid #f3f4f6;
-            transition: background 0.2s;
-        }
-        
-        .match-result:hover {
-            background: #f9fafb;
-        }
-        
         .confidence-badge {
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 12px;
             font-weight: 600;
         }
-        
+
         .confidence-high { background: #10b981; color: white; }
         .confidence-med { background: #f59e0b; color: white; }
         .confidence-low { background: #ef4444; color: white; }
+
+        .bulk-results-header {
+            padding: 12px 16px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+        }
+
+        .bulk-results-table-wrapper {
+            overflow-x: auto;
+        }
+
+        .bulk-results-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 720px;
+        }
+
+        .bulk-results-table th {
+            background: #f3f4f6;
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #4b5563;
+        }
+
+        .bulk-results-table th,
+        .bulk-results-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e5e7eb;
+            vertical-align: top;
+            font-size: 13px;
+        }
+
+        .bulk-results-table tbody tr:nth-child(even) {
+            background: #f9fafb;
+        }
     </style>
 </head>
 <body>
@@ -1031,40 +1059,75 @@
             return costs[s2.length];
         }
 
+        function escapeHtml(value) {
+            if (value === null || value === undefined) {
+                return '';
+            }
+
+            return value
+                .toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function displayBulkResults(results) {
             const resultsDiv = document.getElementById('bulkResults');
-            
+
+            if (!resultsDiv) return;
+
             if (results.length === 0) {
                 resultsDiv.innerHTML = '<p class="p-4 text-gray-500">No matches found</p>';
             } else {
-                let html = `<div class="p-3 bg-gray-50 font-semibold">Found ${results.length} matches</div>`;
-                
-                results.forEach(r => {
-                    const confClass = r.confidence > 0.9 ? 'confidence-high' : 
+                const rows = results.map(r => {
+                    const confClass = r.confidence > 0.9 ? 'confidence-high' :
                                      r.confidence > 0.8 ? 'confidence-med' : 'confidence-low';
-                    
-                    html += `
-                        <div class="match-result">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <div class="font-semibold">${r.match}</div>
-                                    <div class="text-xs text-gray-500">Searched: "${r.searchTerm}"</div>
-                                    <div class="text-xs text-gray-600 mt-1">
-                                        Possible Property Address*: ${r.record.Address || 'Unavailable'} • District*: ${r.record.District || 'Unavailable'}
-                                    </div>
-                                </div>
-                                <span class="confidence-badge ${confClass}">
-                                    ${(r.confidence * 100).toFixed(0)}%
-                                </span>
-                            </div>
-                        </div>
+                    const fileDate = r.record.File_Date ? new Date(r.record.File_Date).toLocaleDateString() : '—';
+
+                    return `
+                        <tr>
+                            <td>${escapeHtml(r.searchTerm)}</td>
+                            <td>${escapeHtml(r.match)}</td>
+                            <td><span class="confidence-badge ${confClass}">${(r.confidence * 100).toFixed(0)}%</span></td>
+                            <td>${escapeHtml(fileDate)}</td>
+                            <td>${escapeHtml(r.record.Attorney || 'Unavailable')}</td>
+                            <td>${escapeHtml(r.record.Address || 'Unavailable')}</td>
+                            <td>${escapeHtml(r.record.District || 'Unavailable')}</td>
+                            <td>${escapeHtml(r.record.CouncilMember || 'Unavailable')}</td>
+                            <td>${escapeHtml(r.record.Status || 'Unavailable')}</td>
+                        </tr>
                     `;
-                });
-                
-                resultsDiv.innerHTML = html;
+                }).join('');
+
+                resultsDiv.innerHTML = `
+                    <div class="bulk-results-header">Found ${results.length} matches</div>
+                    <div class="bulk-results-table-wrapper">
+                        <table class="bulk-results-table">
+                            <thead>
+                                <tr>
+                                    <th>Search Term</th>
+                                    <th>Matched Name</th>
+                                    <th>Confidence</th>
+                                    <th>File Date</th>
+                                    <th>Attorney</th>
+                                    <th>Possible Property Address*</th>
+                                    <th>District*</th>
+                                    <th>Council Member</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
             }
-            
+
             resultsDiv.classList.remove('hidden');
+            resultsDiv.scrollTop = 0;
         }
 
         function updateThreshold() {
