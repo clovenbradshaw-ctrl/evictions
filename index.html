@@ -455,9 +455,11 @@
         // Global variables
         let allData = [];
         let filteredData = [];
+        let visibleData = [];
         let gridApi;
         let monthlyChart;
         let searchMatches = [];
+        let quickSearchText = '';
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
@@ -538,7 +540,8 @@
                 
                 allData = data.map(normalizeRecord);
                 filteredData = allData;
-                
+                applyQuickSearch();
+
                 updateStatus(`Loaded ${allData.length} records from public court data`, 'success');
                 updateMetrics();
                 updateCharts();
@@ -812,7 +815,7 @@
 
             const gridOptions = {
                 columnDefs: columnDefs,
-                rowData: filteredData,
+                rowData: visibleData,
                 defaultColDef: {
                     sortable: true,
                     filter: true,
@@ -831,7 +834,7 @@
 
             const gridDiv = document.querySelector('#dataGrid');
             if (gridApi) {
-                gridApi.setRowData(filteredData);
+                gridApi.setRowData(visibleData);
             } else {
                 new agGrid.Grid(gridDiv, gridOptions);
             }
@@ -839,34 +842,71 @@
 
         function updateRecordCount() {
             const count = document.getElementById('recordCount');
-            count.textContent = `(${filteredData.length} records)`;
+            count.textContent = `(${visibleData.length} records)`;
         }
 
         function setSearchTab(tab) {
             // Update tabs
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`${tab}Tab`).classList.add('active');
-            
+
             // Show/hide panels
             document.getElementById('quickSearch').classList.toggle('hidden', tab !== 'quick');
             document.getElementById('bulkSearch').classList.toggle('hidden', tab !== 'bulk');
             document.getElementById('filterSearch').classList.toggle('hidden', tab !== 'filter');
         }
 
-        function quickSearch() {
-            const searchText = document.getElementById('searchInput').value.toLowerCase();
-            if (!gridApi) return;
-            
-            gridApi.setQuickFilter(searchText);
+        function applyQuickSearch() {
+            const searchText = quickSearchText.trim().toLowerCase();
+            const searchableFields = [
+                'Case_Number',
+                'Plaintiff',
+                'Defendant',
+                'Attorney',
+                'Address',
+                'District',
+                'CouncilMember',
+                'Status',
+                'File_Date'
+            ];
+
+            if (!searchText) {
+                visibleData = filteredData.slice();
+            } else {
+                visibleData = filteredData.filter(record =>
+                    searchableFields.some(field => {
+                        const value = record[field];
+                        if (!value) return false;
+
+                        if (field === 'File_Date') {
+                            const date = new Date(value);
+                            const formatted = isNaN(date) ? '' : date.toLocaleDateString().toLowerCase();
+                            return (
+                                value.toString().toLowerCase().includes(searchText) ||
+                                formatted.includes(searchText)
+                            );
+                        }
+
+                        return value.toString().toLowerCase().includes(searchText);
+                    })
+                );
+            }
+
+            if (gridApi) {
+                gridApi.setRowData(visibleData);
+            }
             updateRecordCount();
+        }
+
+        function quickSearch() {
+            quickSearchText = document.getElementById('searchInput').value;
+            applyQuickSearch();
         }
 
         function clearSearch() {
             document.getElementById('searchInput').value = '';
-            if (gridApi) {
-                gridApi.setQuickFilter('');
-                updateRecordCount();
-            }
+            quickSearchText = '';
+            applyQuickSearch();
         }
 
         function runBulkSearch() {
@@ -992,7 +1032,7 @@
             filteredData = allData.filter(record => {
                 // Status filter
                 if (status && record.Status !== status) return false;
-                
+
                 // Date filter
                 if (dateFrom || dateTo) {
                     const recordDate = new Date(record.File_Date);
@@ -1003,10 +1043,7 @@
                 return true;
             });
             
-            if (gridApi) {
-                gridApi.setRowData(filteredData);
-            }
-            updateRecordCount();
+            applyQuickSearch();
             createDistrictMap();
         }
 
@@ -1014,12 +1051,9 @@
             document.getElementById('statusFilter').value = '';
             document.getElementById('dateFrom').value = '';
             document.getElementById('dateTo').value = '';
-            
+
             filteredData = allData;
-            if (gridApi) {
-                gridApi.setRowData(filteredData);
-            }
-            updateRecordCount();
+            applyQuickSearch();
             createDistrictMap();
         }
 
@@ -1029,12 +1063,9 @@
             } else {
                 filteredData = allData.filter(r => r.District == district);
             }
-            
-            if (gridApi) {
-                gridApi.setRowData(filteredData);
-            }
-            updateRecordCount();
-            
+
+            applyQuickSearch();
+
             // Update status message without exact counts
             const filterMsg = district === 'Unknown' ? 'unverified districts' : `District ${district}`;
             updateStatus(`Showing records for ${filterMsg}`, 'success');
@@ -1043,7 +1074,7 @@
         function exportCSV() {
             let csv = 'File Date,Docket Number,Plaintiff,Defendant,Attorney,Address,District,Council Member,Status\n';
             
-            filteredData.forEach(row => {
+            visibleData.forEach(row => {
                 csv += `"${new Date(row.File_Date).toLocaleDateString()}","${row.Case_Number}","${row.Plaintiff}","${row.Defendant}","${row.Attorney}","${row.Address}","${row.District}","${row.CouncilMember}","${row.Status}"\n`;
             });
             
