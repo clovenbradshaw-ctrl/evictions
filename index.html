@@ -317,6 +317,8 @@
             ⏳ Loading data from public records API...
         </div>
 
+        <p class="text-xs text-gray-500 mb-4">* Location information (addresses, districts, council assignments) is approximated from court filings and may not represent confirmed property details.</p>
+
         <!-- Key Metrics -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div class="data-card p-6">
@@ -363,7 +365,7 @@
 
             <!-- District Heat Map -->
             <div class="data-card p-6">
-                <h2 class="text-xl font-bold text-gray-900 mb-4">District Activity Patterns</h2>
+                <h2 class="text-xl font-bold text-gray-900 mb-4">District Activity Patterns*</h2>
                 <div class="grid grid-cols-7 gap-1" id="districtGrid">
                     <!-- Will be populated by JavaScript -->
                 </div>
@@ -380,7 +382,7 @@
                     </div>
                     <span class="text-gray-500">Higher activity</span>
                 </div>
-                <p class="text-xs text-gray-500 mt-2 text-center">Relative distribution based on available data</p>
+                <p class="text-xs text-gray-500 mt-2 text-center">Relative distribution based on available data*</p>
             </div>
         </div>
 
@@ -488,7 +490,7 @@
                         <span class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Group by</span>
                         <button class="pivot-option active" data-pivot-dimension="plaintiff" onclick="setPivotDimension('plaintiff')">Landlord</button>
                         <button class="pivot-option" data-pivot-dimension="attorney" onclick="setPivotDimension('attorney')">Attorney</button>
-                        <button class="pivot-option" data-pivot-dimension="district" onclick="setPivotDimension('district')">District</button>
+                        <button class="pivot-option" data-pivot-dimension="district" onclick="setPivotDimension('district')">District*</button>
                     </div>
                     <div>
                         <button onclick="exportCSV()" class="btn btn-primary">
@@ -521,7 +523,7 @@
         const pivotDimensionLabels = {
             plaintiff: 'Landlord',
             attorney: 'Attorney',
-            district: 'District'
+            district: 'District*'
         };
 
         const recordColumnDefs = [
@@ -531,8 +533,8 @@
             { field: 'Plaintiff', headerName: 'Plaintiff/Landlord', width: 200 },
             { field: 'Defendant', headerName: 'Defendant/Tenant', width: 200 },
             { field: 'Attorney', headerName: 'Attorney', width: 150 },
-            { field: 'Address', headerName: 'Property Address', width: 300 },
-            { field: 'District', headerName: 'District', width: 90 },
+            { field: 'Address', headerName: 'Possible Property Address*', width: 300 },
+            { field: 'District', headerName: 'District*', width: 90 },
             { field: 'CouncilMember', headerName: 'Council', width: 120 },
             { field: 'Status', headerName: 'Status', width: 100,
               cellStyle: params => {
@@ -739,7 +741,7 @@
             const individualCard = document.getElementById('individualLL').parentElement;
             const subtitleEl = individualCard.querySelector('.text-sm.mt-2');
             if (subtitleEl) {
-                subtitleEl.innerHTML = `<span title="${unknownDistrictCount} records">${unknownPercent}% unknown dist.</span>`;
+                subtitleEl.innerHTML = `<span title="${unknownDistrictCount} records">${unknownPercent}% unknown dist.*</span>`;
             }
         }
 
@@ -844,9 +846,9 @@
                 }
                 
                 html += `
-                    <div class="district-cell ${heatClass}" 
+                    <div class="district-cell ${heatClass}"
                          onclick="filterByDistrict(${i})"
-                         title="District ${i}">
+                         title="District ${i}*">
                         <div class="text-center">
                             <div class="text-sm font-bold opacity-80">${i}</div>
                             <div class="activity-dots mt-1">${descriptor}</div>
@@ -867,7 +869,7 @@
                 const unknownDiv = document.createElement('div');
                 unknownDiv.className = 'unknown-district-info mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm cursor-pointer hover:bg-yellow-100 transition';
                 unknownDiv.innerHTML = `
-                    <span class="text-gray-700">Additional records with unverified district information available</span>
+                    <span class="text-gray-700">Additional records with unverified district information available*</span>
                     <span class="text-xs text-gray-600 ml-2">(click to view)</span>
                 `;
                 unknownDiv.onclick = () => filterByDistrict('Unknown');
@@ -1048,7 +1050,7 @@
                                     <div class="font-semibold">${r.match}</div>
                                     <div class="text-xs text-gray-500">Searched: "${r.searchTerm}"</div>
                                     <div class="text-xs text-gray-600 mt-1">
-                                        ${r.record.Address} • District ${r.record.District}
+                                        Possible Property Address*: ${r.record.Address || 'Unavailable'} • District*: ${r.record.District || 'Unavailable'}
                                     </div>
                                 </div>
                                 <span class="confidence-badge ${confClass}">
@@ -1213,7 +1215,7 @@
             updateRecordCount();
 
             // Update status message without exact counts
-            const filterMsg = district === 'Unknown' ? 'unverified districts' : `District ${district}`;
+            const filterMsg = district === 'Unknown' ? 'unverified districts*' : `District ${district}*`;
             updateStatus(`Showing records for ${filterMsg}`, 'success');
         }
 
@@ -1228,7 +1230,7 @@
                 { field: 'other', headerName: 'Other Status', width: 140 },
                 { field: 'lastFiled', headerName: 'Last Filing', width: 140,
                   valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '' },
-                { field: 'uniqueProperties', headerName: 'Unique Properties', width: 160 }
+                { field: 'uniqueProperties', headerName: 'Unique Possible Addresses*', width: 160 }
             ];
         }
 
@@ -1309,7 +1311,7 @@
         }
 
         function exportCSV() {
-            let csv = 'File Date,Docket Number,Plaintiff,Defendant,Attorney,Address,District,Council Member,Status\n';
+            let csv = 'File Date,Docket Number,Plaintiff,Defendant,Attorney,Possible Property Address*,District*,Council Member,Status\n';
 
             filteredData.forEach(row => {
                 csv += `"${new Date(row.File_Date).toLocaleDateString()}","${row.Case_Number}","${row.Plaintiff}","${row.Defendant}","${row.Attorney}","${row.Address}","${row.District}","${row.CouncilMember}","${row.Status}"\n`;
@@ -1329,7 +1331,7 @@
                 return;
             }
             
-            let csv = 'Search Term,Matched Name,Confidence,File Date,Attorney,Address,District,Council Member,Status\n';
+            let csv = 'Search Term,Matched Name,Confidence,File Date,Attorney,Possible Property Address*,District*,Council Member,Status\n';
             
             searchMatches.forEach(match => {
                 csv += `"${match.searchTerm}","${match.match}","${(match.confidence * 100).toFixed(1)}%","${new Date(match.record.File_Date).toLocaleDateString()}","${match.record.Attorney}","${match.record.Address}","${match.record.District}","${match.record.CouncilMember}","${match.record.Status}"\n`;
