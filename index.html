@@ -327,7 +327,7 @@
 
             <!-- District Heat Map -->
             <div class="data-card p-6">
-                <h2 class="text-xl font-bold text-gray-900 mb-4">District Activity Patterns</h2>
+                <h2 class="text-xl font-bold text-gray-900 mb-2">District Activity Patterns*</h2>
                 <div class="grid grid-cols-7 gap-1" id="districtGrid">
                     <!-- Will be populated by JavaScript -->
                 </div>
@@ -344,7 +344,8 @@
                     </div>
                     <span class="text-gray-500">Higher activity</span>
                 </div>
-                <p class="text-xs text-gray-500 mt-2 text-center">Relative distribution based on available data</p>
+                <p class="text-xs text-gray-500 mt-2 text-center">Relative distribution based on available data*</p>
+                <p class="text-xs text-gray-400 mt-1 text-center">*District insights are approximated from publicly available records and may not reflect official designations.</p>
             </div>
         </div>
 
@@ -436,9 +437,9 @@
 
         <!-- Data Grid -->
         <div class="data-card p-6">
-            <div class="flex justify-between items-center mb-4">
+            <div class="flex justify-between items-center mb-2">
                 <h2 class="text-xl font-bold text-gray-900">
-                    Eviction Records 
+                    Eviction Records
                     <span id="recordCount" class="text-sm font-normal text-gray-500"></span>
                 </h2>
                 <div class="flex gap-2">
@@ -447,6 +448,7 @@
                     </button>
                 </div>
             </div>
+            <p class="text-xs text-gray-500 mb-4">*Location and district details are approximated from the underlying court records and may be inaccurate.</p>
             <div id="dataGrid" class="ag-theme-alpine"></div>
         </div>
     </div>
@@ -654,7 +656,7 @@
             const individualCard = document.getElementById('individualLL').parentElement;
             const subtitleEl = individualCard.querySelector('.text-sm.mt-2');
             if (subtitleEl) {
-                subtitleEl.innerHTML = `<span title="${unknownDistrictCount} records">${unknownPercent}% unknown dist.</span>`;
+                subtitleEl.innerHTML = `<span title="${unknownDistrictCount} records">${unknownPercent}% unknown dist.*</span>`;
             }
         }
 
@@ -759,9 +761,9 @@
                 }
                 
                 html += `
-                    <div class="district-cell ${heatClass}" 
+                        <div class="district-cell ${heatClass}"
                          onclick="filterByDistrict(${i})"
-                         title="District ${i}">
+                         title="District ${i}*">
                         <div class="text-center">
                             <div class="text-sm font-bold opacity-80">${i}</div>
                             <div class="activity-dots mt-1">${descriptor}</div>
@@ -782,7 +784,7 @@
                 const unknownDiv = document.createElement('div');
                 unknownDiv.className = 'unknown-district-info mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm cursor-pointer hover:bg-yellow-100 transition';
                 unknownDiv.innerHTML = `
-                    <span class="text-gray-700">Additional records with unverified district information available</span>
+                    <span class="text-gray-700">Additional records with unverified district information available*</span>
                     <span class="text-xs text-gray-600 ml-2">(click to view)</span>
                 `;
                 unknownDiv.onclick = () => filterByDistrict('Unknown');
@@ -798,8 +800,8 @@
                 { field: 'Plaintiff', headerName: 'Plaintiff/Landlord', width: 200 },
                 { field: 'Defendant', headerName: 'Defendant/Tenant', width: 200 },
                 { field: 'Attorney', headerName: 'Attorney', width: 150 },
-                { field: 'Address', headerName: 'Property Address', width: 300 },
-                { field: 'District', headerName: 'District', width: 90 },
+                { field: 'Address', headerName: 'Possible Property Address*', width: 300 },
+                { field: 'District', headerName: 'District*', width: 90 },
                 { field: 'CouncilMember', headerName: 'Council', width: 120 },
                 { field: 'Status', headerName: 'Status', width: 100,
                   cellStyle: params => {
@@ -952,7 +954,7 @@
                                     <div class="font-semibold">${r.match}</div>
                                     <div class="text-xs text-gray-500">Searched: "${r.searchTerm}"</div>
                                     <div class="text-xs text-gray-600 mt-1">
-                                        ${r.record.Address} • District ${r.record.District}
+                                        Possible property address*: ${r.record.Address || 'Unavailable'} • District*: ${r.record.District || 'Unavailable'}
                                     </div>
                                 </div>
                                 <span class="confidence-badge ${confClass}">
@@ -1036,12 +1038,12 @@
             updateRecordCount();
             
             // Update status message without exact counts
-            const filterMsg = district === 'Unknown' ? 'unverified districts' : `District ${district}`;
+            const filterMsg = district === 'Unknown' ? 'unverified districts*' : `District ${district}*`;
             updateStatus(`Showing records for ${filterMsg}`, 'success');
         }
 
         function exportCSV() {
-            let csv = 'File Date,Docket Number,Plaintiff,Defendant,Attorney,Address,District,Council Member,Status\n';
+            let csv = 'File Date,Docket Number,Plaintiff,Defendant,Attorney,Possible Property Address*,District*,Council Member,Status\n';
             
             filteredData.forEach(row => {
                 csv += `"${new Date(row.File_Date).toLocaleDateString()}","${row.Case_Number}","${row.Plaintiff}","${row.Defendant}","${row.Attorney}","${row.Address}","${row.District}","${row.CouncilMember}","${row.Status}"\n`;
@@ -1061,7 +1063,7 @@
                 return;
             }
             
-            let csv = 'Search Term,Matched Name,Confidence,File Date,Attorney,Address,District,Council Member,Status\n';
+            let csv = 'Search Term,Matched Name,Confidence,File Date,Attorney,Possible Property Address*,District*,Council Member,Status\n';
             
             searchMatches.forEach(match => {
                 csv += `"${match.searchTerm}","${match.match}","${(match.confidence * 100).toFixed(1)}%","${new Date(match.record.File_Date).toLocaleDateString()}","${match.record.Attorney}","${match.record.Address}","${match.record.District}","${match.record.CouncilMember}","${match.record.Status}"\n`;
