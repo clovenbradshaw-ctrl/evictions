@@ -439,6 +439,263 @@
             font-size: 12px;
             resize: vertical;
         }
+
+        /* Advanced Filter Builder Styles */
+        .filter-builder {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .filter-group {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .filter-group.and-group {
+            border-color: #10b981;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.03) 0%, white 100%);
+        }
+
+        .filter-group.or-group {
+            border-color: #f59e0b;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.03) 0%, white 100%);
+        }
+
+        .filter-group-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .filter-group-logic {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logic-toggle {
+            display: flex;
+            background: #f3f4f6;
+            border-radius: 6px;
+            padding: 2px;
+        }
+
+        .logic-toggle button {
+            padding: 4px 12px;
+            border: none;
+            background: transparent;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.15s;
+        }
+
+        .logic-toggle button.active-and {
+            background: #10b981;
+            color: white;
+        }
+
+        .logic-toggle button.active-or {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .filter-condition {
+            display: grid;
+            grid-template-columns: 1fr 140px 1fr auto;
+            gap: 8px;
+            align-items: center;
+            padding: 8px;
+            background: #f9fafb;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .filter-condition:last-child {
+            margin-bottom: 0;
+        }
+
+        .filter-condition select,
+        .filter-condition input {
+            padding: 8px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+        }
+
+        .filter-condition select:focus,
+        .filter-condition input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+        }
+
+        .filter-condition .remove-condition {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: #fee2e2;
+            color: #dc2626;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .filter-condition .remove-condition:hover {
+            background: #fecaca;
+        }
+
+        .add-condition-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px dashed #d1d5db;
+            background: transparent;
+            color: #6b7280;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .add-condition-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: rgba(79, 70, 229, 0.05);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .filter-preset-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .filter-preset-badge:hover {
+            background: #bfdbfe;
+        }
+
+        .filter-preset-badge .delete-preset {
+            color: #6b7280;
+            margin-left: 4px;
+        }
+
+        .filter-preset-badge .delete-preset:hover {
+            color: #dc2626;
+        }
+
+        .presets-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .custom-grouping-config {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .grouping-field-select {
+            padding: 10px 14px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .grouping-field-select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .aggregation-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .aggregation-option {
+            padding: 6px 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 500;
+            background: white;
+            color: #4b5563;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .aggregation-option.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .nested-group {
+            margin-left: 20px;
+            padding-left: 16px;
+            border-left: 3px solid #e5e7eb;
+        }
+
+        .nested-group.and-group {
+            border-left-color: #10b981;
+        }
+
+        .nested-group.or-group {
+            border-left-color: #f59e0b;
+        }
+
+        .active-filter-summary {
+            background: linear-gradient(135deg, #dbeafe 0%, #ede9fe 100%);
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .active-filter-summary code {
+            background: rgba(255,255,255,0.7);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
@@ -547,10 +804,11 @@
         <!-- Search Section -->
         <div class="data-card p-6 mb-6">
             <div class="border-b border-gray-200 mb-4">
-                <div class="flex gap-2">
+                <div class="flex gap-2 flex-wrap">
                     <button onclick="setSearchTab('quick')" class="tab-btn active" id="quickTab">Quick Search</button>
                     <button onclick="setSearchTab('bulk')" class="tab-btn" id="bulkTab">Bulk Search</button>
                     <button onclick="setSearchTab('filter')" class="tab-btn" id="filterTab">Advanced Filters</button>
+                    <button onclick="setSearchTab('grouping')" class="tab-btn" id="groupingTab">Custom Grouping</button>
                 </div>
             </div>
 
@@ -603,25 +861,128 @@
 
             <!-- Advanced Filters -->
             <div id="filterSearch" class="search-panel hidden">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Date From</label>
-                        <input type="date" id="dateFrom" class="search-input w-full" onchange="applyFilters()">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1">Date To</label>
-                        <input type="date" id="dateTo" class="search-input w-full" onchange="applyFilters()">
+                <!-- Active Filter Summary -->
+                <div id="activeFilterSummary" class="active-filter-summary hidden">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="font-semibold text-gray-700">Active Filter:</span>
+                            <span id="filterSummaryText" class="ml-2 text-gray-600"></span>
+                        </div>
+                        <button onclick="clearAdvancedFilters()" class="text-sm text-red-600 hover:text-red-800 font-medium">Clear Filter</button>
                     </div>
                 </div>
-                <!-- Hidden status filter for compatibility -->
-                <select id="statusFilter" class="hidden" onchange="applyFilters()">
+
+                <!-- Saved Presets -->
+                <div id="savedPresetsSection" class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-semibold text-gray-700">Saved Filters</span>
+                    </div>
+                    <div id="presetsList" class="presets-list">
+                        <!-- Presets will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Filter Builder -->
+                <div class="filter-builder">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-sm font-semibold text-gray-700">Build Your Filter</span>
+                        <div class="flex gap-2">
+                            <button onclick="addFilterGroup()" class="add-condition-btn">+ Add Group</button>
+                        </div>
+                    </div>
+
+                    <!-- Root Filter Groups Container -->
+                    <div id="filterGroupsContainer">
+                        <!-- Filter groups will be added here -->
+                    </div>
+
+                    <!-- Quick Date Filters -->
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Quick Filters</span>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            <button onclick="applyQuickFilter('last30')" class="add-condition-btn">Last 30 Days</button>
+                            <button onclick="applyQuickFilter('last90')" class="add-condition-btn">Last 90 Days</button>
+                            <button onclick="applyQuickFilter('lastYear')" class="add-condition-btn">Last Year</button>
+                            <button onclick="applyQuickFilter('pending')" class="add-condition-btn">Pending Only</button>
+                            <button onclick="applyQuickFilter('closed')" class="add-condition-btn">Closed Only</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Actions -->
+                <div class="filter-actions">
+                    <button onclick="applyAdvancedFilters()" class="btn btn-primary">Apply Filter</button>
+                    <button onclick="saveFilterPreset()" class="btn btn-secondary">Save as Preset</button>
+                    <button onclick="clearAdvancedFilters()" class="btn btn-secondary">Clear All</button>
+                </div>
+
+                <!-- Hidden legacy inputs for compatibility -->
+                <input type="date" id="dateFrom" class="hidden">
+                <input type="date" id="dateTo" class="hidden">
+                <select id="statusFilter" class="hidden">
                     <option value="">All</option>
                 </select>
-                <div class="mt-4 flex gap-2">
-                    <button onclick="setDateRange(30)" class="btn btn-secondary">Last 30 Days</button>
-                    <button onclick="setDateRange(90)" class="btn btn-secondary">Last 90 Days</button>
-                    <button onclick="setDateRange(365)" class="btn btn-secondary">Last Year</button>
-                    <button onclick="clearFilters()" class="btn btn-secondary">Clear All</button>
+            </div>
+
+            <!-- Custom Grouping Tab -->
+            <div id="groupingSearch" class="search-panel hidden">
+                <div class="mb-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Create Custom Data Grouping</h3>
+                    <div class="custom-grouping-config">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-2">Group By Field</label>
+                            <select id="customGroupField" class="grouping-field-select w-full" onchange="updateCustomGroupPreview()">
+                                <option value="">Select a field...</option>
+                                <option value="Plaintiff">Plaintiff/Landlord</option>
+                                <option value="Defendant">Defendant/Tenant</option>
+                                <option value="Attorney">Attorney</option>
+                                <option value="Status">Status</option>
+                                <option value="District">District</option>
+                                <option value="File_Date_Month">Month Filed</option>
+                                <option value="File_Date_Year">Year Filed</option>
+                                <option value="File_Date_Quarter">Quarter Filed</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-2">Secondary Group (Optional)</label>
+                            <select id="customGroupField2" class="grouping-field-select w-full" onchange="updateCustomGroupPreview()">
+                                <option value="">None</option>
+                                <option value="Plaintiff">Plaintiff/Landlord</option>
+                                <option value="Defendant">Defendant/Tenant</option>
+                                <option value="Attorney">Attorney</option>
+                                <option value="Status">Status</option>
+                                <option value="District">District</option>
+                                <option value="File_Date_Month">Month Filed</option>
+                                <option value="File_Date_Year">Year Filed</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold text-gray-600 mb-2">Aggregations to Show</label>
+                        <div class="aggregation-options">
+                            <button class="aggregation-option active" data-agg="count" onclick="toggleAggregation(this)">Count</button>
+                            <button class="aggregation-option active" data-agg="pending" onclick="toggleAggregation(this)">Pending</button>
+                            <button class="aggregation-option active" data-agg="closed" onclick="toggleAggregation(this)">Closed</button>
+                            <button class="aggregation-option" data-agg="firstDate" onclick="toggleAggregation(this)">First Filing</button>
+                            <button class="aggregation-option active" data-agg="lastDate" onclick="toggleAggregation(this)">Last Filing</button>
+                            <button class="aggregation-option" data-agg="uniqueAddresses" onclick="toggleAggregation(this)">Unique Addresses</button>
+                        </div>
+                    </div>
+
+                    <!-- Saved Groupings -->
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold text-gray-600 mb-2">Saved Groupings</label>
+                        <div id="savedGroupingsList" class="presets-list">
+                            <!-- Saved groupings will appear here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filter-actions">
+                    <button onclick="applyCustomGrouping()" class="btn btn-primary">Apply Grouping</button>
+                    <button onclick="saveCustomGrouping()" class="btn btn-secondary">Save Grouping</button>
+                    <button onclick="resetToDefaultGrouping()" class="btn btn-secondary">Reset to Default</button>
                 </div>
             </div>
         </div>
@@ -1773,11 +2134,22 @@
             // Update tabs
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`${tab}Tab`).classList.add('active');
-            
+
             // Show/hide panels
             document.getElementById('quickSearch').classList.toggle('hidden', tab !== 'quick');
             document.getElementById('bulkSearch').classList.toggle('hidden', tab !== 'bulk');
             document.getElementById('filterSearch').classList.toggle('hidden', tab !== 'filter');
+            document.getElementById('groupingSearch').classList.toggle('hidden', tab !== 'grouping');
+
+            // Initialize filter builder when opening advanced filters tab
+            if (tab === 'filter') {
+                initializeFilterBuilder();
+            }
+
+            // Load saved groupings when opening grouping tab
+            if (tab === 'grouping') {
+                loadSavedGroupings();
+            }
         }
 
         function quickSearch() {
@@ -2791,6 +3163,1035 @@
                 <span>${escapeHtml(message)}</span>
             `;
             container.appendChild(item);
+        }
+
+        // ============================================
+        // ADVANCED FILTER BUILDER WITH AND/OR LOGIC
+        // ============================================
+
+        // Filter builder state
+        let filterGroups = [];
+        let filterGroupIdCounter = 0;
+        let activeAdvancedFilter = null;
+
+        // Available fields for filtering
+        const filterableFields = [
+            { key: 'Plaintiff', label: 'Plaintiff/Landlord', type: 'text' },
+            { key: 'Defendant', label: 'Defendant/Tenant', type: 'text' },
+            { key: 'Attorney', label: 'Attorney', type: 'text' },
+            { key: 'Status', label: 'Status', type: 'select', options: ['PENDING', 'CLOSED', 'UNKNOWN'] },
+            { key: 'Case_Number', label: 'Case Number', type: 'text' },
+            { key: 'District', label: 'District', type: 'text' },
+            { key: 'File_Date', label: 'File Date', type: 'date' },
+            { key: 'Address', label: 'Address', type: 'text' }
+        ];
+
+        // Available operators by field type
+        const operatorsByType = {
+            text: [
+                { key: 'contains', label: 'Contains' },
+                { key: 'not_contains', label: 'Does not contain' },
+                { key: 'equals', label: 'Equals' },
+                { key: 'not_equals', label: 'Does not equal' },
+                { key: 'starts_with', label: 'Starts with' },
+                { key: 'ends_with', label: 'Ends with' },
+                { key: 'is_empty', label: 'Is empty' },
+                { key: 'is_not_empty', label: 'Is not empty' }
+            ],
+            select: [
+                { key: 'equals', label: 'Is' },
+                { key: 'not_equals', label: 'Is not' }
+            ],
+            date: [
+                { key: 'equals', label: 'Is' },
+                { key: 'not_equals', label: 'Is not' },
+                { key: 'before', label: 'Before' },
+                { key: 'after', label: 'After' },
+                { key: 'between', label: 'Between' },
+                { key: 'last_n_days', label: 'In last N days' }
+            ]
+        };
+
+        function initializeFilterBuilder() {
+            loadFilterPresets();
+
+            // Add initial empty group if none exist
+            if (filterGroups.length === 0) {
+                addFilterGroup();
+            } else {
+                renderFilterGroups();
+            }
+        }
+
+        function addFilterGroup(parentGroupId = null) {
+            const groupId = ++filterGroupIdCounter;
+            const newGroup = {
+                id: groupId,
+                logic: 'AND',
+                conditions: [],
+                nestedGroups: [],
+                parentId: parentGroupId
+            };
+
+            if (parentGroupId === null) {
+                filterGroups.push(newGroup);
+            } else {
+                const parentGroup = findGroupById(parentGroupId);
+                if (parentGroup) {
+                    parentGroup.nestedGroups.push(newGroup);
+                }
+            }
+
+            // Add one empty condition by default
+            addConditionToGroup(groupId);
+
+            renderFilterGroups();
+            return groupId;
+        }
+
+        function findGroupById(groupId, groups = filterGroups) {
+            for (const group of groups) {
+                if (group.id === groupId) return group;
+                const found = findGroupById(groupId, group.nestedGroups);
+                if (found) return found;
+            }
+            return null;
+        }
+
+        function addConditionToGroup(groupId) {
+            const group = findGroupById(groupId);
+            if (!group) return;
+
+            group.conditions.push({
+                id: Date.now() + Math.random(),
+                field: 'Plaintiff',
+                operator: 'contains',
+                value: '',
+                value2: '' // For 'between' operator
+            });
+
+            renderFilterGroups();
+        }
+
+        function removeCondition(groupId, conditionId) {
+            const group = findGroupById(groupId);
+            if (!group) return;
+
+            group.conditions = group.conditions.filter(c => c.id !== conditionId);
+            renderFilterGroups();
+        }
+
+        function removeGroup(groupId) {
+            // Remove from root level
+            filterGroups = filterGroups.filter(g => g.id !== groupId);
+
+            // Also remove from nested groups
+            function removeNested(groups) {
+                for (const group of groups) {
+                    group.nestedGroups = group.nestedGroups.filter(g => g.id !== groupId);
+                    removeNested(group.nestedGroups);
+                }
+            }
+            removeNested(filterGroups);
+
+            renderFilterGroups();
+        }
+
+        function toggleGroupLogic(groupId) {
+            const group = findGroupById(groupId);
+            if (!group) return;
+
+            group.logic = group.logic === 'AND' ? 'OR' : 'AND';
+            renderFilterGroups();
+        }
+
+        function updateCondition(groupId, conditionId, field, value) {
+            const group = findGroupById(groupId);
+            if (!group) return;
+
+            const condition = group.conditions.find(c => c.id === conditionId);
+            if (!condition) return;
+
+            condition[field] = value;
+
+            // Reset operator if field type changed
+            if (field === 'field') {
+                const fieldDef = filterableFields.find(f => f.key === value);
+                const operators = operatorsByType[fieldDef?.type || 'text'];
+                condition.operator = operators[0].key;
+                condition.value = '';
+                condition.value2 = '';
+            }
+
+            renderFilterGroups();
+        }
+
+        function renderFilterGroups() {
+            const container = document.getElementById('filterGroupsContainer');
+            if (!container) return;
+
+            if (filterGroups.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No filter groups. Click "Add Group" to start building your filter.</p>';
+                return;
+            }
+
+            container.innerHTML = filterGroups.map(group => renderGroup(group, false)).join('');
+        }
+
+        function renderGroup(group, isNested) {
+            const logicClass = group.logic === 'AND' ? 'and-group' : 'or-group';
+            const nestedClass = isNested ? `nested-group ${logicClass}` : '';
+
+            let html = `
+                <div class="filter-group ${logicClass} ${nestedClass}" data-group-id="${group.id}">
+                    <div class="filter-group-header">
+                        <div class="filter-group-logic">
+                            <span class="text-xs font-semibold text-gray-500 uppercase">Match</span>
+                            <div class="logic-toggle">
+                                <button onclick="toggleGroupLogic(${group.id})" class="${group.logic === 'AND' ? 'active-and' : ''}">AND</button>
+                                <button onclick="toggleGroupLogic(${group.id})" class="${group.logic === 'OR' ? 'active-or' : ''}">OR</button>
+                            </div>
+                            <span class="text-xs text-gray-500">of the following</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="addConditionToGroup(${group.id})" class="add-condition-btn">+ Condition</button>
+                            <button onclick="addFilterGroup(${group.id})" class="add-condition-btn">+ Nested Group</button>
+                            ${filterGroups.length > 1 || group.parentId ? `<button onclick="removeGroup(${group.id})" class="add-condition-btn" style="color: #dc2626; border-color: #fecaca;">Remove</button>` : ''}
+                        </div>
+                    </div>
+                    <div class="filter-conditions">
+            `;
+
+            // Render conditions
+            for (const condition of group.conditions) {
+                html += renderCondition(group.id, condition);
+            }
+
+            // Render nested groups
+            for (const nestedGroup of group.nestedGroups) {
+                html += renderGroup(nestedGroup, true);
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+
+            return html;
+        }
+
+        function renderCondition(groupId, condition) {
+            const fieldDef = filterableFields.find(f => f.key === condition.field) || filterableFields[0];
+            const operators = operatorsByType[fieldDef.type] || operatorsByType.text;
+
+            const fieldOptions = filterableFields.map(f =>
+                `<option value="${f.key}" ${condition.field === f.key ? 'selected' : ''}>${f.label}</option>`
+            ).join('');
+
+            const operatorOptions = operators.map(op =>
+                `<option value="${op.key}" ${condition.operator === op.key ? 'selected' : ''}>${op.label}</option>`
+            ).join('');
+
+            let valueInput = '';
+            const needsNoValue = ['is_empty', 'is_not_empty'].includes(condition.operator);
+
+            if (needsNoValue) {
+                valueInput = '<span class="text-gray-400 text-sm italic">No value needed</span>';
+            } else if (fieldDef.type === 'select') {
+                const selectOptions = fieldDef.options.map(opt =>
+                    `<option value="${opt}" ${condition.value === opt ? 'selected' : ''}>${opt}</option>`
+                ).join('');
+                valueInput = `<select onchange="updateCondition(${groupId}, ${condition.id}, 'value', this.value)">
+                    <option value="">Select...</option>
+                    ${selectOptions}
+                </select>`;
+            } else if (fieldDef.type === 'date') {
+                if (condition.operator === 'between') {
+                    valueInput = `
+                        <div class="flex gap-2 items-center">
+                            <input type="date" value="${condition.value}" onchange="updateCondition(${groupId}, ${condition.id}, 'value', this.value)">
+                            <span class="text-xs text-gray-500">to</span>
+                            <input type="date" value="${condition.value2 || ''}" onchange="updateCondition(${groupId}, ${condition.id}, 'value2', this.value)">
+                        </div>
+                    `;
+                } else if (condition.operator === 'last_n_days') {
+                    valueInput = `<input type="number" min="1" placeholder="Number of days" value="${condition.value}" onchange="updateCondition(${groupId}, ${condition.id}, 'value', this.value)">`;
+                } else {
+                    valueInput = `<input type="date" value="${condition.value}" onchange="updateCondition(${groupId}, ${condition.id}, 'value', this.value)">`;
+                }
+            } else {
+                valueInput = `<input type="text" placeholder="Enter value..." value="${escapeHtml(condition.value)}" onchange="updateCondition(${groupId}, ${condition.id}, 'value', this.value)">`;
+            }
+
+            return `
+                <div class="filter-condition" data-condition-id="${condition.id}">
+                    <select onchange="updateCondition(${groupId}, ${condition.id}, 'field', this.value)">
+                        ${fieldOptions}
+                    </select>
+                    <select onchange="updateCondition(${groupId}, ${condition.id}, 'operator', this.value)">
+                        ${operatorOptions}
+                    </select>
+                    ${valueInput}
+                    <button class="remove-condition" onclick="removeCondition(${groupId}, ${condition.id})">×</button>
+                </div>
+            `;
+        }
+
+        // Evaluate a single condition against a record
+        function evaluateCondition(record, condition) {
+            const fieldDef = filterableFields.find(f => f.key === condition.field);
+            let recordValue = record[condition.field];
+
+            // Handle null/undefined
+            if (recordValue === null || recordValue === undefined) {
+                recordValue = '';
+            }
+
+            // Convert to string for text comparisons
+            const strValue = String(recordValue).toLowerCase();
+            const compareValue = String(condition.value || '').toLowerCase();
+
+            switch (condition.operator) {
+                case 'contains':
+                    return strValue.includes(compareValue);
+                case 'not_contains':
+                    return !strValue.includes(compareValue);
+                case 'equals':
+                    if (fieldDef?.type === 'date') {
+                        return recordValue === condition.value;
+                    }
+                    return strValue === compareValue;
+                case 'not_equals':
+                    if (fieldDef?.type === 'date') {
+                        return recordValue !== condition.value;
+                    }
+                    return strValue !== compareValue;
+                case 'starts_with':
+                    return strValue.startsWith(compareValue);
+                case 'ends_with':
+                    return strValue.endsWith(compareValue);
+                case 'is_empty':
+                    return strValue.trim() === '';
+                case 'is_not_empty':
+                    return strValue.trim() !== '';
+                case 'before':
+                    if (!recordValue || !condition.value) return false;
+                    return new Date(recordValue) < new Date(condition.value);
+                case 'after':
+                    if (!recordValue || !condition.value) return false;
+                    return new Date(recordValue) > new Date(condition.value);
+                case 'between':
+                    if (!recordValue || !condition.value || !condition.value2) return false;
+                    const date = new Date(recordValue);
+                    return date >= new Date(condition.value) && date <= new Date(condition.value2);
+                case 'last_n_days':
+                    if (!recordValue || !condition.value) return false;
+                    const days = parseInt(condition.value, 10);
+                    if (isNaN(days)) return false;
+                    const cutoff = new Date();
+                    cutoff.setDate(cutoff.getDate() - days);
+                    return new Date(recordValue) >= cutoff;
+                default:
+                    return true;
+            }
+        }
+
+        // Evaluate a group (with AND/OR logic)
+        function evaluateGroup(record, group) {
+            const conditionResults = group.conditions.map(c => evaluateCondition(record, c));
+            const nestedResults = group.nestedGroups.map(g => evaluateGroup(record, g));
+            const allResults = [...conditionResults, ...nestedResults];
+
+            if (allResults.length === 0) return true;
+
+            if (group.logic === 'AND') {
+                return allResults.every(result => result === true);
+            } else {
+                return allResults.some(result => result === true);
+            }
+        }
+
+        // Apply the advanced filter
+        function applyAdvancedFilters() {
+            // Clear other filters
+            chartFilter = null;
+            nameFilter = null;
+            updateChartFilterIndicator();
+            updateNameFilterIndicator();
+
+            // Check if there are any valid conditions
+            const hasConditions = filterGroups.some(group =>
+                group.conditions.length > 0 || group.nestedGroups.length > 0
+            );
+
+            if (!hasConditions) {
+                filteredData = allData;
+                activeAdvancedFilter = null;
+            } else {
+                // Store the active filter for display
+                activeAdvancedFilter = JSON.parse(JSON.stringify(filterGroups));
+
+                // Filter data - records must pass ALL root-level groups (implicit AND between root groups)
+                filteredData = allData.filter(record => {
+                    return filterGroups.every(group => evaluateGroup(record, group));
+                });
+            }
+
+            // Update display
+            if (viewMode === 'pivot') {
+                pivotData = buildPivotData(pivotDimension);
+            }
+
+            if (gridApi) {
+                if (viewMode === 'pivot') {
+                    gridApi.setRowData(pivotData);
+                } else {
+                    gridApi.setRowData(filteredData);
+                }
+            }
+
+            updateRecordCount();
+            updateFilterSummary();
+            createDistrictMap();
+            updateStatus(`Filter applied - showing ${filteredData.length} records`, 'success');
+        }
+
+        function clearAdvancedFilters() {
+            filterGroups = [];
+            filterGroupIdCounter = 0;
+            activeAdvancedFilter = null;
+
+            // Reset to all data
+            filteredData = allData;
+
+            // Add a fresh group
+            addFilterGroup();
+
+            if (viewMode === 'pivot') {
+                pivotData = buildPivotData(pivotDimension);
+            }
+
+            if (gridApi) {
+                if (viewMode === 'pivot') {
+                    gridApi.setRowData(pivotData);
+                } else {
+                    gridApi.setRowData(filteredData);
+                }
+            }
+
+            updateRecordCount();
+            updateFilterSummary();
+            createDistrictMap();
+            updateStatus(`Filters cleared - showing all ${allData.length} records`, 'success');
+        }
+
+        function updateFilterSummary() {
+            const summaryDiv = document.getElementById('activeFilterSummary');
+            const summaryText = document.getElementById('filterSummaryText');
+
+            if (!summaryDiv || !summaryText) return;
+
+            if (!activeAdvancedFilter || activeAdvancedFilter.length === 0) {
+                summaryDiv.classList.add('hidden');
+                return;
+            }
+
+            // Build human-readable summary
+            const summary = buildFilterSummaryText(activeAdvancedFilter);
+            summaryText.innerHTML = summary;
+            summaryDiv.classList.remove('hidden');
+        }
+
+        function buildFilterSummaryText(groups) {
+            return groups.map(group => {
+                const parts = [];
+
+                for (const condition of group.conditions) {
+                    const fieldDef = filterableFields.find(f => f.key === condition.field);
+                    const fieldLabel = fieldDef?.label || condition.field;
+
+                    let conditionText = `<code>${fieldLabel}</code> `;
+
+                    switch (condition.operator) {
+                        case 'contains': conditionText += `contains "${condition.value}"`; break;
+                        case 'not_contains': conditionText += `doesn't contain "${condition.value}"`; break;
+                        case 'equals': conditionText += `= "${condition.value}"`; break;
+                        case 'not_equals': conditionText += `≠ "${condition.value}"`; break;
+                        case 'starts_with': conditionText += `starts with "${condition.value}"`; break;
+                        case 'ends_with': conditionText += `ends with "${condition.value}"`; break;
+                        case 'is_empty': conditionText += 'is empty'; break;
+                        case 'is_not_empty': conditionText += 'is not empty'; break;
+                        case 'before': conditionText += `before ${condition.value}`; break;
+                        case 'after': conditionText += `after ${condition.value}`; break;
+                        case 'between': conditionText += `between ${condition.value} and ${condition.value2}`; break;
+                        case 'last_n_days': conditionText += `in last ${condition.value} days`; break;
+                        default: conditionText += condition.operator;
+                    }
+
+                    parts.push(conditionText);
+                }
+
+                // Add nested groups
+                for (const nestedGroup of group.nestedGroups) {
+                    parts.push(`(${buildFilterSummaryText([nestedGroup])})`);
+                }
+
+                const logicWord = group.logic === 'AND' ? ' AND ' : ' OR ';
+                return parts.join(logicWord);
+            }).join(' AND ');
+        }
+
+        // Quick filter presets
+        function applyQuickFilter(preset) {
+            // Clear existing groups
+            filterGroups = [];
+            filterGroupIdCounter = 0;
+
+            const now = new Date();
+            const groupId = addFilterGroup();
+            const group = findGroupById(groupId);
+
+            // Remove the default empty condition
+            group.conditions = [];
+
+            switch (preset) {
+                case 'last30':
+                    group.conditions.push({
+                        id: Date.now(),
+                        field: 'File_Date',
+                        operator: 'last_n_days',
+                        value: '30',
+                        value2: ''
+                    });
+                    break;
+                case 'last90':
+                    group.conditions.push({
+                        id: Date.now(),
+                        field: 'File_Date',
+                        operator: 'last_n_days',
+                        value: '90',
+                        value2: ''
+                    });
+                    break;
+                case 'lastYear':
+                    group.conditions.push({
+                        id: Date.now(),
+                        field: 'File_Date',
+                        operator: 'last_n_days',
+                        value: '365',
+                        value2: ''
+                    });
+                    break;
+                case 'pending':
+                    group.conditions.push({
+                        id: Date.now(),
+                        field: 'Status',
+                        operator: 'equals',
+                        value: 'PENDING',
+                        value2: ''
+                    });
+                    break;
+                case 'closed':
+                    group.conditions.push({
+                        id: Date.now(),
+                        field: 'Status',
+                        operator: 'equals',
+                        value: 'CLOSED',
+                        value2: ''
+                    });
+                    break;
+            }
+
+            renderFilterGroups();
+            applyAdvancedFilters();
+        }
+
+        // ============================================
+        // FILTER PRESETS (SAVE/LOAD)
+        // ============================================
+
+        const FILTER_PRESETS_KEY = 'eviction_filter_presets';
+
+        function loadFilterPresets() {
+            const container = document.getElementById('presetsList');
+            if (!container) return;
+
+            const presets = getFilterPresets();
+
+            if (presets.length === 0) {
+                container.innerHTML = '<span class="text-sm text-gray-400">No saved filters yet</span>';
+                return;
+            }
+
+            container.innerHTML = presets.map((preset, index) => `
+                <span class="filter-preset-badge" onclick="loadFilterPreset(${index})">
+                    ${escapeHtml(preset.name)}
+                    <span class="delete-preset" onclick="event.stopPropagation(); deleteFilterPreset(${index})">×</span>
+                </span>
+            `).join('');
+        }
+
+        function getFilterPresets() {
+            try {
+                return JSON.parse(localStorage.getItem(FILTER_PRESETS_KEY) || '[]');
+            } catch {
+                return [];
+            }
+        }
+
+        function saveFilterPresets(presets) {
+            localStorage.setItem(FILTER_PRESETS_KEY, JSON.stringify(presets));
+        }
+
+        function saveFilterPreset() {
+            const hasConditions = filterGroups.some(group =>
+                group.conditions.length > 0 || group.nestedGroups.length > 0
+            );
+
+            if (!hasConditions) {
+                alert('Please add at least one filter condition before saving.');
+                return;
+            }
+
+            const name = prompt('Enter a name for this filter preset:');
+            if (!name || name.trim() === '') return;
+
+            const presets = getFilterPresets();
+            presets.push({
+                name: name.trim(),
+                groups: JSON.parse(JSON.stringify(filterGroups)),
+                createdAt: new Date().toISOString()
+            });
+
+            saveFilterPresets(presets);
+            loadFilterPresets();
+            updateStatus(`Filter preset "${name}" saved!`, 'success');
+        }
+
+        function loadFilterPreset(index) {
+            const presets = getFilterPresets();
+            if (index < 0 || index >= presets.length) return;
+
+            const preset = presets[index];
+            filterGroups = JSON.parse(JSON.stringify(preset.groups));
+
+            // Recalculate max ID to avoid collisions
+            filterGroupIdCounter = 0;
+            function findMaxId(groups) {
+                for (const group of groups) {
+                    if (group.id > filterGroupIdCounter) filterGroupIdCounter = group.id;
+                    findMaxId(group.nestedGroups);
+                }
+            }
+            findMaxId(filterGroups);
+
+            renderFilterGroups();
+            applyAdvancedFilters();
+            updateStatus(`Loaded filter preset: ${preset.name}`, 'success');
+        }
+
+        function deleteFilterPreset(index) {
+            const presets = getFilterPresets();
+            if (index < 0 || index >= presets.length) return;
+
+            if (!confirm(`Delete filter preset "${presets[index].name}"?`)) return;
+
+            presets.splice(index, 1);
+            saveFilterPresets(presets);
+            loadFilterPresets();
+        }
+
+        // ============================================
+        // CUSTOM GROUPING FUNCTIONALITY
+        // ============================================
+
+        const GROUPING_PRESETS_KEY = 'eviction_grouping_presets';
+        let customGroupingConfig = {
+            field1: '',
+            field2: '',
+            aggregations: ['count', 'pending', 'closed', 'lastDate']
+        };
+
+        function toggleAggregation(button) {
+            button.classList.toggle('active');
+            updateCustomGroupingConfig();
+        }
+
+        function updateCustomGroupingConfig() {
+            customGroupingConfig.field1 = document.getElementById('customGroupField')?.value || '';
+            customGroupingConfig.field2 = document.getElementById('customGroupField2')?.value || '';
+
+            customGroupingConfig.aggregations = [];
+            document.querySelectorAll('.aggregation-option.active').forEach(btn => {
+                customGroupingConfig.aggregations.push(btn.dataset.agg);
+            });
+        }
+
+        function updateCustomGroupPreview() {
+            updateCustomGroupingConfig();
+        }
+
+        function applyCustomGrouping() {
+            updateCustomGroupingConfig();
+
+            if (!customGroupingConfig.field1) {
+                alert('Please select a field to group by.');
+                return;
+            }
+
+            // Switch to pivot view with custom grouping
+            viewMode = 'pivot';
+
+            // Build custom pivot data
+            const field1 = customGroupingConfig.field1;
+            const field2 = customGroupingConfig.field2;
+
+            pivotData = buildCustomPivotData(field1, field2, customGroupingConfig.aggregations);
+
+            if (gridApi) {
+                gridApi.setColumnDefs(getCustomPivotColumnDefs(field1, field2, customGroupingConfig.aggregations));
+                gridApi.setRowData(pivotData);
+            }
+
+            updatePivotControls();
+            updateRecordCount();
+            updateStatus(`Grouped by ${getFieldLabel(field1)}${field2 ? ' and ' + getFieldLabel(field2) : ''}`, 'success');
+        }
+
+        function getFieldLabel(fieldKey) {
+            const labels = {
+                'Plaintiff': 'Landlord',
+                'Defendant': 'Tenant',
+                'Attorney': 'Attorney',
+                'Status': 'Status',
+                'District': 'District',
+                'File_Date_Month': 'Month',
+                'File_Date_Year': 'Year',
+                'File_Date_Quarter': 'Quarter'
+            };
+            return labels[fieldKey] || fieldKey;
+        }
+
+        function getFieldValue(record, fieldKey) {
+            if (fieldKey === 'File_Date_Month') {
+                const date = new Date(record.File_Date);
+                if (isNaN(date.getTime())) return 'Unknown';
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                return `${months[date.getMonth()]} ${date.getFullYear()}`;
+            }
+            if (fieldKey === 'File_Date_Year') {
+                const date = new Date(record.File_Date);
+                if (isNaN(date.getTime())) return 'Unknown';
+                return String(date.getFullYear());
+            }
+            if (fieldKey === 'File_Date_Quarter') {
+                const date = new Date(record.File_Date);
+                if (isNaN(date.getTime())) return 'Unknown';
+                const quarter = Math.floor(date.getMonth() / 3) + 1;
+                return `Q${quarter} ${date.getFullYear()}`;
+            }
+            return record[fieldKey] || 'Unknown';
+        }
+
+        function buildCustomPivotData(field1, field2, aggregations) {
+            const summaries = new Map();
+
+            filteredData.forEach(record => {
+                const key1 = String(getFieldValue(record, field1)).trim() || 'Unknown';
+                const key2 = field2 ? String(getFieldValue(record, field2)).trim() || 'Unknown' : null;
+                const groupKey = field2 ? `${key1} | ${key2}` : key1;
+
+                if (!summaries.has(groupKey)) {
+                    summaries.set(groupKey, {
+                        groupKey: groupKey,
+                        field1Value: key1,
+                        field2Value: key2,
+                        count: 0,
+                        pending: 0,
+                        closed: 0,
+                        other: 0,
+                        firstDate: null,
+                        lastDate: null,
+                        addresses: new Set()
+                    });
+                }
+
+                const summary = summaries.get(groupKey);
+                summary.count += 1;
+
+                if (record.Status === 'PENDING') {
+                    summary.pending += 1;
+                } else if (record.Status === 'CLOSED') {
+                    summary.closed += 1;
+                } else {
+                    summary.other += 1;
+                }
+
+                if (record.File_Date) {
+                    const fileDate = new Date(record.File_Date);
+                    if (!isNaN(fileDate)) {
+                        if (!summary.firstDate || fileDate < summary.firstDate) {
+                            summary.firstDate = fileDate;
+                        }
+                        if (!summary.lastDate || fileDate > summary.lastDate) {
+                            summary.lastDate = fileDate;
+                        }
+                    }
+                }
+
+                if (record.Address) {
+                    summary.addresses.add(String(record.Address).trim().toLowerCase());
+                }
+            });
+
+            return Array.from(summaries.values())
+                .map(summary => ({
+                    groupKey: summary.groupKey,
+                    field1Value: summary.field1Value,
+                    field2Value: summary.field2Value,
+                    count: summary.count,
+                    pending: summary.pending,
+                    closed: summary.closed,
+                    other: summary.other,
+                    firstDate: summary.firstDate ? summary.firstDate.toISOString() : '',
+                    lastDate: summary.lastDate ? summary.lastDate.toISOString() : '',
+                    uniqueAddresses: summary.addresses.size
+                }))
+                .sort((a, b) => b.count - a.count);
+        }
+
+        function getCustomPivotColumnDefs(field1, field2, aggregations) {
+            const columns = [];
+
+            columns.push({
+                field: 'field1Value',
+                headerName: getFieldLabel(field1),
+                flex: 2,
+                minWidth: 160,
+                cellRenderer: params => {
+                    if (!params.value) return '';
+                    return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${params.value}</span>`;
+                }
+            });
+
+            if (field2) {
+                columns.push({
+                    field: 'field2Value',
+                    headerName: getFieldLabel(field2),
+                    flex: 1,
+                    minWidth: 120
+                });
+            }
+
+            if (aggregations.includes('count')) {
+                columns.push({ field: 'count', headerName: 'Count', width: 100, sort: 'desc', sortIndex: 0 });
+            }
+            if (aggregations.includes('pending')) {
+                columns.push({ field: 'pending', headerName: 'Pending', width: 100 });
+            }
+            if (aggregations.includes('closed')) {
+                columns.push({ field: 'closed', headerName: 'Closed', width: 100 });
+            }
+            if (aggregations.includes('firstDate')) {
+                columns.push({
+                    field: 'firstDate',
+                    headerName: 'First Filing',
+                    width: 120,
+                    valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : ''
+                });
+            }
+            if (aggregations.includes('lastDate')) {
+                columns.push({
+                    field: 'lastDate',
+                    headerName: 'Last Filing',
+                    width: 120,
+                    valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : ''
+                });
+            }
+            if (aggregations.includes('uniqueAddresses')) {
+                columns.push({ field: 'uniqueAddresses', headerName: 'Unique Addresses', width: 140 });
+            }
+
+            return columns;
+        }
+
+        function resetToDefaultGrouping() {
+            // Reset to default pivot dimension
+            pivotDimension = 'plaintiff';
+            viewMode = 'pivot';
+
+            // Reset the dropdowns
+            const field1Select = document.getElementById('customGroupField');
+            const field2Select = document.getElementById('customGroupField2');
+            if (field1Select) field1Select.value = '';
+            if (field2Select) field2Select.value = '';
+
+            // Reset aggregation buttons
+            document.querySelectorAll('.aggregation-option').forEach(btn => {
+                const agg = btn.dataset.agg;
+                if (['count', 'pending', 'closed', 'lastDate'].includes(agg)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // Use default pivot
+            pivotData = buildPivotData(pivotDimension);
+
+            if (gridApi) {
+                gridApi.setColumnDefs(getPivotColumnDefs());
+                gridApi.setRowData(pivotData);
+            }
+
+            updatePivotControls();
+            updateRecordCount();
+            updateStatus('Reset to default grouping', 'success');
+        }
+
+        // Saved groupings
+        function loadSavedGroupings() {
+            const container = document.getElementById('savedGroupingsList');
+            if (!container) return;
+
+            const groupings = getSavedGroupings();
+
+            if (groupings.length === 0) {
+                container.innerHTML = '<span class="text-sm text-gray-400">No saved groupings yet</span>';
+                return;
+            }
+
+            container.innerHTML = groupings.map((grouping, index) => `
+                <span class="filter-preset-badge" onclick="loadSavedGrouping(${index})">
+                    ${escapeHtml(grouping.name)}
+                    <span class="delete-preset" onclick="event.stopPropagation(); deleteSavedGrouping(${index})">×</span>
+                </span>
+            `).join('');
+        }
+
+        function getSavedGroupings() {
+            try {
+                return JSON.parse(localStorage.getItem(GROUPING_PRESETS_KEY) || '[]');
+            } catch {
+                return [];
+            }
+        }
+
+        function saveCustomGrouping() {
+            updateCustomGroupingConfig();
+
+            if (!customGroupingConfig.field1) {
+                alert('Please select a field to group by before saving.');
+                return;
+            }
+
+            const name = prompt('Enter a name for this grouping:');
+            if (!name || name.trim() === '') return;
+
+            const groupings = getSavedGroupings();
+            groupings.push({
+                name: name.trim(),
+                config: JSON.parse(JSON.stringify(customGroupingConfig)),
+                createdAt: new Date().toISOString()
+            });
+
+            localStorage.setItem(GROUPING_PRESETS_KEY, JSON.stringify(groupings));
+            loadSavedGroupings();
+            updateStatus(`Grouping "${name}" saved!`, 'success');
+        }
+
+        function loadSavedGrouping(index) {
+            const groupings = getSavedGroupings();
+            if (index < 0 || index >= groupings.length) return;
+
+            const grouping = groupings[index];
+            customGroupingConfig = JSON.parse(JSON.stringify(grouping.config));
+
+            // Update UI
+            const field1Select = document.getElementById('customGroupField');
+            const field2Select = document.getElementById('customGroupField2');
+            if (field1Select) field1Select.value = customGroupingConfig.field1 || '';
+            if (field2Select) field2Select.value = customGroupingConfig.field2 || '';
+
+            // Update aggregation buttons
+            document.querySelectorAll('.aggregation-option').forEach(btn => {
+                const agg = btn.dataset.agg;
+                if (customGroupingConfig.aggregations.includes(agg)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            applyCustomGrouping();
+            updateStatus(`Loaded grouping: ${grouping.name}`, 'success');
+        }
+
+        function deleteSavedGrouping(index) {
+            const groupings = getSavedGroupings();
+            if (index < 0 || index >= groupings.length) return;
+
+            if (!confirm(`Delete grouping "${groupings[index].name}"?`)) return;
+
+            groupings.splice(index, 1);
+            localStorage.setItem(GROUPING_PRESETS_KEY, JSON.stringify(groupings));
+            loadSavedGroupings();
+        }
+
+        // Keep legacy applyFilters for compatibility
+        function applyFilters() {
+            // Convert to advanced filter format
+            filterGroups = [];
+            filterGroupIdCounter = 0;
+
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            const status = document.getElementById('statusFilter').value;
+
+            if (dateFrom || dateTo || status) {
+                const groupId = addFilterGroup();
+                const group = findGroupById(groupId);
+                group.conditions = [];
+
+                if (dateFrom && dateTo) {
+                    group.conditions.push({
+                        id: Date.now(),
+                        field: 'File_Date',
+                        operator: 'between',
+                        value: dateFrom,
+                        value2: dateTo
+                    });
+                } else if (dateFrom) {
+                    group.conditions.push({
+                        id: Date.now(),
+                        field: 'File_Date',
+                        operator: 'after',
+                        value: dateFrom,
+                        value2: ''
+                    });
+                } else if (dateTo) {
+                    group.conditions.push({
+                        id: Date.now(),
+                        field: 'File_Date',
+                        operator: 'before',
+                        value: dateTo,
+                        value2: ''
+                    });
+                }
+
+                if (status) {
+                    group.conditions.push({
+                        id: Date.now() + 1,
+                        field: 'Status',
+                        operator: 'equals',
+                        value: status,
+                        value2: ''
+                    });
+                }
+
+                renderFilterGroups();
+                applyAdvancedFilters();
+            }
         }
     </script>
 </body>
