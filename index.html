@@ -510,10 +510,16 @@
             <!-- Monthly Trend Chart -->
             <div class="data-card p-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-gray-900">Monthly Eviction Filings</h2>
-                    <button onclick="downloadChart('monthly')" class="text-gray-500 hover:text-gray-700">
-                        📊 Export
-                    </button>
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-xl font-bold text-gray-900">Eviction Filings by Month</h2>
+                        <span id="chartFilterIndicator" class="hidden"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">Click a point to filter table</span>
+                        <button onclick="downloadChart('monthly')" class="text-gray-500 hover:text-gray-700">
+                            📊 Export
+                        </button>
+                    </div>
                 </div>
                 <div class="chart-container">
                     <canvas id="monthlyChart"></canvas>
@@ -1067,62 +1073,200 @@
             document.getElementById('individualLL').textContent = individualCount.toLocaleString();
         }
 
+        // Track active chart filter for month/year
+        let chartFilter = null;
+
         function initCharts() {
             const ctx = document.getElementById('monthlyChart').getContext('2d');
             monthlyChart = new Chart(ctx, {
-                type: 'bar',
+                type: 'line',
                 data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Eviction Filings',
-                        data: [],
-                        backgroundColor: 'rgba(79, 70, 229, 0.8)',
-                        borderColor: '#4f46e5',
-                        borderWidth: 2
-                    }]
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    datasets: []
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'point',
+                        intersect: true
+                    },
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.parsed.y} filings`;
+                                }
+                            }
                         }
                     },
                     scales: {
                         y: {
                             beginAtZero: true,
-                            ticks: {
-                                stepSize: 50
+                            title: {
+                                display: true,
+                                text: 'Filings'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
                             }
                         }
+                    },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const datasetIndex = element.datasetIndex;
+                            const monthIndex = element.index;
+                            const year = monthlyChart.data.datasets[datasetIndex].label;
+                            const month = monthIndex + 1;
+                            filterByChartClick(year, month);
+                        }
+                    },
+                    onHover: function(event, elements) {
+                        event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
                     }
                 }
             });
         }
 
         function updateCharts() {
-            // Group data by month
-            const monthCounts = {};
-            
+            // Group data by year and month
+            const yearMonthCounts = {};
+
             allData.forEach(record => {
                 const date = new Date(record.File_Date);
-                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                monthCounts[monthKey] = (monthCounts[monthKey] || 0) + 1;
+                if (isNaN(date.getTime())) return;
+
+                const year = date.getFullYear();
+                const month = date.getMonth(); // 0-11
+
+                if (!yearMonthCounts[year]) {
+                    yearMonthCounts[year] = new Array(12).fill(0);
+                }
+                yearMonthCounts[year][month]++;
             });
-            
-            // Sort months and get last 12
-            const sortedMonths = Object.keys(monthCounts).sort().slice(-12);
-            const labels = sortedMonths.map(m => {
-                const [year, month] = m.split('-');
-                const date = new Date(year, parseInt(month) - 1);
-                return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-            });
-            const data = sortedMonths.map(m => monthCounts[m]);
-            
-            monthlyChart.data.labels = labels;
-            monthlyChart.data.datasets[0].data = data;
+
+            // Get sorted years
+            const years = Object.keys(yearMonthCounts).sort();
+
+            // Color palette for different years
+            const colors = [
+                { bg: 'rgba(79, 70, 229, 0.2)', border: '#4f46e5' },   // Indigo
+                { bg: 'rgba(16, 185, 129, 0.2)', border: '#10b981' },  // Emerald
+                { bg: 'rgba(245, 158, 11, 0.2)', border: '#f59e0b' },  // Amber
+                { bg: 'rgba(239, 68, 68, 0.2)', border: '#ef4444' },   // Red
+                { bg: 'rgba(6, 182, 212, 0.2)', border: '#06b6d4' },   // Cyan
+                { bg: 'rgba(168, 85, 247, 0.2)', border: '#a855f7' },  // Purple
+                { bg: 'rgba(236, 72, 153, 0.2)', border: '#ec4899' },  // Pink
+                { bg: 'rgba(34, 197, 94, 0.2)', border: '#22c55e' }    // Green
+            ];
+
+            // Create datasets for each year
+            const datasets = years.map((year, index) => ({
+                label: year,
+                data: yearMonthCounts[year],
+                backgroundColor: colors[index % colors.length].bg,
+                borderColor: colors[index % colors.length].border,
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 4,
+                pointHoverRadius: 7,
+                pointBackgroundColor: colors[index % colors.length].border
+            }));
+
+            monthlyChart.data.datasets = datasets;
             monthlyChart.update();
+        }
+
+        function filterByChartClick(year, month) {
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+
+            chartFilter = { year: parseInt(year), month: month };
+
+            filteredData = allData.filter(record => {
+                const date = new Date(record.File_Date);
+                if (isNaN(date.getTime())) return false;
+                return date.getFullYear() === chartFilter.year &&
+                       (date.getMonth() + 1) === chartFilter.month;
+            });
+
+            if (viewMode === 'pivot') {
+                pivotData = buildPivotData(pivotDimension);
+            }
+
+            if (gridApi) {
+                if (viewMode === 'pivot') {
+                    gridApi.setRowData(pivotData);
+                } else {
+                    gridApi.setRowData(filteredData);
+                }
+            }
+
+            updateRecordCount();
+            updateChartFilterIndicator();
+            updateStatus(`Filtered to ${monthNames[month - 1]} ${year} - ${filteredData.length} records`, 'success');
+        }
+
+        function clearChartFilter() {
+            chartFilter = null;
+            filteredData = allData;
+
+            // Re-apply any existing filters from the filter panel
+            const status = document.getElementById('statusFilter').value;
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+
+            if (status || dateFrom || dateTo) {
+                applyFilters();
+            } else {
+                if (viewMode === 'pivot') {
+                    pivotData = buildPivotData(pivotDimension);
+                }
+
+                if (gridApi) {
+                    if (viewMode === 'pivot') {
+                        gridApi.setRowData(pivotData);
+                    } else {
+                        gridApi.setRowData(filteredData);
+                    }
+                }
+            }
+
+            updateRecordCount();
+            updateChartFilterIndicator();
+            updateStatus(`Showing all ${allData.length} records`, 'success');
+        }
+
+        function updateChartFilterIndicator() {
+            const indicator = document.getElementById('chartFilterIndicator');
+            if (!indicator) return;
+
+            if (chartFilter) {
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                indicator.innerHTML = `
+                    <span class="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">
+                        Filtered: ${monthNames[chartFilter.month - 1]} ${chartFilter.year}
+                        <button onclick="clearChartFilter()" class="ml-2 text-indigo-600 hover:text-indigo-800 font-bold">&times;</button>
+                    </span>
+                `;
+                indicator.classList.remove('hidden');
+            } else {
+                indicator.classList.add('hidden');
+            }
         }
 
         function createDistrictMap() {
@@ -1612,10 +1756,14 @@
         }
 
         function applyFilters() {
+            // Clear chart filter when applying advanced filters
+            chartFilter = null;
+            updateChartFilterIndicator();
+
             const status = document.getElementById('statusFilter').value;
             const dateFrom = document.getElementById('dateFrom').value;
             const dateTo = document.getElementById('dateTo').value;
-            
+
             filteredData = allData.filter(record => {
                 // Status filter
                 if (status && record.Status !== status) return false;
@@ -1649,6 +1797,10 @@
             document.getElementById('statusFilter').value = '';
             document.getElementById('dateFrom').value = '';
             document.getElementById('dateTo').value = '';
+
+            // Also clear chart filter
+            chartFilter = null;
+            updateChartFilterIndicator();
 
             filteredData = allData;
             if (viewMode === 'pivot') {
@@ -1724,6 +1876,10 @@
         }
 
         function filterByDistrict(district) {
+            // Clear chart filter when filtering by district
+            chartFilter = null;
+            updateChartFilterIndicator();
+
             if (district === 'Unknown' || district === 'unknown') {
                 filteredData = allData.filter(r => r.District === 'Unknown' || r.District === 'unknown');
             } else {
