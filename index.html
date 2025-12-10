@@ -345,7 +345,6 @@
             ⏳ Loading data from public records API...
         </div>
 
-        <p class="text-xs text-gray-500 mb-4">* Location information (addresses, districts, council assignments) is approximated from court filings and may not represent confirmed property details.</p>
 
         <!-- Key Metrics -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
@@ -377,9 +376,9 @@
         </div>
 
         <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <div class="grid grid-cols-1 gap-6 mb-6">
             <!-- Monthly Trend Chart -->
-            <div class="lg:col-span-2 data-card p-6">
+            <div class="data-card p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold text-gray-900">Monthly Eviction Filings</h2>
                     <button onclick="downloadChart('monthly')" class="text-gray-500 hover:text-gray-700">
@@ -391,8 +390,8 @@
                 </div>
             </div>
 
-            <!-- District Heat Map -->
-            <div class="data-card p-6">
+            <!-- District Heat Map - Hidden due to data uncertainty -->
+            <div class="data-card p-6 hidden" id="districtHeatMapSection">
                 <h2 class="text-xl font-bold text-gray-900 mb-4">District Activity Patterns*</h2>
                 <div class="grid grid-cols-7 gap-1" id="districtGrid">
                     <!-- Will be populated by JavaScript -->
@@ -518,7 +517,6 @@
                         <span class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Group by</span>
                         <button class="pivot-option active" data-pivot-dimension="plaintiff" onclick="setPivotDimension('plaintiff')">Landlord</button>
                         <button class="pivot-option" data-pivot-dimension="attorney" onclick="setPivotDimension('attorney')">Attorney</button>
-                        <button class="pivot-option" data-pivot-dimension="district" onclick="setPivotDimension('district')">District*</button>
                     </div>
                     <div>
                         <button onclick="exportCSV()" class="btn btn-primary">
@@ -546,7 +544,7 @@
             <div id="caseModalContent" class="p-6">
                 <div id="caseModalMeta" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"></div>
                 <div>
-                    <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Parties &amp; Location</h4>
+                    <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Case Parties</h4>
                     <div id="caseModalDetails" class="space-y-3"></div>
                 </div>
             </div>
@@ -583,9 +581,6 @@
             { field: 'Plaintiff', headerName: 'Plaintiff/Landlord', width: 200 },
             { field: 'Defendant', headerName: 'Defendant/Tenant', width: 200 },
             { field: 'Attorney', headerName: 'Attorney', width: 150 },
-            { field: 'Address', headerName: 'Possible Property Address*', width: 300 },
-            { field: 'District', headerName: 'District*', width: 90 },
-            { field: 'CouncilMember', headerName: 'Council', width: 120 },
             { field: 'Status', headerName: 'Status', width: 100,
               cellStyle: params => {
                   if (params.value === 'PENDING') return { color: '#f59e0b', fontWeight: 'bold' };
@@ -783,16 +778,7 @@
             
             // Individual landlords
             const individualCount = allData.filter(d => d.individual_ll === true || d.individual_ll === "1").length;
-            const unknownDistrictCount = allData.filter(d => d.District === 'Unknown' || d.District === 'unknown').length;
-            const unknownPercent = ((unknownDistrictCount / allData.length) * 100).toFixed(1);
-            
             document.getElementById('individualLL').textContent = individualCount.toLocaleString();
-            // Update the subtitle to show unknown districts
-            const individualCard = document.getElementById('individualLL').parentElement;
-            const subtitleEl = individualCard.querySelector('.text-sm.mt-2');
-            if (subtitleEl) {
-                subtitleEl.innerHTML = `<span title="${unknownDistrictCount} records">${unknownPercent}% unknown dist.*</span>`;
-            }
         }
 
         function initCharts() {
@@ -1044,14 +1030,6 @@
                     label: 'Status',
                     value: statusValue,
                     className: statusClass
-                },
-                {
-                    label: 'District',
-                    value: formatModalValue(record.District || record.council_district_number || 'Unknown')
-                },
-                {
-                    label: 'Council',
-                    value: formatModalValue(record.CouncilMember || record.council_member || 'Unknown')
                 }
             ];
 
@@ -1078,7 +1056,6 @@
                 { label: 'Plaintiff / Landlord', value: record.Plaintiff || record.plaintiff },
                 { label: 'Defendant / Tenant', value: record.Defendant || record.defendant },
                 { label: 'Attorney of Record', value: record.Attorney || record.attorney },
-                { label: 'Possible Property Address*', value: record.Address || record.address_formatted || record.address },
                 { label: 'Case Notes', value: record.Notes || record.notes }
             ];
 
@@ -1302,9 +1279,6 @@
                             <td><span class="confidence-badge ${confClass}">${(r.confidence * 100).toFixed(0)}%</span></td>
                             <td>${escapeHtml(fileDate)}</td>
                             <td>${escapeHtml(r.record.Attorney || 'Unavailable')}</td>
-                            <td>${escapeHtml(r.record.Address || 'Unavailable')}</td>
-                            <td>${escapeHtml(r.record.District || 'Unavailable')}</td>
-                            <td>${escapeHtml(r.record.CouncilMember || 'Unavailable')}</td>
                             <td>${escapeHtml(r.record.Status || 'Unavailable')}</td>
                         </tr>
                     `;
@@ -1321,9 +1295,6 @@
                                     <th>Confidence</th>
                                     <th>File Date</th>
                                     <th>Attorney</th>
-                                    <th>Possible Property Address*</th>
-                                    <th>District*</th>
-                                    <th>Council Member</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
@@ -1501,8 +1472,7 @@
                 { field: 'closed', headerName: 'Closed', width: 120 },
                 { field: 'other', headerName: 'Other Status', width: 140 },
                 { field: 'lastFiled', headerName: 'Last Filing', width: 140,
-                  valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '' },
-                { field: 'uniqueProperties', headerName: 'Unique Possible Addresses*', width: 160 }
+                  valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '' }
             ];
         }
 
@@ -1583,12 +1553,12 @@
         }
 
         function exportCSV() {
-            let csv = 'File Date,Docket Number,Plaintiff,Defendant,Attorney,Possible Property Address*,District*,Council Member,Status\n';
+            let csv = 'File Date,Docket Number,Plaintiff,Defendant,Attorney,Status\n';
 
             filteredData.forEach(row => {
-                csv += `"${new Date(row.File_Date).toLocaleDateString()}","${row.Case_Number}","${row.Plaintiff}","${row.Defendant}","${row.Attorney}","${row.Address}","${row.District}","${row.CouncilMember}","${row.Status}"\n`;
+                csv += `"${new Date(row.File_Date).toLocaleDateString()}","${row.Case_Number}","${row.Plaintiff}","${row.Defendant}","${row.Attorney}","${row.Status}"\n`;
             });
-            
+
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1602,13 +1572,13 @@
                 alert('No matches to export. Run a bulk search first.');
                 return;
             }
-            
-            let csv = 'Search Term,Matched Name,Confidence,File Date,Attorney,Possible Property Address*,District*,Council Member,Status\n';
-            
+
+            let csv = 'Search Term,Matched Name,Confidence,File Date,Attorney,Status\n';
+
             searchMatches.forEach(match => {
-                csv += `"${match.searchTerm}","${match.match}","${(match.confidence * 100).toFixed(1)}%","${new Date(match.record.File_Date).toLocaleDateString()}","${match.record.Attorney}","${match.record.Address}","${match.record.District}","${match.record.CouncilMember}","${match.record.Status}"\n`;
+                csv += `"${match.searchTerm}","${match.match}","${(match.confidence * 100).toFixed(1)}%","${new Date(match.record.File_Date).toLocaleDateString()}","${match.record.Attorney}","${match.record.Status}"\n`;
             });
-            
+
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
