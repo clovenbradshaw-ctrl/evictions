@@ -634,6 +634,7 @@
                         Eviction Records
                         <span id="recordCount" class="text-sm font-normal text-gray-500"></span>
                     </h2>
+                    <span id="nameFilterIndicator" class="hidden"></span>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 justify-end">
                     <div class="flex items-center gap-2 bg-gray-100 rounded-full p-1">
@@ -643,6 +644,7 @@
                     <div id="pivotDimensionControls" class="flex flex-wrap items-center gap-2 hidden">
                         <span class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Group by</span>
                         <button class="pivot-option active" data-pivot-dimension="plaintiff" onclick="setPivotDimension('plaintiff')">Landlord</button>
+                        <button class="pivot-option" data-pivot-dimension="defendant" onclick="setPivotDimension('defendant')">Tenant</button>
                         <button class="pivot-option" data-pivot-dimension="attorney" onclick="setPivotDimension('attorney')">Attorney</button>
                     </div>
                     <div>
@@ -814,24 +816,62 @@
 
         const pivotFieldMap = {
             plaintiff: 'Plaintiff',
+            defendant: 'Defendant',
             attorney: 'Attorney',
             district: 'District'
         };
 
         const pivotDimensionLabels = {
             plaintiff: 'Landlord',
+            defendant: 'Tenant',
             attorney: 'Attorney',
             district: 'District*'
         };
+
+        // Track active name filter
+        let nameFilter = null;
 
         const recordColumnDefs = [
             { field: 'File_Date', headerName: 'File Date', width: 110,
               valueFormatter: params => new Date(params.value).toLocaleDateString(),
               sort: 'desc', sortIndex: 0 },
             { field: 'Case_Number', headerName: 'Docket #', width: 120 },
-            { field: 'Plaintiff', headerName: 'Plaintiff/Landlord', width: 250 },
-            { field: 'Defendant', headerName: 'Defendant/Tenant', width: 250 },
-            { field: 'Attorney', headerName: 'Attorney', width: 200 }
+            { field: 'Plaintiff', headerName: 'Plaintiff/Landlord', width: 250,
+              cellRenderer: params => {
+                  if (!params.value) return '';
+                  return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${params.value}</span>`;
+              },
+              onCellClicked: params => {
+                  if (params.value && params.event) {
+                      params.event.stopPropagation();
+                      filterByName(params.value, 'plaintiff');
+                  }
+              }
+            },
+            { field: 'Defendant', headerName: 'Defendant/Tenant', width: 250,
+              cellRenderer: params => {
+                  if (!params.value) return '';
+                  return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${params.value}</span>`;
+              },
+              onCellClicked: params => {
+                  if (params.value && params.event) {
+                      params.event.stopPropagation();
+                      filterByName(params.value, 'defendant');
+                  }
+              }
+            },
+            { field: 'Attorney', headerName: 'Attorney', width: 200,
+              cellRenderer: params => {
+                  if (!params.value) return '';
+                  return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${params.value}</span>`;
+              },
+              onCellClicked: params => {
+                  if (params.value && params.event) {
+                      params.event.stopPropagation();
+                      filterByName(params.value, 'attorney');
+                  }
+              }
+            }
         ];
 
         // Initialize on load
@@ -1285,6 +1325,141 @@
             }
         }
 
+        // Filter by name (landlord, tenant, or attorney)
+        function filterByName(name, type) {
+            if (!name || String(name).trim() === '') return;
+
+            const trimmedName = String(name).trim();
+            const fieldMap = {
+                plaintiff: 'Plaintiff',
+                defendant: 'Defendant',
+                attorney: 'Attorney'
+            };
+            const labelMap = {
+                plaintiff: 'Landlord',
+                defendant: 'Tenant',
+                attorney: 'Attorney'
+            };
+
+            const field = fieldMap[type] || 'Plaintiff';
+            const label = labelMap[type] || 'Name';
+
+            // Clear chart filter when filtering by name
+            chartFilter = null;
+            updateChartFilterIndicator();
+
+            nameFilter = { name: trimmedName, type: type, field: field, label: label };
+
+            filteredData = allData.filter(record => {
+                const recordValue = record[field];
+                return recordValue && String(recordValue).trim() === trimmedName;
+            });
+
+            if (viewMode === 'pivot') {
+                pivotData = buildPivotData(pivotDimension);
+            }
+
+            if (gridApi) {
+                if (viewMode === 'pivot') {
+                    gridApi.setRowData(pivotData);
+                } else {
+                    gridApi.setRowData(filteredData);
+                }
+            }
+
+            updateRecordCount();
+            updateNameFilterIndicator();
+            updateStatus(`Showing ${filteredData.length} records for ${label}: ${trimmedName}`, 'success');
+        }
+
+        function clearNameFilter() {
+            nameFilter = null;
+            filteredData = allData;
+
+            // Re-apply any existing filters from the filter panel
+            const status = document.getElementById('statusFilter').value;
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+
+            if (status || dateFrom || dateTo) {
+                applyFilters();
+            } else {
+                if (viewMode === 'pivot') {
+                    pivotData = buildPivotData(pivotDimension);
+                }
+
+                if (gridApi) {
+                    if (viewMode === 'pivot') {
+                        gridApi.setRowData(pivotData);
+                    } else {
+                        gridApi.setRowData(filteredData);
+                    }
+                }
+            }
+
+            updateRecordCount();
+            updateNameFilterIndicator();
+            updateStatus(`Showing all ${allData.length} records`, 'success');
+        }
+
+        function updateNameFilterIndicator() {
+            const indicator = document.getElementById('nameFilterIndicator');
+            if (!indicator) return;
+
+            if (nameFilter) {
+                indicator.innerHTML = `
+                    <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium inline-flex items-center mt-2">
+                        ${nameFilter.label}: ${nameFilter.name}
+                        <button onclick="clearNameFilter()" class="ml-2 text-blue-600 hover:text-blue-800 font-bold">&times;</button>
+                    </span>
+                `;
+                indicator.classList.remove('hidden');
+            } else {
+                indicator.classList.add('hidden');
+            }
+        }
+
+        // Handle clicking on a pivot row to drill down to all records for that group
+        function drillDownFromPivot(groupName) {
+            if (!groupName || groupName === 'Unknown') return;
+
+            const field = pivotFieldMap[pivotDimension];
+            const label = pivotDimensionLabels[pivotDimension];
+
+            // Map pivot dimension to filter type
+            const typeMap = {
+                plaintiff: 'plaintiff',
+                defendant: 'defendant',
+                attorney: 'attorney'
+            };
+
+            const filterType = typeMap[pivotDimension] || 'plaintiff';
+
+            // Clear chart filter
+            chartFilter = null;
+            updateChartFilterIndicator();
+
+            nameFilter = { name: groupName, type: filterType, field: field, label: label };
+
+            filteredData = allData.filter(record => {
+                const recordValue = record[field];
+                return recordValue && String(recordValue).trim() === groupName.trim();
+            });
+
+            // Switch to records view to show matching records
+            viewMode = 'records';
+
+            if (gridApi) {
+                gridApi.setColumnDefs(recordColumnDefs);
+                gridApi.setRowData(filteredData);
+            }
+
+            updatePivotControls();
+            updateRecordCount();
+            updateNameFilterIndicator();
+            updateStatus(`Showing ${filteredData.length} records for ${label}: ${groupName}`, 'success');
+        }
+
         function createDistrictMap() {
             const districtCounts = {};
             let unknownCount = 0;
@@ -1375,7 +1550,13 @@
                 paginationPageSizeSelector: [25, 50, 100, 200],
                 animateRows: true,
                 onRowClicked: event => {
-                    if (viewMode !== 'records') return;
+                    if (viewMode === 'pivot') {
+                        // In pivot view, drill down to show all records for the clicked group
+                        if (event.data && event.data.groupKey) {
+                            drillDownFromPivot(event.data.groupKey);
+                        }
+                        return;
+                    }
                     showCaseModal(event.data);
                 },
                 onGridReady: params => {
@@ -1819,6 +2000,10 @@
             chartFilter = null;
             updateChartFilterIndicator();
 
+            // Also clear name filter
+            nameFilter = null;
+            updateNameFilterIndicator();
+
             filteredData = allData;
             if (viewMode === 'pivot') {
                 pivotData = buildPivotData(pivotDimension);
@@ -1925,7 +2110,12 @@
             const label = pivotDimensionLabels[pivotDimension] || 'Group';
 
             return [
-                { field: 'groupKey', headerName: label, flex: 2, minWidth: 160 },
+                { field: 'groupKey', headerName: label, flex: 2, minWidth: 160,
+                  cellRenderer: params => {
+                      if (!params.value) return '';
+                      return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${params.value}</span>`;
+                  }
+                },
                 { field: 'totalFilings', headerName: 'Total Filings', width: 140, sort: 'desc', sortIndex: 0 },
                 { field: 'pending', headerName: 'Pending', width: 120 },
                 { field: 'closed', headerName: 'Closed', width: 120 },
