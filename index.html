@@ -2379,7 +2379,7 @@
 
                 try {
                     const response = await fetch(apiUrl, {
-                        method: 'PUT',
+                        method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
@@ -2392,7 +2392,14 @@
                     } else {
                         failed++;
                         const errorText = await response.text();
-                        addUploadStatusItem(statusLog, `Row ${i + 1}: Failed - ${response.status}`, 'error');
+                        let errorDetail = response.status;
+                        try {
+                            const errorJson = JSON.parse(errorText);
+                            errorDetail = errorJson.message || errorJson.error || errorText || response.status;
+                        } catch {
+                            errorDetail = errorText || response.status;
+                        }
+                        addUploadStatusItem(statusLog, `Row ${i + 1}: Failed - ${errorDetail}`, 'error');
                     }
                 } catch (error) {
                     failed++;
