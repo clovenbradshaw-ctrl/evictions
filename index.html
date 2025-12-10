@@ -1064,7 +1064,7 @@
             const isGenericAddress = 
                 // Exactly "Nashville, TN, USA" or similar (no street info)
                 /^nashville,?\s*(tn|tennessee)?,?\s*(usa)?$/i.test(addressLower) ||
-                // Just "1 Public Square" (individual landlord placeholder)
+                // Just "1 Public Square" (generic placeholder address)
                 addressLower.includes('1 public square') ||
                 // Just an apartment number with no street
                 /^#\d+,?\s*nashville/i.test(addressLower) ||
@@ -1080,14 +1080,6 @@
             // Also mark as unknown if district is 0 or invalid
             if (normalized.District === 0 || normalized.District === '0' || normalized.District === null) {
                 normalized.District = 'Unknown';
-            }
-            
-            // Mark individual landlords as unknown district (they're all at city hall)
-            if (normalized.individual_ll === true || normalized.individual_ll === "1") {
-                normalized.District = 'Unknown';
-                if (!normalized.CouncilMember || normalized.CouncilMember === 'unknown') {
-                    normalized.CouncilMember = 'Individual Landlord';
-                }
             }
             
             return normalized;
@@ -1707,11 +1699,6 @@
                         return Number.isFinite(numeric) ? `$${numeric.toLocaleString()}` : formatModalValue(value);
                     }
                 },
-                {
-                    key: 'individual_ll',
-                    label: 'Individual Landlord',
-                    formatter: value => (value === true || value === '1' || value === 1 ? 'Yes' : 'No')
-                }
             ];
 
             supplementalFields.forEach(field => {
@@ -2270,7 +2257,6 @@
             { key: 'latitude', label: 'Latitude', type: 'text' },
             { key: 'council_district', label: 'Council District', type: 'text' },
             { key: 'council_district_number', label: 'Council District Number', type: 'integer' },
-            { key: 'individual_ll', label: 'Individual Landlord', type: 'text' },
             { key: 'updated', label: 'Updated', type: 'text' }
         ];
 
