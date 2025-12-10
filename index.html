@@ -498,11 +498,6 @@
                 <div id="pendingCount" class="metric-value text-orange-600">-</div>
                 <div class="text-sm mt-2 text-gray-500">Active cases</div>
             </div>
-            <div class="data-card p-6">
-                <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Individual LL</div>
-                <div id="individualLL" class="metric-value text-blue-600">-</div>
-                <div class="text-sm mt-2 text-gray-500">vs Corporate</div>
-            </div>
         </div>
 
         <!-- Main Content Grid -->
@@ -1056,11 +1051,6 @@
             // Pending
             const pendingCount = allData.filter(d => d.Status === 'PENDING').length;
             document.getElementById('pendingCount').textContent = pendingCount.toLocaleString();
-            
-            // Individual landlords
-            const individualCount = allData.filter(d => d.individual_ll === true || d.individual_ll === "1").length;
-
-            document.getElementById('individualLL').textContent = individualCount.toLocaleString();
         }
 
         // Track active chart filter for month/year
