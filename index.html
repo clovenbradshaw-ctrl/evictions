@@ -2270,7 +2270,8 @@
             { key: 'latitude', label: 'Latitude', type: 'text' },
             { key: 'council_district', label: 'Council District', type: 'text' },
             { key: 'council_district_number', label: 'Council District Number', type: 'integer' },
-            { key: 'individual_ll', label: 'Individual Landlord', type: 'text' }
+            { key: 'individual_ll', label: 'Individual Landlord', type: 'text' },
+            { key: 'updated', label: 'Updated', type: 'text' }
         ];
 
         // Auto-mapping rules (CSV header -> target field)
@@ -2314,7 +2315,12 @@
             'district_number': 'council_district_number',
             'individual_ll': 'individual_ll',
             'individual_landlord': 'individual_ll',
-            'individual': 'individual_ll'
+            'individual': 'individual_ll',
+            'updated': 'updated',
+            'updated_at': 'updated',
+            'last_updated': 'updated',
+            'modified': 'updated',
+            'modified_at': 'updated'
         };
 
         // Secret key combo detection
@@ -2728,6 +2734,8 @@
 
                     transformed[targetField] = value;
                 });
+                // Set the updated timestamp to current time for all uploaded records
+                transformed['updated'] = new Date().toISOString();
                 return transformed;
             });
 
