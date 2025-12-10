@@ -926,10 +926,13 @@
                     data = [result];
                 }
                 
-                allData = data.map(normalizeRecord);
+                const normalizedData = data.map(normalizeRecord);
+                allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
-                
-                updateStatus(`Loaded ${allData.length} records from public court data`, 'success');
+
+                const dupeCount = normalizedData.length - allData.length;
+                const dupeMsg = dupeCount > 0 ? ` (${dupeCount} duplicates removed)` : '';
+                updateStatus(`Loaded ${allData.length} records from public court data${dupeMsg}`, 'success');
                 updateMetrics();
                 updateCharts();
                 createDistrictMap();
@@ -942,6 +945,35 @@
                 console.error('Error loading data:', error);
                 updateStatus(`Error loading data: ${error.message}`, 'error');
             }
+        }
+
+        // Deduplicate records by docket number (Case_Number), keeping the most recent by File_Date
+        function dedupeByDocketNumber(records) {
+            const seen = new Map();
+
+            for (const record of records) {
+                const docketNumber = (record.Case_Number || '').trim();
+
+                // Skip records with empty docket numbers
+                if (!docketNumber) {
+                    continue;
+                }
+
+                if (!seen.has(docketNumber)) {
+                    seen.set(docketNumber, record);
+                } else {
+                    // Keep the record with the more recent File_Date
+                    const existing = seen.get(docketNumber);
+                    const existingDate = new Date(existing.File_Date || 0);
+                    const currentDate = new Date(record.File_Date || 0);
+
+                    if (currentDate > existingDate) {
+                        seen.set(docketNumber, record);
+                    }
+                }
+            }
+
+            return Array.from(seen.values());
         }
 
         function normalizeRecord(record) {
