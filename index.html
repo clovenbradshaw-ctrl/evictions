@@ -897,6 +897,46 @@
             return normalizedSegments.join(', ');
         }
 
+        function parseDate(dateValue) {
+            if (!dateValue) return null;
+
+            // If already a Date object
+            if (dateValue instanceof Date) {
+                return isNaN(dateValue.getTime()) ? null : dateValue.toISOString().split('T')[0];
+            }
+
+            const dateStr = String(dateValue).trim();
+            if (!dateStr) return null;
+
+            // Try parsing as ISO format first (YYYY-MM-DD)
+            if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+                const date = new Date(dateStr);
+                return isNaN(date.getTime()) ? null : dateStr.split('T')[0];
+            }
+
+            // Handle MM/DD/YYYY or M/D/YYYY format
+            const slashMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+            if (slashMatch) {
+                const [, month, day, year] = slashMatch;
+                const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                const date = new Date(isoDate);
+                return isNaN(date.getTime()) ? null : isoDate;
+            }
+
+            // Handle MM-DD-YYYY format
+            const dashMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
+            if (dashMatch) {
+                const [, month, day, year] = dashMatch;
+                const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                const date = new Date(isoDate);
+                return isNaN(date.getTime()) ? null : isoDate;
+            }
+
+            // Fallback: try native parsing
+            const date = new Date(dateStr);
+            return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
+        }
+
         async function loadData() {
             try {
                 updateStatus('Loading data from public records API...', 'loading');
@@ -942,7 +982,7 @@
         function normalizeRecord(record) {
             const normalized = {
                 ...record,
-                File_Date: record.File_Date || record.file_date,
+                File_Date: parseDate(record.File_Date || record.file_date),
                 Status: record.Status || record.status || 'UNKNOWN',
                 Plaintiff: record.Plaintiff_Petitioner || record.Plaintiff || record.plaintiff || '',
                 Defendant: record.Defendant_Respondent || record.Defendant || record.defendant || '',
