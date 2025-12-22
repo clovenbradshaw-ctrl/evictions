@@ -937,7 +937,7 @@
                                 <option value="Defendant">Defendant/Tenant</option>
                                 <option value="Attorney">Attorney</option>
                                 <option value="Status">Status</option>
-                                <option value="District">District</option>
+                                <option value="District">Council District</option>
                                 <option value="File_Date_Month">Month Filed</option>
                                 <option value="File_Date_Year">Year Filed</option>
                                 <option value="File_Date_Quarter">Quarter Filed</option>
@@ -951,7 +951,7 @@
                                 <option value="Defendant">Defendant/Tenant</option>
                                 <option value="Attorney">Attorney</option>
                                 <option value="Status">Status</option>
-                                <option value="District">District</option>
+                                <option value="District">Council District</option>
                                 <option value="File_Date_Month">Month Filed</option>
                                 <option value="File_Date_Year">Year Filed</option>
                             </select>
@@ -1007,6 +1007,7 @@
                         <button class="pivot-option active" data-pivot-dimension="plaintiff" onclick="setPivotDimension('plaintiff')">Landlord</button>
                         <button class="pivot-option" data-pivot-dimension="defendant" onclick="setPivotDimension('defendant')">Tenant</button>
                         <button class="pivot-option" data-pivot-dimension="attorney" onclick="setPivotDimension('attorney')">Attorney</button>
+                        <button class="pivot-option" data-pivot-dimension="district" onclick="setPivotDimension('district')">Council District</button>
                     </div>
                     <div>
                         <button onclick="exportCSV()" class="btn btn-primary">
@@ -1186,7 +1187,7 @@
             plaintiff: 'Landlord',
             defendant: 'Tenant',
             attorney: 'Attorney',
-            district: 'District*'
+            district: 'Council District'
         };
 
         // Track active name filter
@@ -1235,6 +1236,23 @@
                   if (params.value && params.event) {
                       params.event.stopPropagation();
                       filterByName(params.value, 'attorney');
+                  }
+              }
+            },
+            { field: 'District', headerName: 'Council District', width: 140,
+              cellRenderer: params => {
+                  if (!params.value || params.value === 'Unknown') return '<span class="text-gray-400">—</span>';
+                  return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">District ${params.value}</span>`;
+              },
+              comparator: (valueA, valueB) => {
+                  const numA = valueA && valueA !== 'Unknown' ? parseInt(valueA, 10) : Infinity;
+                  const numB = valueB && valueB !== 'Unknown' ? parseInt(valueB, 10) : Infinity;
+                  return numA - numB;
+              },
+              onCellClicked: params => {
+                  if (params.value && params.value !== 'Unknown' && params.event) {
+                      params.event.stopPropagation();
+                      filterByDistrict(params.value);
                   }
               }
             }
@@ -3191,7 +3209,7 @@
             { key: 'Attorney', label: 'Attorney', type: 'text' },
             { key: 'Status', label: 'Status', type: 'select', options: ['PENDING', 'CLOSED', 'UNKNOWN'] },
             { key: 'Case_Number', label: 'Case Number', type: 'text' },
-            { key: 'District', label: 'District', type: 'text' },
+            { key: 'District', label: 'Council District', type: 'text' },
             { key: 'File_Date', label: 'File Date', type: 'date' },
             { key: 'Address', label: 'Address', type: 'text' }
         ];
@@ -3874,7 +3892,7 @@
                 'Defendant': 'Tenant',
                 'Attorney': 'Attorney',
                 'Status': 'Status',
-                'District': 'District',
+                'District': 'Council District',
                 'File_Date_Month': 'Month',
                 'File_Date_Year': 'Year',
                 'File_Date_Quarter': 'Quarter'
