@@ -1,0 +1,13 @@
+{
+  "name": "nashville-eviction-tracker",
+  "version": "1.0.0",
+  "description": "Community-maintained Nashville eviction data tracker",
+  "scripts": {
+    "build:css": "npx tailwindcss -i ./src/input.css -o ./dist/output.css --minify",
+    "watch:css": "npx tailwindcss -i ./src/input.css -o ./dist/output.css --watch",
+    "build": "npm run build:css"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}
