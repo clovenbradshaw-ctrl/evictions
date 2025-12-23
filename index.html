@@ -1816,6 +1816,94 @@
             }
         };
 
+        // IndexedDB helper for large data storage (localStorage has ~5MB limit)
+        const evictionDB = {
+            DB_NAME: 'evictionTrackerDB',
+            DB_VERSION: 1,
+            STORE_NAME: 'evictionData',
+
+            async open() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+                            db.createObjectStore(this.STORE_NAME, { keyPath: 'id' });
+                        }
+                    };
+                });
+            },
+
+            async save(data, timestamp) {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.STORE_NAME, 'readwrite');
+                        const store = tx.objectStore(this.STORE_NAME);
+                        store.put({ id: 'evictionData', data, timestamp });
+                        tx.oncomplete = () => {
+                            db.close();
+                            resolve(true);
+                        };
+                        tx.onerror = () => {
+                            db.close();
+                            reject(tx.error);
+                        };
+                    });
+                } catch (e) {
+                    console.error('IndexedDB save failed:', e);
+                    return false;
+                }
+            },
+
+            async load() {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.STORE_NAME, 'readonly');
+                        const store = tx.objectStore(this.STORE_NAME);
+                        const request = store.get('evictionData');
+                        request.onsuccess = () => {
+                            db.close();
+                            resolve(request.result || null);
+                        };
+                        request.onerror = () => {
+                            db.close();
+                            reject(request.error);
+                        };
+                    });
+                } catch (e) {
+                    console.error('IndexedDB load failed:', e);
+                    return null;
+                }
+            }
+        };
+
+        // Compress eviction data to essential fields for cross-page storage
+        function compressEvictionData(records) {
+            return records.map(r => ({
+                // Essential fields for CM rankings and deduplication
+                id: r.Case_Number || r.case_number || r.Docket_Number || '',
+                d: r.District || null,  // District number
+                fd: r.File_Date || r.file_date || '',  // File date
+                p: r.Plaintiff_Petitioner || r.plaintiff_petitioner || r.Plaintiff || '',  // Plaintiff/Landlord
+                s: r.Status || r.status || ''  // Status (for pending/closed)
+            }));
+        }
+
+        // Decompress eviction data back to expected format
+        function decompressEvictionData(compressed) {
+            return compressed.map(r => ({
+                Case_Number: r.id,
+                District: r.d,
+                File_Date: r.fd,
+                Plaintiff_Petitioner: r.p,
+                Status: r.s
+            }));
+        }
+
         // UI state persistence functions
         function saveUIState() {
             try {
@@ -2361,14 +2449,39 @@
                     lastError = directError;
                 }
 
-                // If direct API call failed, try localStorage fallback
+                // If direct API call failed, try cache fallback (localStorage or IndexedDB)
                 if (result === null) {
-                    console.log('API call failed, checking localStorage cache...');
-                    const storedData = localStorage.getItem('evictionData');
+                    console.log('API call failed, checking cache...');
+                    const storageType = localStorage.getItem('evictionDataStorage');
                     const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
+                    let cachedData = null;
 
-                    if (storedData) {
-                        allData = JSON.parse(storedData);
+                    // Try compressed localStorage first
+                    const compressedData = localStorage.getItem('evictionDataCompressed');
+                    if (compressedData) {
+                        cachedData = decompressEvictionData(JSON.parse(compressedData));
+                        console.log('📦 Loaded compressed data from localStorage');
+                    }
+                    // Try legacy uncompressed format
+                    else {
+                        const legacyData = localStorage.getItem('evictionData');
+                        if (legacyData) {
+                            cachedData = JSON.parse(legacyData);
+                            console.log('📦 Loaded legacy data from localStorage');
+                        }
+                    }
+
+                    // Try IndexedDB if localStorage didn't have data
+                    if (!cachedData && storageType === 'indexedDB') {
+                        const idbResult = await evictionDB.load();
+                        if (idbResult?.data) {
+                            cachedData = decompressEvictionData(idbResult.data);
+                            console.log('📦 Loaded data from IndexedDB');
+                        }
+                    }
+
+                    if (cachedData) {
+                        allData = cachedData;
                         filteredData = allData;
                         calculateGlobalDataRange(allData);
 
@@ -2428,13 +2541,45 @@
                 dataCache.invalidateAll();
                 console.log('🧹 Cleared computed data caches for new data');
 
-                // Store eviction data in localStorage for use by other pages (e.g., CM rankings)
+                // Store eviction data for use by other pages (e.g., CM rankings)
+                // Use compressed format to reduce size, fall back to IndexedDB if localStorage quota exceeded
+                const timestamp = Date.now();
+                const compressed = compressEvictionData(allData);
+                let storedInLocalStorage = false;
+
                 try {
-                    localStorage.setItem('evictionData', JSON.stringify(allData));
-                    localStorage.setItem('evictionDataTimestamp', Date.now().toString());
-                    console.log('💾 Stored', allData.length, 'records in localStorage for CM rankings page');
+                    localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
+                    localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                    localStorage.removeItem('evictionData'); // Remove old uncompressed data
+                    storedInLocalStorage = true;
+                    console.log('💾 Stored', allData.length, 'compressed records in localStorage for CM rankings page');
                 } catch (e) {
-                    console.error('❌ Could not store eviction data in localStorage:', e);
+                    console.warn('⚠️ localStorage quota exceeded, falling back to IndexedDB:', e.message);
+                    // Fall back to IndexedDB for large datasets
+                    evictionDB.save(compressed, timestamp).then(success => {
+                        if (success) {
+                            console.log('💾 Stored', allData.length, 'records in IndexedDB for CM rankings page');
+                            // Mark that we're using IndexedDB
+                            try {
+                                localStorage.setItem('evictionDataStorage', 'indexedDB');
+                                localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                                localStorage.removeItem('evictionDataCompressed');
+                                localStorage.removeItem('evictionData');
+                            } catch (e2) {
+                                // Ignore - we still have data in IndexedDB
+                            }
+                        } else {
+                            console.error('❌ Could not store eviction data in IndexedDB');
+                        }
+                    });
+                }
+
+                if (storedInLocalStorage) {
+                    try {
+                        localStorage.setItem('evictionDataStorage', 'localStorage');
+                    } catch (e) {
+                        // Ignore - main data is already stored
+                    }
                 }
 
                 const dupeCount = normalizedData.length - allData.length;
