@@ -1432,12 +1432,13 @@
 
                     <!-- District Grid/Table -->
                     <div class="demographics-table-container">
+                        <div id="demographicsDataRange" class="text-xs text-gray-500 mb-2" style="display: none;"></div>
                         <table class="demographics-table" id="demographicsTable">
                             <thead>
                                 <tr>
                                     <th>District</th>
                                     <th>Evictions</th>
-                                    <th>Per 1K</th>
+                                    <th id="perCapitaHeader">Per 1K</th>
                                     <th>Population</th>
                                     <th>Med. Income</th>
                                     <th>Poverty</th>
@@ -1711,6 +1712,14 @@
         let pivotData = [];
         let viewMode = 'records';
         let pivotDimension = 'plaintiff';
+
+        // Data date range for pro-rating per capita calculations to full year
+        let globalDataRange = {
+            earliest: null,
+            latest: null,
+            days: 0,
+            annualizationFactor: 1
+        };
 
         // Login state for defendant privacy protection
         let isLoggedIn = false;
@@ -2202,6 +2211,44 @@
             return normalizedSegments.join(', ');
         }
 
+        // Calculate the date range of the eviction data and annualization factor
+        function calculateGlobalDataRange(data) {
+            if (!data || data.length === 0) {
+                globalDataRange = { earliest: null, latest: null, days: 0, annualizationFactor: 1 };
+                return;
+            }
+
+            let earliest = null;
+            let latest = null;
+
+            for (const record of data) {
+                if (record.File_Date) {
+                    const date = new Date(record.File_Date);
+                    if (!isNaN(date.getTime())) {
+                        if (earliest === null || date < earliest) earliest = date;
+                        if (latest === null || date > latest) latest = date;
+                    }
+                }
+            }
+
+            if (earliest && latest) {
+                const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24)) + 1;
+                // Annualization factor: how much to multiply to get full year estimate
+                const annualizationFactor = days > 0 ? 365 / days : 1;
+
+                globalDataRange = {
+                    earliest,
+                    latest,
+                    days,
+                    annualizationFactor
+                };
+
+                console.log(`Data spans ${days} days (${earliest.toLocaleDateString()} to ${latest.toLocaleDateString()}). Annualization factor: ${annualizationFactor.toFixed(2)}x`);
+            } else {
+                globalDataRange = { earliest: null, latest: null, days: 0, annualizationFactor: 1 };
+            }
+        }
+
         function parseDate(dateValue) {
             if (!dateValue) return null;
 
@@ -2276,6 +2323,7 @@
                     if (storedData) {
                         allData = JSON.parse(storedData);
                         filteredData = allData;
+                        calculateGlobalDataRange(allData);
 
                         const cacheAge = storedTimestamp
                             ? Math.round((Date.now() - parseInt(storedTimestamp)) / (1000 * 60 * 60))
@@ -2311,6 +2359,7 @@
                 const normalizedData = data.map(normalizeRecord);
                 allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
+                calculateGlobalDataRange(allData);
 
                 // Invalidate computed data caches since we have new data
                 dataCache.invalidateAll();
@@ -3139,20 +3188,31 @@
                 evictionCount = allData.filter(r => r.District == districtNumber).length;
             }
 
+            // Pro-rate to full year if we have partial year data
+            const annualizedCount = Math.round(evictionCount * globalDataRange.annualizationFactor);
+            const isProRated = globalDataRange.days > 0 && globalDataRange.days < 365;
+
             let html = '';
 
             // Eviction Context Section
             const population = demo?.population || 0;
-            const evictionRate = population > 0 ? ((evictionCount / population) * 1000).toFixed(2) : 'N/A';
+            // Use annualized count for per capita calculation
+            const evictionRate = population > 0 ? ((annualizedCount / population) * 1000).toFixed(2) : 'N/A';
             const povertyRate = demo?.poverty?.pct_total_poverty || 0;
             const medianIncome = demo?.income?.median_household_income || 0;
             const countyMedianIncome = county?.median_household_income || 65348;
             const countyPovertyRate = county?.poverty_rate_percent || 15.0;
             const renterCostBurden = demo?.housing?.pct_renter_cost_burdened_35plus || 0;
 
+            // Format date range info for display
+            const dateRangeInfo = globalDataRange.earliest && globalDataRange.latest
+                ? `${globalDataRange.earliest.toLocaleDateString()} - ${globalDataRange.latest.toLocaleDateString()} (${globalDataRange.days} days)`
+                : '';
+
             html += `
                 <div class="demo-section">
                     <div class="demo-section-title">Eviction Context</div>
+                    ${dateRangeInfo ? `<div class="demo-section-subtitle" style="font-size: 11px; color: #666; margin-bottom: 8px;">Data: ${dateRangeInfo}</div>` : ''}
                     <div class="demo-grid">
                         <div class="demo-item">
                             <div class="label">Eviction Filings</div>
@@ -3163,7 +3223,7 @@
                             <div class="value">${population.toLocaleString()}</div>
                         </div>
                         <div class="demo-item">
-                            <div class="label">Evictions per 1,000</div>
+                            <div class="label">Evictions per 1,000${isProRated ? ' (annualized)' : ''}</div>
                             <div class="value highlight">${evictionRate}</div>
                         </div>
                         <div class="demo-item">
@@ -3385,8 +3445,12 @@
                     evictionCount = allData.filter(r => r.District == i).length;
                 }
 
+                // Pro-rate to full year if we have partial year data
+                const annualizedCount = Math.round(evictionCount * globalDataRange.annualizationFactor);
+
                 const population = demo.population || 0;
-                const evictionRate = population > 0 ? ((evictionCount / population) * 1000) : 0;
+                // Use annualized count for per capita calculation
+                const evictionRate = population > 0 ? ((annualizedCount / population) * 1000) : 0;
                 const medianIncome = demo.income?.median_household_income || 0;
                 const povertyRate = demo.poverty?.pct_total_poverty || 0;
                 const renterCostBurden = demo.housing?.pct_renter_cost_burdened_35plus || 0;
@@ -3429,6 +3493,24 @@
             // Calculate averages for highlighting
             const avgEvictions = data.reduce((s, d) => s + d.evictions, 0) / data.length;
             const avgEvictionRate = data.reduce((s, d) => s + d.evictionRate, 0) / data.length;
+
+            // Update per capita header to show if annualized
+            const isProRated = globalDataRange.days > 0 && globalDataRange.days < 365;
+            const perCapitaHeader = document.getElementById('perCapitaHeader');
+            if (perCapitaHeader) {
+                perCapitaHeader.textContent = isProRated ? 'Per 1K*' : 'Per 1K';
+                perCapitaHeader.title = isProRated ? 'Annualized rate (projected to full year)' : 'Evictions per 1,000 population';
+            }
+
+            // Show data range info
+            const dataRangeEl = document.getElementById('demographicsDataRange');
+            if (dataRangeEl && globalDataRange.earliest && globalDataRange.latest) {
+                dataRangeEl.style.display = 'block';
+                const dateRange = `${globalDataRange.earliest.toLocaleDateString()} - ${globalDataRange.latest.toLocaleDateString()}`;
+                dataRangeEl.innerHTML = isProRated
+                    ? `📊 Data: ${dateRange} (${globalDataRange.days} days) — <em>*Per capita rates annualized to full year</em>`
+                    : `📊 Data: ${dateRange} (${globalDataRange.days} days)`;
+            }
 
             // Update county summary
             const county = districtDemographics?.county_totals;
@@ -3485,7 +3567,7 @@
                             <span class="demo-card-stat-value ${d.evictions > avgEvictions ? 'highlight' : ''}">${d.evictions.toLocaleString()}</span>
                         </div>
                         <div class="demo-card-stat">
-                            <span class="demo-card-stat-label">Per 1,000</span>
+                            <span class="demo-card-stat-label">Per 1,000${globalDataRange.days > 0 && globalDataRange.days < 365 ? '*' : ''}</span>
                             <span class="demo-card-stat-value">${d.evictionRate.toFixed(2)}</span>
                         </div>
                         <div class="demo-card-stat">
