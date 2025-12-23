@@ -1716,6 +1716,241 @@
         let isLoggedIn = false;
         const LOGIN_PASSWORD = 'HIAHR';
 
+        // ============================================
+        // DATA PERSISTENCE & CACHING SYSTEM
+        // ============================================
+
+        // Storage keys for UI state persistence
+        const STORAGE_KEYS = {
+            VIEW_MODE: 'eviction_view_mode',
+            PIVOT_DIMENSION: 'eviction_pivot_dimension',
+            NAME_FILTER: 'eviction_name_filter',
+            DISTRICT_FILTER: 'eviction_district_filter',
+            CHART_FILTER: 'eviction_chart_filter',
+            SCROLL_POSITION: 'eviction_scroll_position',
+            FILTER_GROUPS: 'eviction_active_filter_groups',
+            LAST_SESSION: 'eviction_last_session'
+        };
+
+        // In-memory cache for computed data with TTL
+        const dataCache = {
+            _cache: new Map(),
+            _timestamps: new Map(),
+            _defaultTTL: 5 * 60 * 1000, // 5 minutes default TTL
+
+            set(key, data, ttl = this._defaultTTL) {
+                this._cache.set(key, data);
+                this._timestamps.set(key, { created: Date.now(), ttl });
+                // Also persist to sessionStorage for tab persistence
+                try {
+                    sessionStorage.setItem(`cache_${key}`, JSON.stringify(data));
+                    sessionStorage.setItem(`cache_${key}_ts`, JSON.stringify({ created: Date.now(), ttl }));
+                } catch (e) {
+                    console.warn('SessionStorage cache failed:', e);
+                }
+            },
+
+            get(key) {
+                // Check in-memory first
+                const timestamp = this._timestamps.get(key);
+                if (timestamp && (Date.now() - timestamp.created) < timestamp.ttl) {
+                    return this._cache.get(key);
+                }
+
+                // Fallback to sessionStorage
+                try {
+                    const cached = sessionStorage.getItem(`cache_${key}`);
+                    const cachedTs = sessionStorage.getItem(`cache_${key}_ts`);
+                    if (cached && cachedTs) {
+                        const ts = JSON.parse(cachedTs);
+                        if ((Date.now() - ts.created) < ts.ttl) {
+                            const data = JSON.parse(cached);
+                            // Restore to in-memory cache
+                            this._cache.set(key, data);
+                            this._timestamps.set(key, ts);
+                            return data;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('SessionStorage read failed:', e);
+                }
+
+                return null;
+            },
+
+            invalidate(key) {
+                this._cache.delete(key);
+                this._timestamps.delete(key);
+                try {
+                    sessionStorage.removeItem(`cache_${key}`);
+                    sessionStorage.removeItem(`cache_${key}_ts`);
+                } catch (e) {}
+            },
+
+            invalidateAll() {
+                this._cache.clear();
+                this._timestamps.clear();
+                // Clear all cache entries from sessionStorage
+                try {
+                    Object.keys(sessionStorage)
+                        .filter(k => k.startsWith('cache_'))
+                        .forEach(k => sessionStorage.removeItem(k));
+                } catch (e) {}
+            },
+
+            has(key) {
+                return this.get(key) !== null;
+            }
+        };
+
+        // UI state persistence functions
+        function saveUIState() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.VIEW_MODE, viewMode);
+                localStorage.setItem(STORAGE_KEYS.PIVOT_DIMENSION, pivotDimension);
+                localStorage.setItem(STORAGE_KEYS.LAST_SESSION, Date.now().toString());
+
+                // Save name filter if active
+                const nameInput = document.getElementById('nameFilter');
+                if (nameInput && nameInput.value) {
+                    localStorage.setItem(STORAGE_KEYS.NAME_FILTER, nameInput.value);
+                } else {
+                    localStorage.removeItem(STORAGE_KEYS.NAME_FILTER);
+                }
+
+                // Save chart filter
+                if (chartFilter) {
+                    localStorage.setItem(STORAGE_KEYS.CHART_FILTER, JSON.stringify(chartFilter));
+                } else {
+                    localStorage.removeItem(STORAGE_KEYS.CHART_FILTER);
+                }
+
+                // Save active filter groups (advanced filters)
+                if (filterGroups && filterGroups.length > 0 && filterGroups.some(g => g.conditions.length > 0 || g.nestedGroups.length > 0)) {
+                    localStorage.setItem(STORAGE_KEYS.FILTER_GROUPS, JSON.stringify(filterGroups));
+                } else {
+                    localStorage.removeItem(STORAGE_KEYS.FILTER_GROUPS);
+                }
+            } catch (e) {
+                console.warn('Failed to save UI state:', e);
+            }
+        }
+
+        function loadUIState() {
+            try {
+                // Check if there's a recent session (within last 24 hours)
+                const lastSession = localStorage.getItem(STORAGE_KEYS.LAST_SESSION);
+                const sessionAge = lastSession ? Date.now() - parseInt(lastSession) : Infinity;
+                const isRecentSession = sessionAge < 24 * 60 * 60 * 1000; // 24 hours
+
+                if (!isRecentSession) {
+                    // Clear stale state
+                    clearUIState();
+                    return null;
+                }
+
+                return {
+                    viewMode: localStorage.getItem(STORAGE_KEYS.VIEW_MODE) || 'records',
+                    pivotDimension: localStorage.getItem(STORAGE_KEYS.PIVOT_DIMENSION) || 'plaintiff',
+                    nameFilter: localStorage.getItem(STORAGE_KEYS.NAME_FILTER) || '',
+                    chartFilter: JSON.parse(localStorage.getItem(STORAGE_KEYS.CHART_FILTER) || 'null'),
+                    filterGroups: JSON.parse(localStorage.getItem(STORAGE_KEYS.FILTER_GROUPS) || 'null')
+                };
+            } catch (e) {
+                console.warn('Failed to load UI state:', e);
+                return null;
+            }
+        }
+
+        function clearUIState() {
+            Object.values(STORAGE_KEYS).forEach(key => {
+                try { localStorage.removeItem(key); } catch (e) {}
+            });
+        }
+
+        // Save state periodically and on visibility change
+        let uiStateSaveTimeout = null;
+        function debouncedSaveUIState() {
+            if (uiStateSaveTimeout) clearTimeout(uiStateSaveTimeout);
+            uiStateSaveTimeout = setTimeout(saveUIState, 500);
+        }
+
+        // Save state when user leaves page
+        window.addEventListener('beforeunload', saveUIState);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                saveUIState();
+            }
+        });
+
+        // Restore persisted filters after data loads
+        function restorePersistedFilters() {
+            const savedState = loadUIState();
+            if (!savedState) return;
+
+            let filtersApplied = false;
+
+            // Restore chart filter
+            if (savedState.chartFilter && savedState.chartFilter.year && savedState.chartFilter.month) {
+                chartFilter = savedState.chartFilter;
+                filteredData = allData.filter(record => {
+                    const date = new Date(record.File_Date);
+                    if (isNaN(date.getTime())) return false;
+                    return date.getFullYear() === chartFilter.year &&
+                           (date.getMonth() + 1) === chartFilter.month;
+                });
+                updateChartFilterIndicator();
+                filtersApplied = true;
+                console.log('Restored chart filter from previous session');
+            }
+
+            // Restore advanced filter groups and apply
+            if (savedState.filterGroups && Array.isArray(savedState.filterGroups) &&
+                savedState.filterGroups.some(g => g.conditions?.length > 0 || g.nestedGroups?.length > 0)) {
+                filterGroups = savedState.filterGroups;
+
+                // Recalculate max ID to avoid collisions
+                filterGroupIdCounter = 0;
+                function findMaxId(groups) {
+                    for (const group of groups) {
+                        if (group.id > filterGroupIdCounter) filterGroupIdCounter = group.id;
+                        findMaxId(group.nestedGroups || []);
+                    }
+                }
+                findMaxId(filterGroups);
+
+                // Render the filter groups UI
+                if (typeof renderFilterGroups === 'function') {
+                    renderFilterGroups();
+                }
+
+                // Apply the filters
+                if (!filtersApplied) {
+                    activeAdvancedFilter = JSON.parse(JSON.stringify(filterGroups));
+                    filteredData = allData.filter(record => {
+                        return filterGroups.every(group =>
+                            typeof evaluateGroup === 'function' ? evaluateGroup(record, group) : true
+                        );
+                    });
+                }
+                filtersApplied = true;
+                console.log('Restored advanced filters from previous session');
+            }
+
+            // Update the grid with filtered data
+            if (filtersApplied && gridApi) {
+                if (viewMode === 'pivot') {
+                    pivotData = buildPivotData(pivotDimension);
+                    gridApi.setRowData(pivotData);
+                } else {
+                    gridApi.setRowData(filteredData);
+                }
+                updateRecordCount();
+                createDistrictMap();
+                updateStatus(`Session restored with ${filteredData.length} filtered records`, 'success');
+            }
+        }
+
         // Scramble a name for privacy (consistent scrambling per name)
         function scrambleName(name) {
             if (!name) return '';
@@ -1890,9 +2125,34 @@
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
+            // Restore saved UI state first
+            const savedState = loadUIState();
+            if (savedState) {
+                viewMode = savedState.viewMode || 'records';
+                pivotDimension = savedState.pivotDimension || 'plaintiff';
+                chartFilter = savedState.chartFilter;
+
+                // Restore filter groups if saved
+                if (savedState.filterGroups && Array.isArray(savedState.filterGroups)) {
+                    filterGroups = savedState.filterGroups;
+                }
+
+                console.log('Restored UI state from previous session');
+            }
+
             loadData();
             initCharts();
             updatePivotControls();
+
+            // Restore name filter after a short delay to ensure elements exist
+            if (savedState && savedState.nameFilter) {
+                setTimeout(() => {
+                    const nameInput = document.getElementById('nameFilter');
+                    if (nameInput) {
+                        nameInput.value = savedState.nameFilter;
+                    }
+                }, 100);
+            }
         });
 
         function cleanAttorney(attorney) {
@@ -2071,6 +2331,10 @@
                 allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
 
+                // Invalidate computed data caches since we have new data
+                dataCache.invalidateAll();
+                console.log('Cleared computed data caches for new data');
+
                 // Store eviction data in localStorage for use by other pages (e.g., CM rankings)
                 try {
                     localStorage.setItem('evictionData', JSON.stringify(allData));
@@ -2089,6 +2353,9 @@
 
                 // Update last update time
                 document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+
+                // Re-apply persisted filters after data loads
+                restorePersistedFilters();
 
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -2332,6 +2599,9 @@
             updateRecordCount();
             updateChartFilterIndicator();
             updateStatus(`Filtered to ${monthNames[month - 1]} ${year} - ${filteredData.length} records`, 'success');
+
+            // Persist chart filter state
+            debouncedSaveUIState();
         }
 
         function clearChartFilter() {
@@ -2428,6 +2698,9 @@
             updateRecordCount();
             updateNameFilterIndicator();
             updateStatus(`Showing ${filteredData.length} records for ${label}: ${trimmedName}`, 'success');
+
+            // Persist filter state
+            debouncedSaveUIState();
         }
 
         function clearNameFilter() {
@@ -2519,17 +2792,29 @@
         }
 
         function createDistrictMap() {
-            const districtCounts = {};
+            // Check cache for district counts
+            const cacheKey = `district_counts_${filteredData.length}_${filteredData[0]?.Case_Number || 'empty'}`;
+            let districtCounts = {};
             let unknownCount = 0;
-            
-            filteredData.forEach(record => {
-                const district = record.District;
-                if (district === 'Unknown' || district === 'unknown') {
-                    unknownCount++;
-                } else if (district && !isNaN(district)) {
-                    districtCounts[district] = (districtCounts[district] || 0) + 1;
-                }
-            });
+
+            const cachedCounts = dataCache.get(cacheKey);
+            if (cachedCounts) {
+                districtCounts = cachedCounts.districtCounts;
+                unknownCount = cachedCounts.unknownCount;
+                console.log('Using cached district counts');
+            } else {
+                filteredData.forEach(record => {
+                    const district = record.District;
+                    if (district === 'Unknown' || district === 'unknown') {
+                        unknownCount++;
+                    } else if (district && !isNaN(district)) {
+                        districtCounts[district] = (districtCounts[district] || 0) + 1;
+                    }
+                });
+
+                // Cache the computed counts
+                dataCache.set(cacheKey, { districtCounts, unknownCount });
+            }
             
             const maxCount = Math.max(...Object.values(districtCounts), 1);
             const grid = document.getElementById('districtGrid');
@@ -2834,10 +3119,20 @@
         let districtDemographics = null;
 
         async function loadDistrictDemographics() {
+            // Check cache first (demographics rarely change, cache for 1 hour)
+            const cached = dataCache.get('district_demographics');
+            if (cached) {
+                districtDemographics = cached;
+                console.log('Using cached district demographics');
+                return;
+            }
+
             try {
                 const response = await fetch('district-data.json');
                 if (response.ok) {
                     districtDemographics = await response.json();
+                    // Cache for 1 hour
+                    dataCache.set('district_demographics', districtDemographics, 60 * 60 * 1000);
                 }
             } catch (error) {
                 console.error('Error loading district demographics:', error);
@@ -3507,6 +3802,14 @@
         }
 
         function buildPivotData(dimension) {
+            // Generate cache key based on dimension and filtered data signature
+            const cacheKey = `pivot_${dimension}_${filteredData.length}_${filteredData[0]?.Case_Number || 'empty'}`;
+            const cached = dataCache.get(cacheKey);
+            if (cached) {
+                console.log(`Using cached pivot data for ${dimension}`);
+                return cached;
+            }
+
             const field = pivotFieldMap[dimension] || pivotFieldMap.plaintiff;
             const summaries = new Map();
 
@@ -3541,7 +3844,7 @@
             });
 
             const totalRecords = filteredData.length;
-            return Array.from(summaries.values())
+            const result = Array.from(summaries.values())
                 .map(summary => ({
                     groupKey: summary.groupKey,
                     totalFilings: summary.totalFilings,
@@ -3550,6 +3853,10 @@
                     uniqueProperties: summary.properties.size
                 }))
                 .sort((a, b) => b.totalFilings - a.totalFilings);
+
+            // Cache the result for 5 minutes
+            dataCache.set(cacheKey, result);
+            return result;
         }
 
         function filterByDistrict(district) {
@@ -3637,6 +3944,9 @@
 
             updatePivotControls();
             updateRecordCount();
+
+            // Persist view mode change
+            debouncedSaveUIState();
         }
 
         function setPivotDimension(dimension) {
@@ -3662,6 +3972,9 @@
 
             updatePivotControls();
             updateRecordCount();
+
+            // Persist pivot dimension change
+            debouncedSaveUIState();
         }
 
         function updatePivotControls() {
@@ -4680,6 +4993,9 @@
             updateFilterSummary();
             createDistrictMap();
             updateStatus(`Filter applied - showing ${filteredData.length} records`, 'success');
+
+            // Persist advanced filter state
+            debouncedSaveUIState();
         }
 
         function clearAdvancedFilters() {
@@ -4709,6 +5025,9 @@
             updateFilterSummary();
             createDistrictMap();
             updateStatus(`Filters cleared - showing all ${allData.length} records`, 'success');
+
+            // Persist cleared filter state
+            debouncedSaveUIState();
         }
 
         function updateFilterSummary() {
