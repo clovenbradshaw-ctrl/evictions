@@ -696,6 +696,184 @@
             border-radius: 4px;
             font-family: monospace;
         }
+
+        /* District Info Modal Styles */
+        .district-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 2rem 1rem;
+        }
+
+        .district-modal-overlay.active {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .district-modal {
+            background: white;
+            border-radius: 16px;
+            max-width: 700px;
+            width: 100%;
+            max-height: calc(100vh - 4rem);
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .district-modal-header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 16px 16px 0 0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .district-modal-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .district-modal-header .subtitle {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            color: white;
+        }
+
+        .district-modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            transition: background 0.15s;
+        }
+
+        .district-modal-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .district-modal-body {
+            padding: 1.5rem;
+        }
+
+        .demo-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .demo-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .demo-section-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #1e3a5f;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        @media (min-width: 500px) {
+            .demo-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .demo-item {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 0.75rem;
+        }
+
+        .demo-item .label {
+            font-size: 0.7rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-bottom: 0.25rem;
+        }
+
+        .demo-item .value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .demo-item .value.highlight {
+            color: #dc2626;
+        }
+
+        .demo-item .value.positive {
+            color: #059669;
+        }
+
+        .modal-source {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-align: center;
+        }
+
+        .modal-source a {
+            color: #4f46e5;
+        }
+
+        .compare-county {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.7rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+
+        .compare-county .arrow-up {
+            color: #dc2626;
+        }
+
+        .compare-county .arrow-down {
+            color: #059669;
+        }
+
+        .district-link {
+            color: #4f46e5;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .district-link:hover {
+            color: #4338ca;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -1103,6 +1281,20 @@
                         🔓 Login
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- District Info Modal -->
+    <div class="district-modal-overlay" id="districtModal" onclick="closeDistrictModal(event)">
+        <div class="district-modal" onclick="event.stopPropagation()">
+            <div class="district-modal-header">
+                <button class="district-modal-close" onclick="closeDistrictModal()">&times;</button>
+                <h2 id="districtModalTitle">District Demographics</h2>
+                <p class="subtitle" id="districtModalSubtitle">Community Profile</p>
+            </div>
+            <div class="district-modal-body" id="districtModalBody">
+                <!-- Populated by JavaScript -->
             </div>
         </div>
     </div>
@@ -2210,8 +2402,15 @@
             });
 
             const defendantName = record.Defendant || record.defendant;
+            const districtValue = record.District || record.council_district_number || null;
             const details = [
                 { label: 'Docket #', value: record.Case_Number || record.case_number || record.id },
+                {
+                    label: 'Council District',
+                    value: districtValue && districtValue !== 'Unknown' ? `District ${districtValue}` : null,
+                    isClickable: true,
+                    onClick: () => openDistrictModal(districtValue)
+                },
                 { label: 'Plaintiff / Landlord', value: record.Plaintiff || record.plaintiff },
                 { label: 'Defendant / Tenant', value: getDefendantDisplayName(defendantName) },
                 { label: 'Attorney of Record', value: record.Attorney || record.attorney },
@@ -2274,7 +2473,17 @@
 
                     const valueEl = document.createElement('p');
                     valueEl.className = 'mt-2 text-sm text-gray-900 leading-relaxed break-words';
-                    valueEl.textContent = typeof detail.value === 'string' ? detail.value.trim() : detail.value;
+
+                    if (detail.isClickable && detail.onClick) {
+                        const linkEl = document.createElement('span');
+                        linkEl.className = 'district-link';
+                        linkEl.textContent = typeof detail.value === 'string' ? detail.value.trim() : detail.value;
+                        linkEl.onclick = detail.onClick;
+                        linkEl.title = 'Click to view district demographics';
+                        valueEl.appendChild(linkEl);
+                    } else {
+                        valueEl.textContent = typeof detail.value === 'string' ? detail.value.trim() : detail.value;
+                    }
 
                     row.appendChild(labelEl);
                     row.appendChild(valueEl);
@@ -2299,11 +2508,275 @@
             document.body.classList.remove('overflow-hidden');
         }
 
+        // District Demographics Modal
+        let districtDemographics = null;
+
+        async function loadDistrictDemographics() {
+            try {
+                const response = await fetch('district-data.json');
+                if (response.ok) {
+                    districtDemographics = await response.json();
+                }
+            } catch (error) {
+                console.error('Error loading district demographics:', error);
+            }
+        }
+
+        // Load demographics on page load
+        loadDistrictDemographics();
+
+        function openDistrictModal(districtNumber) {
+            if (!districtNumber || districtNumber === 'Unknown') return;
+
+            const modal = document.getElementById('districtModal');
+            const demo = districtDemographics?.districts?.[districtNumber];
+            const county = districtDemographics?.county_totals;
+
+            document.getElementById('districtModalTitle').textContent = `District ${districtNumber}`;
+            document.getElementById('districtModalSubtitle').textContent = 'Community Profile';
+
+            // Calculate eviction stats for this district
+            let evictionCount = 0;
+            if (allData) {
+                evictionCount = allData.filter(r => r.District == districtNumber).length;
+            }
+
+            let html = '';
+
+            // Eviction Context Section
+            const population = demo?.population || 0;
+            const evictionRate = population > 0 ? ((evictionCount / population) * 1000).toFixed(2) : 'N/A';
+            const povertyRate = demo?.poverty?.pct_total_poverty || 0;
+            const medianIncome = demo?.income?.median_household_income || 0;
+            const countyMedianIncome = county?.median_household_income || 65348;
+            const countyPovertyRate = county?.poverty_rate_percent || 15.0;
+            const renterCostBurden = demo?.housing?.pct_renter_cost_burdened_35plus || 0;
+
+            html += `
+                <div class="demo-section">
+                    <div class="demo-section-title">Eviction Context</div>
+                    <div class="demo-grid">
+                        <div class="demo-item">
+                            <div class="label">Eviction Filings</div>
+                            <div class="value highlight">${evictionCount.toLocaleString()}</div>
+                        </div>
+                        <div class="demo-item">
+                            <div class="label">Population</div>
+                            <div class="value">${population.toLocaleString()}</div>
+                        </div>
+                        <div class="demo-item">
+                            <div class="label">Evictions per 1,000</div>
+                            <div class="value highlight">${evictionRate}</div>
+                        </div>
+                        <div class="demo-item">
+                            <div class="label">Poverty Rate</div>
+                            <div class="value ${povertyRate > countyPovertyRate ? 'highlight' : ''}">${povertyRate}%</div>
+                            <div class="compare-county">
+                                ${povertyRate > countyPovertyRate
+                                    ? `<span class="arrow-up">+${(povertyRate - countyPovertyRate).toFixed(1)}%</span> above county avg`
+                                    : `<span class="arrow-down">${(countyPovertyRate - povertyRate).toFixed(1)}%</span> below county avg`}
+                            </div>
+                        </div>
+                        <div class="demo-item">
+                            <div class="label">Median Household Income</div>
+                            <div class="value ${medianIncome < countyMedianIncome ? 'highlight' : 'positive'}">$${medianIncome.toLocaleString()}</div>
+                            <div class="compare-county">
+                                ${medianIncome < countyMedianIncome
+                                    ? `<span class="arrow-up">$${(countyMedianIncome - medianIncome).toLocaleString()}</span> below county avg`
+                                    : `<span class="arrow-down">$${(medianIncome - countyMedianIncome).toLocaleString()}</span> above county avg`}
+                            </div>
+                        </div>
+                        <div class="demo-item">
+                            <div class="label">Renters Cost-Burdened (35%+)</div>
+                            <div class="value ${renterCostBurden > 35 ? 'highlight' : ''}">${renterCostBurden}%</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            if (demo) {
+                // Housing Section
+                html += `
+                    <div class="demo-section">
+                        <div class="demo-section-title">Housing</div>
+                        <div class="demo-grid">
+                            <div class="demo-item">
+                                <div class="label">Housing Units</div>
+                                <div class="value">${demo.housing?.total_housing_units?.toLocaleString() || '-'}</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Occupied</div>
+                                <div class="value">${demo.housing?.pct_occupied || '-'}%</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Median Home Value</div>
+                                <div class="value">$${demo.housing?.median_owner_value?.toLocaleString() || '-'}</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Median Rent</div>
+                                <div class="value">$${demo.housing?.median_monthly_rent?.toLocaleString() || '-'}</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Owners Cost-Burdened</div>
+                                <div class="value">${demo.housing?.pct_owner_cost_burdened_35plus || '-'}%</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Renters Cost-Burdened</div>
+                                <div class="value ${(demo.housing?.pct_renter_cost_burdened_35plus || 0) > 35 ? 'highlight' : ''}">${demo.housing?.pct_renter_cost_burdened_35plus || '-'}%</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Demographics Section
+                html += `
+                    <div class="demo-section">
+                        <div class="demo-section-title">Demographics</div>
+                        <div class="demo-grid">
+                            <div class="demo-item">
+                                <div class="label">Median Age</div>
+                                <div class="value">${demo.median_age || '-'}</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Under 18</div>
+                                <div class="value">${demo.age?.pct_under_18 || '-'}%</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">65 and Over</div>
+                                <div class="value">${demo.age?.pct_65_and_over || '-'}%</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Race/Ethnicity
+                html += `
+                    <div class="demo-section">
+                        <div class="demo-section-title">Race & Ethnicity</div>
+                        <div class="demo-grid">
+                            <div class="demo-item">
+                                <div class="label">White</div>
+                                <div class="value">${demo.race_ethnicity?.pct_white || '-'}%</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Black</div>
+                                <div class="value">${demo.race_ethnicity?.pct_black || '-'}%</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Hispanic</div>
+                                <div class="value">${demo.race_ethnicity?.pct_hispanic || '-'}%</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Asian</div>
+                                <div class="value">${demo.race_ethnicity?.pct_asian || '-'}%</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Two or More</div>
+                                <div class="value">${demo.race_ethnicity?.pct_two_or_more || '-'}%</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Poverty Section
+                html += `
+                    <div class="demo-section">
+                        <div class="demo-section-title">Poverty Status</div>
+                        <div class="demo-grid">
+                            <div class="demo-item">
+                                <div class="label">Total Poverty Rate</div>
+                                <div class="value ${(demo.poverty?.pct_total_poverty || 0) > countyPovertyRate ? 'highlight' : ''}">${demo.poverty?.pct_total_poverty || '-'}%</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Child Poverty</div>
+                                <div class="value ${(demo.poverty?.pct_child_poverty || 0) > 20 ? 'highlight' : ''}">${demo.poverty?.pct_child_poverty || '-'}%</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Senior Poverty</div>
+                                <div class="value">${demo.poverty?.pct_senior_poverty || '-'}%</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Employment
+                html += `
+                    <div class="demo-section">
+                        <div class="demo-section-title">Employment</div>
+                        <div class="demo-grid">
+                            <div class="demo-item">
+                                <div class="label">Labor Force Participation</div>
+                                <div class="value">${demo.employment?.labor_force_participation_rate || '-'}%</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Unemployment Rate</div>
+                                <div class="value ${(demo.employment?.unemployment_rate || 0) > 6 ? 'highlight' : ''}">${demo.employment?.unemployment_rate || '-'}%</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Education
+                html += `
+                    <div class="demo-section">
+                        <div class="demo-section-title">Educational Attainment (25+)</div>
+                        <div class="demo-grid">
+                            <div class="demo-item">
+                                <div class="label">Less Than High School</div>
+                                <div class="value">${demo.education?.pct_less_than_hs || '-'}%</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">High School Graduate</div>
+                                <div class="value">${demo.education?.pct_hs_graduate || '-'}%</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Bachelor's Degree</div>
+                                <div class="value">${demo.education?.pct_bachelors || '-'}%</div>
+                            </div>
+                            <div class="demo-item">
+                                <div class="label">Graduate/Professional</div>
+                                <div class="value">${demo.education?.pct_graduate_professional || '-'}%</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="demo-section">
+                        <p style="color: #6b7280; text-align: center;">Demographic data not available for this district.</p>
+                    </div>
+                `;
+            }
+
+            // Source
+            html += `
+                <div class="modal-source">
+                    Source: <a href="https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf?ct=1706286236" target="_blank">Metropolitan Social Services Know Your Community 2023</a>
+                    <br>Data: American Community Survey 2017-2021 5-Year Estimates
+                </div>
+            `;
+
+            document.getElementById('districtModalBody').innerHTML = html;
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDistrictModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            const modal = document.getElementById('districtModal');
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
         document.addEventListener('keydown', event => {
             if (event.key === 'Escape') {
-                const modal = document.getElementById('caseModal');
-                if (modal && !modal.classList.contains('hidden')) {
+                const caseModal = document.getElementById('caseModal');
+                if (caseModal && !caseModal.classList.contains('hidden')) {
                     hideCaseModal();
+                }
+                const districtModal = document.getElementById('districtModal');
+                if (districtModal && districtModal.classList.contains('active')) {
+                    closeDistrictModal();
                 }
             }
         });
