@@ -3439,13 +3439,36 @@
 
             // Calculate eviction stats for this district
             let evictionCount = 0;
+            let districtEvictions = [];
             if (allData) {
-                evictionCount = allData.filter(r => r.District == districtNumber).length;
+                districtEvictions = allData.filter(r => r.District == districtNumber);
+                evictionCount = districtEvictions.length;
+            }
+
+            // Calculate district-specific date range from actual evictions
+            let districtDateRange = { earliest: null, latest: null, days: 0, annualizationFactor: 1 };
+            if (districtEvictions.length > 0) {
+                let earliest = null;
+                let latest = null;
+                for (const record of districtEvictions) {
+                    if (record.File_Date) {
+                        const date = new Date(record.File_Date);
+                        if (!isNaN(date.getTime())) {
+                            if (earliest === null || date < earliest) earliest = date;
+                            if (latest === null || date > latest) latest = date;
+                        }
+                    }
+                }
+                if (earliest && latest) {
+                    const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24)) + 1;
+                    const annualizationFactor = days > 0 ? 365 / days : 1;
+                    districtDateRange = { earliest, latest, days, annualizationFactor };
+                }
             }
 
             // Pro-rate to full year if we have partial year data
-            const annualizedCount = Math.round(evictionCount * globalDataRange.annualizationFactor);
-            const isProRated = globalDataRange.days > 0 && globalDataRange.days < 365;
+            const annualizedCount = Math.round(evictionCount * districtDateRange.annualizationFactor);
+            const isProRated = districtDateRange.days > 0 && districtDateRange.days < 365;
 
             let html = '';
 
@@ -3459,9 +3482,9 @@
             const countyPovertyRate = county?.poverty_rate_percent || 15.0;
             const renterCostBurden = demo?.housing?.pct_renter_cost_burdened_35plus || 0;
 
-            // Format date range info for display
-            const dateRangeInfo = globalDataRange.earliest && globalDataRange.latest
-                ? `${globalDataRange.earliest.toLocaleDateString()} - ${globalDataRange.latest.toLocaleDateString()} (${globalDataRange.days} days)`
+            // Format date range info for display - use district-specific dates
+            const dateRangeInfo = districtDateRange.earliest && districtDateRange.latest
+                ? `${districtDateRange.earliest.toLocaleDateString()} - ${districtDateRange.latest.toLocaleDateString()} (${districtDateRange.days} days)`
                 : '';
 
             html += `
