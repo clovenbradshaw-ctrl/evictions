@@ -1712,7 +1712,7 @@
                         <div class="county-summary-grid">
                             <div class="county-stat">
                                 <div class="county-stat-value" id="countyTotalEvictions">-</div>
-                                <div class="county-stat-label">Total Evictions</div>
+                                <div class="county-stat-label">Evictions/Year</div>
                             </div>
                             <div class="county-stat">
                                 <div class="county-stat-value" id="countyPopulation">-</div>
@@ -4543,7 +4543,11 @@
             // Update county summary
             const county = districtDemographics?.county_totals;
             const totalEvictions = allData ? allData.length : 0;
-            document.getElementById('countyTotalEvictions').textContent = totalEvictions.toLocaleString();
+            // Calculate evictions per year using the data's date range
+            const evictionsPerYear = globalDataRange.days > 0
+                ? Math.round(totalEvictions * (365 / globalDataRange.days))
+                : totalEvictions;
+            document.getElementById('countyTotalEvictions').textContent = evictionsPerYear.toLocaleString();
             document.getElementById('countyPopulation').textContent = (county?.population || 0).toLocaleString();
             document.getElementById('countyMedianIncome').textContent = '$' + (county?.median_household_income || 0).toLocaleString();
             document.getElementById('countyPovertyRate').textContent = (county?.poverty_rate_percent || 0) + '%';
