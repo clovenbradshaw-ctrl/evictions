@@ -1438,6 +1438,7 @@
                             <option value="pctBlack">% Black Population</option>
                             <option value="pctHispanic">% Hispanic Population</option>
                             <option value="medianIncome">Median Income ($)</option>
+                            <option value="unitsPerPopulation">Housing Units per 1k Pop</option>
                         </select>
                     </div>
                     <div class="flex justify-between items-center mb-3">
@@ -3189,6 +3190,9 @@
                 const evictionRatePer1k = population > 0 ? (evictionCount / population) * 1000 : 0;
                 const evictionRatePer100Units = housingUnits > 0 ? (evictionCount / housingUnits) * 100 : 0;
 
+                // Calculate housing units per 1,000 population (housing density)
+                const unitsPerPopulation = population > 0 ? (housingUnits / population) * 1000 : 0;
+
                 data.push({
                     district: districtNum,
                     evictionCount,
@@ -3196,6 +3200,7 @@
                     housingUnits,
                     evictionRatePer1k,
                     evictionRatePer100Units,
+                    unitsPerPopulation,
                     renterCostBurden: demo.housing?.pct_renter_cost_burdened_35plus || 0,
                     povertyRate: demo.poverty?.pct_total_poverty || 0,
                     pctBlack: demo.race_ethnicity?.pct_black || 0,
@@ -3310,7 +3315,8 @@
                 medianRent: 'Median Monthly Rent ($)',
                 pctLessThanHS: '% Less Than High School',
                 childPoverty: 'Child Poverty Rate (%)',
-                pctSenior: '% Senior Population (65+)'
+                pctSenior: '% Senior Population (65+)',
+                unitsPerPopulation: 'Housing Units per 1,000 Pop'
             };
             return labels[key] || key;
         }
