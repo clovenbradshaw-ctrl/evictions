@@ -1477,7 +1477,10 @@
                         Eviction Records
                         <span id="recordCount" class="text-sm font-normal text-gray-500"></span>
                     </h2>
-                    <span id="nameFilterIndicator" class="hidden"></span>
+                    <div class="flex flex-wrap gap-2 mt-1">
+                        <span id="nameFilterIndicator" class="hidden"></span>
+                        <span id="districtFilterIndicator" class="hidden"></span>
+                    </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 justify-end">
                     <div class="flex items-center gap-2 bg-gray-100 rounded-full p-1">
@@ -1711,6 +1714,7 @@
         let pivotData = [];
         let viewMode = 'records';
         let pivotDimension = 'plaintiff';
+        let activeDistrictFilter = null; // Track active district filter for persistence
 
         // Login state for defendant privacy protection
         let isLoggedIn = false;
@@ -1825,6 +1829,13 @@
                     localStorage.removeItem(STORAGE_KEYS.CHART_FILTER);
                 }
 
+                // Save district filter
+                if (activeDistrictFilter !== null) {
+                    localStorage.setItem(STORAGE_KEYS.DISTRICT_FILTER, JSON.stringify(activeDistrictFilter));
+                } else {
+                    localStorage.removeItem(STORAGE_KEYS.DISTRICT_FILTER);
+                }
+
                 // Save active filter groups (advanced filters)
                 if (filterGroups && filterGroups.length > 0 && filterGroups.some(g => g.conditions.length > 0 || g.nestedGroups.length > 0)) {
                     localStorage.setItem(STORAGE_KEYS.FILTER_GROUPS, JSON.stringify(filterGroups));
@@ -1854,6 +1865,7 @@
                     pivotDimension: localStorage.getItem(STORAGE_KEYS.PIVOT_DIMENSION) || 'plaintiff',
                     nameFilter: localStorage.getItem(STORAGE_KEYS.NAME_FILTER) || '',
                     chartFilter: JSON.parse(localStorage.getItem(STORAGE_KEYS.CHART_FILTER) || 'null'),
+                    districtFilter: JSON.parse(localStorage.getItem(STORAGE_KEYS.DISTRICT_FILTER) || 'null'),
                     filterGroups: JSON.parse(localStorage.getItem(STORAGE_KEYS.FILTER_GROUPS) || 'null')
                 };
             } catch (e) {
@@ -1902,6 +1914,19 @@
                 updateChartFilterIndicator();
                 filtersApplied = true;
                 console.log('Restored chart filter from previous session');
+            }
+
+            // Restore district filter (mutually exclusive with chart filter)
+            if (!filtersApplied && savedState.districtFilter !== null && savedState.districtFilter !== undefined) {
+                activeDistrictFilter = savedState.districtFilter;
+                if (activeDistrictFilter === 'Unknown' || activeDistrictFilter === 'unknown') {
+                    filteredData = allData.filter(r => r.District === 'Unknown' || r.District === 'unknown');
+                } else {
+                    filteredData = allData.filter(r => r.District == activeDistrictFilter);
+                }
+                updateDistrictFilterIndicator();
+                filtersApplied = true;
+                console.log('Restored district filter from previous session:', activeDistrictFilter);
             }
 
             // Restore advanced filter groups and apply
@@ -2826,8 +2851,12 @@
                     descriptor = '○';
                 }
                 
+                // Check if this district is the active filter
+                const isActive = activeDistrictFilter !== null && activeDistrictFilter == i;
+                const activeClass = isActive ? 'ring-2 ring-indigo-500 ring-offset-2' : '';
+
                 html += `
-                    <div class="district-cell ${heatClass}"
+                    <div class="district-cell ${heatClass} ${activeClass}"
                          onclick="filterByDistrict(${i})"
                          title="District ${i}*">
                         <div class="text-center">
@@ -2848,7 +2877,9 @@
                 }
                 
                 const unknownDiv = document.createElement('div');
-                unknownDiv.className = 'unknown-district-info mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm cursor-pointer hover:bg-yellow-100 transition';
+                const isUnknownActive = activeDistrictFilter === 'Unknown' || activeDistrictFilter === 'unknown';
+                const unknownActiveClass = isUnknownActive ? 'ring-2 ring-indigo-500' : '';
+                unknownDiv.className = `unknown-district-info mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm cursor-pointer hover:bg-yellow-100 transition ${unknownActiveClass}`;
                 unknownDiv.innerHTML = `
                     <span class="text-gray-700">Additional records with unverified district information available*</span>
                     <span class="text-xs text-gray-600 ml-2">(click to view)</span>
@@ -3845,6 +3876,9 @@
             chartFilter = null;
             updateChartFilterIndicator();
 
+            // Set active district filter for persistence
+            activeDistrictFilter = district;
+
             if (district === 'Unknown' || district === 'unknown') {
                 filteredData = allData.filter(r => r.District === 'Unknown' || r.District === 'unknown');
             } else {
@@ -3864,9 +3898,59 @@
             }
             updateRecordCount();
 
+            // Update the district map to highlight the selected district
+            createDistrictMap();
+
+            // Update the district filter indicator
+            updateDistrictFilterIndicator();
+
+            // Persist state
+            debouncedSaveUIState();
+
             // Update status message without exact counts
             const filterMsg = district === 'Unknown' ? 'unverified districts*' : `District ${district}*`;
             updateStatus(`Showing records for ${filterMsg}`, 'success');
+        }
+
+        function clearDistrictFilter() {
+            activeDistrictFilter = null;
+            filteredData = allData;
+
+            if (viewMode === 'pivot') {
+                pivotData = buildPivotData(pivotDimension);
+            }
+
+            if (gridApi) {
+                if (viewMode === 'pivot') {
+                    gridApi.setRowData(pivotData);
+                } else {
+                    gridApi.setRowData(filteredData);
+                }
+            }
+            updateRecordCount();
+            createDistrictMap();
+            updateDistrictFilterIndicator();
+            debouncedSaveUIState();
+            updateStatus('District filter cleared - showing all records', 'success');
+        }
+
+        function updateDistrictFilterIndicator() {
+            const container = document.getElementById('districtFilterIndicator');
+            if (!container) return;
+
+            if (activeDistrictFilter !== null) {
+                const label = activeDistrictFilter === 'Unknown' ? 'Unverified Districts' : `District ${activeDistrictFilter}`;
+                container.innerHTML = `
+                    <span class="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm">
+                        <span>Filtered: ${label}</span>
+                        <button onclick="clearDistrictFilter()" class="ml-1 hover:text-indigo-600" title="Clear district filter">×</button>
+                    </span>
+                `;
+                container.classList.remove('hidden');
+            } else {
+                container.innerHTML = '';
+                container.classList.add('hidden');
+            }
         }
 
         function getPivotColumnDefs() {
