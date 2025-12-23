@@ -1587,9 +1587,15 @@
 
         function buildEvictionsTab(district, stats) {
             // Get evictions for this district
+            // Must match the same field priority as stats calculation
             const districtEvictions = evictionData.filter(record => {
                 let recDistrict = null;
-                if (record.council_district_number && typeof record.council_district_number === 'number') {
+                // Check normalized District field first (from localStorage/decompressed data)
+                if (record.District && typeof record.District === 'number' && record.District > 0) {
+                    recDistrict = record.District;
+                }
+                // Fallback to raw field names
+                else if (record.council_district_number && typeof record.council_district_number === 'number') {
                     recDistrict = record.council_district_number;
                 } else if (record.council_district) {
                     const match = String(record.council_district).match(/(\d+)/);
