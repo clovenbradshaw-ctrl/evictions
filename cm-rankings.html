@@ -1291,7 +1291,10 @@
             const eviction30DayAvg = stats?.avg30Day || 0;
             const dataRangeDays = stats?.dataRangeDays || 0;
             const population = demo?.population || 0;
-            const evictionRate = population > 0 ? ((evictionCount / population) * 1000).toFixed(2) : 'N/A';
+            // Pro-rate to full year if we have partial year data
+            const annualizedCount = Math.round(evictionCount * globalDataRange.annualizationFactor);
+            const isProRated = globalDataRange.days > 0 && globalDataRange.days < 365;
+            const evictionRate = population > 0 ? ((annualizedCount / population) * 1000).toFixed(2) : 'N/A';
             const povertyRate = demo?.poverty?.pct_total_poverty || 0;
             const medianIncome = demo?.income?.median_household_income || 0;
             const countyMedianIncome = county?.median_household_income || 65348;
@@ -1303,9 +1306,15 @@
                 ? `Eviction Filings (${dataRangeDays} day${dataRangeDays !== 1 ? 's' : ''})`
                 : 'Eviction Filings (30-day avg)';
 
+            // Format date range info
+            const dateRangeInfo = globalDataRange.earliest && globalDataRange.latest
+                ? `${globalDataRange.earliest.toLocaleDateString()} - ${globalDataRange.latest.toLocaleDateString()} (${globalDataRange.days} days)`
+                : '';
+
             html += `
                 <div class="demo-section">
                     <div class="demo-section-title">Eviction Context</div>
+                    ${dateRangeInfo ? `<div class="demo-section-subtitle" style="font-size: 11px; color: #666; margin-bottom: 8px;">Data: ${dateRangeInfo}</div>` : ''}
                     <div class="demo-grid">
                         <div class="demo-item">
                             <div class="label">${filingLabel}</div>
@@ -1316,7 +1325,7 @@
                             <div class="value">${population.toLocaleString()}</div>
                         </div>
                         <div class="demo-item">
-                            <div class="label">Evictions per 1,000</div>
+                            <div class="label">Evictions per 1,000${isProRated ? ' (annualized)' : ''}</div>
                             <div class="value highlight">${evictionRate}</div>
                         </div>
                         <div class="demo-item">
@@ -1852,14 +1861,14 @@
             return Array.from(seen.values());
         }
 
-        // Global date range tracking for 30-day average calculation
-        let globalDataRange = { earliest: null, latest: null };
+        // Global date range tracking for 30-day average calculation and annualization
+        let globalDataRange = { earliest: null, latest: null, days: 0, annualizationFactor: 1 };
 
         function processEvictionData(data) {
             // Data from localStorage is already deduped, but dedupe again just in case
             evictionData = dedupeByDocketNumber(data);
             districtStats = {};
-            globalDataRange = { earliest: null, latest: null };
+            globalDataRange = { earliest: null, latest: null, days: 0, annualizationFactor: 1 };
 
             // First pass: determine global date range
             evictionData.forEach(record => {
@@ -1875,10 +1884,12 @@
                 }
             });
 
-            // Calculate the number of days in our data range
+            // Calculate the number of days in our data range and annualization factor
             const dataRangeDays = globalDataRange.earliest && globalDataRange.latest
                 ? Math.ceil((globalDataRange.latest - globalDataRange.earliest) / (1000 * 60 * 60 * 24)) + 1
                 : 0;
+            globalDataRange.days = dataRangeDays;
+            globalDataRange.annualizationFactor = dataRangeDays > 0 ? 365 / dataRangeDays : 1;
 
             // Calculate stats per district (only for records with valid district data)
             evictionData.forEach(record => {
