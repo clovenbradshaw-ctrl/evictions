@@ -790,10 +790,11 @@
         }
 
         function processEvictionData(data) {
+            // Store all eviction data without filtering
             evictionData = data;
             districtStats = {};
 
-            // Calculate stats per district
+            // Calculate stats per district (only for records with valid district data)
             data.forEach(record => {
                 let district = null;
 
@@ -804,7 +805,10 @@
                     if (match) district = parseInt(match[1]);
                 }
 
-                if (!district || district < 1 || district > 35) return;
+                // Skip district stats for records without valid district, but don't filter them out
+                if (!district || district < 1 || district > 35) {
+                    return; // Skip for district stats only
+                }
 
                 if (!districtStats[district]) {
                     districtStats[district] = {
@@ -1036,20 +1040,27 @@
         }
 
         function updateSummaryCards() {
-            const totalFilings = Object.values(districtStats).reduce((sum, d) => sum + d.total, 0);
+            // Total from ALL eviction records
+            const totalAllRecords = evictionData.length;
+            // Total from records with district data
+            const totalWithDistrict = Object.values(districtStats).reduce((sum, d) => sum + d.total, 0);
             const avgPerDistrict = districtsWithData.length > 0
-                ? Math.round(totalFilings / districtsWithData.length)
+                ? Math.round(totalWithDistrict / districtsWithData.length)
                 : 0;
 
-            document.getElementById('totalEvictions').textContent = totalFilings.toLocaleString();
+            document.getElementById('totalEvictions').textContent = totalAllRecords.toLocaleString();
             document.getElementById('districtsWithData').textContent = `${districtsWithData.length}/35`;
             document.getElementById('avgPerDistrict').textContent = avgPerDistrict.toLocaleString();
 
-            // Find most recent filing
+            // Find most recent filing from all data
             let mostRecent = null;
-            Object.values(districtStats).forEach(d => {
-                if (d.lastFiling && (!mostRecent || d.lastFiling > mostRecent)) {
-                    mostRecent = d.lastFiling;
+            evictionData.forEach(record => {
+                const fileDate = record.File_Date || record.file_date;
+                if (fileDate) {
+                    const date = new Date(fileDate);
+                    if (!mostRecent || date > mostRecent) {
+                        mostRecent = date;
+                    }
                 }
             });
 
