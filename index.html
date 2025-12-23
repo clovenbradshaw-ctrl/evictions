@@ -1141,7 +1141,7 @@
 
         .bar-chart-container {
             position: relative;
-            height: 400px;
+            height: 800px;
             overflow-y: auto;
         }
 
@@ -1322,6 +1322,11 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 mb-1">COMPARE AGAINST</label>
                         <select id="demoXAxis" class="demo-viz-select" onchange="updateDemographicsCharts()">
+                            <option value="unemployment">Unemployment Rate (%)</option>
+                            <option value="medianRent">Median Monthly Rent ($)</option>
+                            <option value="pctLessThanHS">% Less Than High School</option>
+                            <option value="childPoverty">Child Poverty Rate (%)</option>
+                            <option value="pctSenior">% Senior Population (65+)</option>
                             <option value="renterCostBurden">Renter Cost Burden (%)</option>
                             <option value="povertyRate">Poverty Rate (%)</option>
                             <option value="pctBlack">% Black Population</option>
@@ -3092,7 +3097,12 @@
                     povertyRate: demo.poverty?.pct_total_poverty || 0,
                     pctBlack: demo.race_ethnicity?.pct_black || 0,
                     pctHispanic: demo.race_ethnicity?.pct_hispanic || 0,
-                    medianIncome: demo.income?.median_household_income || 0
+                    medianIncome: demo.income?.median_household_income || 0,
+                    unemployment: demo.employment?.unemployment_rate || 0,
+                    medianRent: demo.housing?.median_monthly_rent || 0,
+                    pctLessThanHS: demo.education?.pct_less_than_hs || 0,
+                    childPoverty: demo.poverty?.pct_child_poverty || 0,
+                    pctSenior: demo.age?.pct_65_and_over || 0
                 });
             }
 
@@ -3129,7 +3139,12 @@
                 povertyRate: 'Poverty Rate (%)',
                 pctBlack: '% Black Population',
                 pctHispanic: '% Hispanic Population',
-                medianIncome: 'Median Household Income ($)'
+                medianIncome: 'Median Household Income ($)',
+                unemployment: 'Unemployment Rate (%)',
+                medianRent: 'Median Monthly Rent ($)',
+                pctLessThanHS: '% Less Than High School',
+                childPoverty: 'Child Poverty Rate (%)',
+                pctSenior: '% Senior Population (65+)'
             };
             return labels[key] || key;
         }
