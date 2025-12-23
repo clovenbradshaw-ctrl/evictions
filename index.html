@@ -2345,7 +2345,7 @@
             }
 
             if (earliest && latest) {
-                const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24)) + 1;
+                const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24));
                 // Annualization factor: how much to multiply to get full year estimate
                 const annualizationFactor = days > 0 ? 365 / days : 1;
 
@@ -3460,7 +3460,7 @@
                     }
                 }
                 if (earliest && latest) {
-                    const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24)) + 1;
+                    const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24));
                     const annualizationFactor = days > 0 ? 365 / days : 1;
                     districtDateRange = { earliest, latest, days, annualizationFactor };
                 }
