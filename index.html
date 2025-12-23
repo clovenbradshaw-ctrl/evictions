@@ -98,6 +98,21 @@
             color: var(--primary);
             border-bottom-color: var(--primary);
         }
+
+        .demographics-tab-btn {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            color: white !important;
+            border-radius: 6px;
+            border-bottom: none !important;
+        }
+
+        .demographics-tab-btn:hover {
+            background: linear-gradient(135deg, #2d5a87 0%, #3d6a97 100%);
+        }
+
+        .demographics-tab-btn.active {
+            box-shadow: 0 0 0 3px rgba(45, 90, 135, 0.3);
+        }
         
         .search-input {
             background: white;
@@ -874,6 +889,189 @@
             color: #4338ca;
             text-decoration: underline;
         }
+
+        /* Demographics Overview Panel Styles */
+        .demographics-overview {
+            padding: 0.5rem 0;
+        }
+
+        .county-summary-card {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            border-radius: 12px;
+            padding: 1.25rem;
+            color: white;
+        }
+
+        .county-summary-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            opacity: 0.9;
+            margin-bottom: 1rem;
+        }
+
+        .county-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        @media (min-width: 640px) {
+            .county-summary-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .county-stat {
+            text-align: center;
+        }
+
+        .county-stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .county-stat-label {
+            font-size: 0.7rem;
+            opacity: 0.85;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-top: 0.25rem;
+        }
+
+        .demographics-table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .demographics-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .demographics-table thead {
+            background: #f9fafb;
+            position: sticky;
+            top: 0;
+        }
+
+        .demographics-table th {
+            padding: 0.75rem 0.5rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #6b7280;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .demographics-table td {
+            padding: 0.75rem 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            vertical-align: middle;
+        }
+
+        .demographics-table tbody tr {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .demographics-table tbody tr:hover {
+            background: #f3f4f6;
+        }
+
+        .demographics-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .district-num-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.875rem;
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .district-num-badge.high-evictions {
+            background: #fecaca;
+            color: #991b1b;
+        }
+
+        .value-highlight {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .value-positive {
+            color: #059669;
+            font-weight: 600;
+        }
+
+        .demographics-card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .demo-card {
+            background: white;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .demo-card:hover {
+            border-color: #4f46e5;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .demo-card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .demo-card-title {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #111827;
+        }
+
+        .demo-card-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .demo-card-stat-label {
+            color: #6b7280;
+        }
+
+        .demo-card-stat-value {
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .demo-card-stat-value.highlight {
+            color: #dc2626;
+        }
     </style>
 </head>
 <body>
@@ -991,6 +1189,7 @@
                     <button onclick="setSearchTab('bulk')" class="tab-btn" id="bulkTab">Bulk Search</button>
                     <button onclick="setSearchTab('filter')" class="tab-btn" id="filterTab">Advanced Filters</button>
                     <button onclick="setSearchTab('grouping')" class="tab-btn" id="groupingTab">Custom Grouping</button>
+                    <button onclick="setSearchTab('demographics')" class="tab-btn demographics-tab-btn" id="demographicsTab">📊 District Demographics</button>
                 </div>
             </div>
 
@@ -1177,6 +1376,95 @@
                     <button onclick="applyCustomGrouping()" class="btn btn-primary">Apply Grouping</button>
                     <button onclick="saveCustomGrouping()" class="btn btn-secondary">Save Grouping</button>
                     <button onclick="resetToDefaultGrouping()" class="btn btn-secondary">Reset to Default</button>
+                </div>
+            </div>
+
+            <!-- Demographics Panel -->
+            <div id="demographicsSearch" class="search-panel hidden">
+                <div class="demographics-overview">
+                    <!-- Header with intro and controls -->
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">Nashville Council District Demographics</h3>
+                            <p class="text-sm text-gray-600">Click any district to view full demographic profile. Data from American Community Survey 2017-2021.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-semibold text-gray-600">Sort by:</label>
+                            <select id="demographicsSortField" class="grouping-field-select text-sm" onchange="renderDemographicsTable()">
+                                <option value="district">District Number</option>
+                                <option value="evictions">Eviction Filings</option>
+                                <option value="evictionRate">Evictions per 1,000</option>
+                                <option value="population">Population</option>
+                                <option value="medianIncome">Median Income</option>
+                                <option value="povertyRate">Poverty Rate</option>
+                                <option value="renterCostBurden">Renter Cost Burden</option>
+                                <option value="unemployment">Unemployment Rate</option>
+                            </select>
+                            <select id="demographicsSortOrder" class="grouping-field-select text-sm" onchange="renderDemographicsTable()">
+                                <option value="asc">Low to High</option>
+                                <option value="desc">High to Low</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- County Summary Card -->
+                    <div class="county-summary-card mb-4">
+                        <div class="county-summary-title">Davidson County Overview</div>
+                        <div class="county-summary-grid">
+                            <div class="county-stat">
+                                <div class="county-stat-value" id="countyTotalEvictions">-</div>
+                                <div class="county-stat-label">Total Evictions</div>
+                            </div>
+                            <div class="county-stat">
+                                <div class="county-stat-value" id="countyPopulation">-</div>
+                                <div class="county-stat-label">Population</div>
+                            </div>
+                            <div class="county-stat">
+                                <div class="county-stat-value" id="countyMedianIncome">-</div>
+                                <div class="county-stat-label">Median Income</div>
+                            </div>
+                            <div class="county-stat">
+                                <div class="county-stat-value" id="countyPovertyRate">-</div>
+                                <div class="county-stat-label">Poverty Rate</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- District Grid/Table -->
+                    <div class="demographics-table-container">
+                        <table class="demographics-table" id="demographicsTable">
+                            <thead>
+                                <tr>
+                                    <th>District</th>
+                                    <th>Evictions</th>
+                                    <th>Per 1K</th>
+                                    <th>Population</th>
+                                    <th>Med. Income</th>
+                                    <th>Poverty</th>
+                                    <th>Rent Burden</th>
+                                    <th>Unemploy.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="demographicsTableBody">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Visual District Cards (Alternative View) -->
+                    <div class="mt-4">
+                        <button onclick="toggleDemographicsView()" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                            Toggle Card View
+                        </button>
+                    </div>
+                    <div id="demographicsCardView" class="demographics-card-grid hidden mt-4">
+                        <!-- Populated by JavaScript -->
+                    </div>
+
+                    <!-- Source -->
+                    <div class="mt-4 text-xs text-gray-500 text-center">
+                        Source: <a href="https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf" target="_blank" class="text-indigo-600 hover:underline">Metropolitan Social Services Know Your Community 2023</a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2802,6 +3090,155 @@
             document.body.style.overflow = '';
         }
 
+        // Demographics Table Functions
+        function getDistrictData() {
+            if (!districtDemographics?.districts) return [];
+
+            const county = districtDemographics.county_totals;
+            const countyMedianIncome = county?.median_household_income || 65348;
+            const countyPovertyRate = county?.poverty_rate_percent || 15.0;
+
+            const districts = [];
+            for (let i = 1; i <= 35; i++) {
+                const demo = districtDemographics.districts[i];
+                if (!demo) continue;
+
+                // Count evictions for this district
+                let evictionCount = 0;
+                if (allData) {
+                    evictionCount = allData.filter(r => r.District == i).length;
+                }
+
+                const population = demo.population || 0;
+                const evictionRate = population > 0 ? ((evictionCount / population) * 1000) : 0;
+                const medianIncome = demo.income?.median_household_income || 0;
+                const povertyRate = demo.poverty?.pct_total_poverty || 0;
+                const renterCostBurden = demo.housing?.pct_renter_cost_burdened_35plus || 0;
+                const unemployment = demo.employment?.unemployment_rate || 0;
+
+                districts.push({
+                    district: i,
+                    evictions: evictionCount,
+                    evictionRate: evictionRate,
+                    population: population,
+                    medianIncome: medianIncome,
+                    povertyRate: povertyRate,
+                    renterCostBurden: renterCostBurden,
+                    unemployment: unemployment,
+                    isHighPoverty: povertyRate > countyPovertyRate,
+                    isLowIncome: medianIncome < countyMedianIncome
+                });
+            }
+
+            return districts;
+        }
+
+        function renderDemographicsTable() {
+            const data = getDistrictData();
+            if (data.length === 0) return;
+
+            const sortField = document.getElementById('demographicsSortField')?.value || 'district';
+            const sortOrder = document.getElementById('demographicsSortOrder')?.value || 'asc';
+
+            // Sort data
+            data.sort((a, b) => {
+                let valA = a[sortField];
+                let valB = b[sortField];
+                if (sortOrder === 'desc') {
+                    return valB - valA;
+                }
+                return valA - valB;
+            });
+
+            // Calculate averages for highlighting
+            const avgEvictions = data.reduce((s, d) => s + d.evictions, 0) / data.length;
+            const avgEvictionRate = data.reduce((s, d) => s + d.evictionRate, 0) / data.length;
+
+            // Update county summary
+            const county = districtDemographics?.county_totals;
+            const totalEvictions = allData ? allData.length : 0;
+            document.getElementById('countyTotalEvictions').textContent = totalEvictions.toLocaleString();
+            document.getElementById('countyPopulation').textContent = (county?.population || 0).toLocaleString();
+            document.getElementById('countyMedianIncome').textContent = '$' + (county?.median_household_income || 0).toLocaleString();
+            document.getElementById('countyPovertyRate').textContent = (county?.poverty_rate_percent || 0) + '%';
+
+            // Render table
+            const tbody = document.getElementById('demographicsTableBody');
+            let html = '';
+
+            data.forEach(d => {
+                const isHighEviction = d.evictions > avgEvictions * 1.5;
+                const badgeClass = isHighEviction ? 'high-evictions' : '';
+
+                html += `
+                    <tr onclick="openDistrictModal(${d.district})">
+                        <td><span class="district-num-badge ${badgeClass}">${d.district}</span></td>
+                        <td class="${d.evictions > avgEvictions ? 'value-highlight' : ''}">${d.evictions.toLocaleString()}</td>
+                        <td class="${d.evictionRate > avgEvictionRate ? 'value-highlight' : ''}">${d.evictionRate.toFixed(2)}</td>
+                        <td>${d.population.toLocaleString()}</td>
+                        <td class="${d.isLowIncome ? 'value-highlight' : 'value-positive'}">$${d.medianIncome.toLocaleString()}</td>
+                        <td class="${d.isHighPoverty ? 'value-highlight' : ''}">${d.povertyRate}%</td>
+                        <td class="${d.renterCostBurden > 40 ? 'value-highlight' : ''}">${d.renterCostBurden}%</td>
+                        <td class="${d.unemployment > 6 ? 'value-highlight' : ''}">${d.unemployment}%</td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+
+            // Also render card view
+            renderDemographicsCards(data, avgEvictions);
+        }
+
+        function renderDemographicsCards(data, avgEvictions) {
+            const cardContainer = document.getElementById('demographicsCardView');
+            let html = '';
+
+            data.forEach(d => {
+                const isHighEviction = d.evictions > avgEvictions * 1.5;
+                const badgeClass = isHighEviction ? 'high-evictions' : '';
+
+                html += `
+                    <div class="demo-card" onclick="openDistrictModal(${d.district})">
+                        <div class="demo-card-header">
+                            <span class="district-num-badge ${badgeClass}">${d.district}</span>
+                            <span class="demo-card-title">District ${d.district}</span>
+                        </div>
+                        <div class="demo-card-stat">
+                            <span class="demo-card-stat-label">Evictions</span>
+                            <span class="demo-card-stat-value ${d.evictions > avgEvictions ? 'highlight' : ''}">${d.evictions.toLocaleString()}</span>
+                        </div>
+                        <div class="demo-card-stat">
+                            <span class="demo-card-stat-label">Per 1,000</span>
+                            <span class="demo-card-stat-value">${d.evictionRate.toFixed(2)}</span>
+                        </div>
+                        <div class="demo-card-stat">
+                            <span class="demo-card-stat-label">Population</span>
+                            <span class="demo-card-stat-value">${d.population.toLocaleString()}</span>
+                        </div>
+                        <div class="demo-card-stat">
+                            <span class="demo-card-stat-label">Med. Income</span>
+                            <span class="demo-card-stat-value ${d.isLowIncome ? 'highlight' : ''}">$${d.medianIncome.toLocaleString()}</span>
+                        </div>
+                        <div class="demo-card-stat">
+                            <span class="demo-card-stat-label">Poverty</span>
+                            <span class="demo-card-stat-value ${d.isHighPoverty ? 'highlight' : ''}">${d.povertyRate}%</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            cardContainer.innerHTML = html;
+        }
+
+        function toggleDemographicsView() {
+            const cardView = document.getElementById('demographicsCardView');
+            const tableContainer = document.querySelector('.demographics-table-container');
+
+            cardView.classList.toggle('hidden');
+            tableContainer.classList.toggle('hidden');
+        }
+
         document.addEventListener('keydown', event => {
             if (event.key === 'Escape') {
                 const caseModal = document.getElementById('caseModal');
@@ -2825,6 +3262,7 @@
             document.getElementById('bulkSearch').classList.toggle('hidden', tab !== 'bulk');
             document.getElementById('filterSearch').classList.toggle('hidden', tab !== 'filter');
             document.getElementById('groupingSearch').classList.toggle('hidden', tab !== 'grouping');
+            document.getElementById('demographicsSearch').classList.toggle('hidden', tab !== 'demographics');
 
             // Initialize filter builder when opening advanced filters tab
             if (tab === 'filter') {
@@ -2834,6 +3272,11 @@
             // Load saved groupings when opening grouping tab
             if (tab === 'grouping') {
                 loadSavedGroupings();
+            }
+
+            // Initialize demographics panel when opening demographics tab
+            if (tab === 'demographics') {
+                renderDemographicsTable();
             }
         }
 
