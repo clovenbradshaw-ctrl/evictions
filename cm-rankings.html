@@ -699,17 +699,14 @@
         </div>
 
         <p style="text-align: center; font-size: 0.75rem; color: #9ca3af; margin-top: 2rem;">
-            Council member data from <a href="https://data.nashville.gov/resource/54m3-iiq3.json" target="_blank" style="color: #6b7280;">Nashville Open Data</a>
+            Council member data from <a href="https://www.nashville.gov/departments/council/council-members" target="_blank" style="color: #6b7280;">Nashville Metro Council</a>
             • Eviction data from public court records
         </p>
     </div>
 
     <script>
-        // Nashville Open Data API for Council Members
-        const CM_API_URL = 'https://data.nashville.gov/resource/54m3-iiq3.json';
-
-        // Eviction data API
-        const EVICTION_API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/search_detainer_cases';
+        // Council member data is loaded from local JSON file
+        // Eviction data is loaded from localStorage (set by main tracker page)
 
         let councilMembers = {};
         let evictionData = [];
@@ -722,32 +719,21 @@
             const statusEl = document.getElementById('statusMessage');
 
             try {
-                // Load both APIs in parallel
-                const [cmResponse, evictionResponse] = await Promise.all([
-                    fetch(CM_API_URL),
-                    fetch(EVICTION_API_URL)
-                ]);
-
+                // Load council member data from local JSON file
+                const cmResponse = await fetch('council-members.json');
                 if (!cmResponse.ok) throw new Error('Failed to load council member data');
-                if (!evictionResponse.ok) throw new Error('Failed to load eviction data');
-
                 const cmData = await cmResponse.json();
-                const evictionResult = await evictionResponse.json();
 
-                // Handle different response formats from eviction API
-                let evictions;
-                if (Array.isArray(evictionResult)) {
-                    evictions = evictionResult;
-                } else if (evictionResult?.items) {
-                    evictions = evictionResult.items;
-                } else if (evictionResult?.data) {
-                    evictions = evictionResult.data;
-                } else {
-                    evictions = [evictionResult];
+                // Load eviction data from localStorage (set by main tracker page)
+                const storedEvictionData = localStorage.getItem('evictionData');
+                if (!storedEvictionData) {
+                    throw new Error('No eviction data found. Please visit the main Eviction Tracker page first to load data.');
                 }
 
-                // Process council member data
-                processCouncilMembers(cmData);
+                const evictions = JSON.parse(storedEvictionData);
+
+                // Process council member data from local JSON format
+                processCouncilMembersFromLocal(cmData);
 
                 // Process eviction data
                 processEvictionData(evictions);
@@ -768,14 +754,29 @@
             } catch (error) {
                 console.error('Error loading data:', error);
                 let errorMsg = error.message;
-                if (error.message === 'Failed to fetch') {
-                    errorMsg = 'Unable to connect to data API. Please check your internet connection and try again.';
-                }
                 statusEl.textContent = `✗ Error: ${errorMsg}`;
                 statusEl.className = 'status-message status-error';
 
                 // Try to load fallback CM data so at least district buttons work
                 loadFallbackCMData();
+            }
+        }
+
+        function processCouncilMembersFromLocal(data) {
+            // Process district council members from local JSON format
+            if (data.districts) {
+                Object.entries(data.districts).forEach(([district, member]) => {
+                    const districtNum = parseInt(district);
+                    if (!isNaN(districtNum) && districtNum >= 1 && districtNum <= 35) {
+                        councilMembers[districtNum] = {
+                            district: districtNum,
+                            name: member.name,
+                            phone: member.phone || '',
+                            email: member.email || '',
+                            title: `District ${districtNum}`
+                        };
+                    }
+                });
             }
         }
 
@@ -836,7 +837,7 @@
         }
 
         function processEvictionData(data) {
-            // Dedupe and store all eviction data
+            // Data from localStorage is already deduped, but dedupe again just in case
             evictionData = dedupeByDocketNumber(data);
             districtStats = {};
 
@@ -844,7 +845,12 @@
             evictionData.forEach(record => {
                 let district = null;
 
-                if (record.council_district_number && typeof record.council_district_number === 'number' && record.council_district_number > 0) {
+                // Check normalized District field first (from localStorage data)
+                if (record.District && typeof record.District === 'number' && record.District > 0) {
+                    district = record.District;
+                }
+                // Fallback to raw field names
+                else if (record.council_district_number && typeof record.council_district_number === 'number' && record.council_district_number > 0) {
                     district = record.council_district_number;
                 } else if (record.council_district) {
                     const match = String(record.council_district).match(/(\d+)/);
@@ -885,8 +891,8 @@
                     }
                 }
 
-                // Track landlords
-                const plaintiff = record.Plaintiff_Petitioner || record.plaintiff_petitioner || record.Plaintiff || '';
+                // Track landlords (use normalized Plaintiff field from localStorage)
+                const plaintiff = record.Plaintiff || record.Plaintiff_Petitioner || record.plaintiff_petitioner || '';
                 if (plaintiff) {
                     districtStats[district].landlords[plaintiff] = (districtStats[district].landlords[plaintiff] || 0) + 1;
                 }
