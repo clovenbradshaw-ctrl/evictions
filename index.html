@@ -937,11 +937,6 @@
                 <div id="last30Days" class="metric-value text-gray-900">-</div>
                 <div id="thirtyChange" class="text-sm mt-2"></div>
             </div>
-            <div class="data-card p-6 hidden">
-                <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Status: Pending</div>
-                <div id="pendingCount" class="metric-value text-orange-600">-</div>
-                <div class="text-sm mt-2 text-gray-500">Active cases</div>
-            </div>
         </div>
 
         <!-- Main Content Grid -->
@@ -1106,8 +1101,6 @@
                             <button onclick="applyQuickFilter('last30')" class="add-condition-btn">Last 30 Days</button>
                             <button onclick="applyQuickFilter('last90')" class="add-condition-btn">Last 90 Days</button>
                             <button onclick="applyQuickFilter('lastYear')" class="add-condition-btn">Last Year</button>
-                            <button onclick="applyQuickFilter('pending')" class="add-condition-btn">Pending Only</button>
-                            <button onclick="applyQuickFilter('closed')" class="add-condition-btn">Closed Only</button>
                         </div>
                     </div>
                 </div>
@@ -1165,8 +1158,6 @@
                         <label class="block text-xs font-semibold text-gray-600 mb-2">Aggregations to Show</label>
                         <div class="aggregation-options">
                             <button class="aggregation-option active" data-agg="count" onclick="toggleAggregation(this)">Count</button>
-                            <button class="aggregation-option active" data-agg="pending" onclick="toggleAggregation(this)">Pending</button>
-                            <button class="aggregation-option active" data-agg="closed" onclick="toggleAggregation(this)">Closed</button>
                             <button class="aggregation-option" data-agg="firstDate" onclick="toggleAggregation(this)">First Filing</button>
                             <button class="aggregation-option active" data-agg="lastDate" onclick="toggleAggregation(this)">Last Filing</button>
                             <button class="aggregation-option" data-agg="uniqueAddresses" onclick="toggleAggregation(this)">Unique Addresses</button>
@@ -1354,7 +1345,7 @@
                             <label class="block text-sm font-semibold text-gray-700 mb-3">Or Paste CSV Data</label>
                             <textarea id="bulkUploadPaste"
                                 class="search-input w-full paste-area"
-                                placeholder="Paste CSV data here...&#10;&#10;Example:&#10;Office,Docket_Number,Status,File_Date,Plaintiff_Petitioner,Defendant_Respondent&#10;1,24GT12345,PENDING,2024-01-15,Property LLC,John Doe"></textarea>
+                                placeholder="Paste CSV data here...&#10;&#10;Example:&#10;Office,Docket_Number,File_Date,Plaintiff_Petitioner,Defendant_Respondent&#10;1,24GT12345,2024-01-15,Property LLC,John Doe"></textarea>
                         </div>
                     </div>
 
@@ -1849,10 +1840,6 @@
                 return date >= thirtyDaysAgo;
             }).length;
             document.getElementById('last30Days').textContent = last30Count.toLocaleString();
-            
-            // Pending
-            const pendingCount = allData.filter(d => d.Status === 'PENDING').length;
-            document.getElementById('pendingCount').textContent = pendingCount.toLocaleString();
         }
 
         // Track active chart filter for month/year
@@ -2362,24 +2349,10 @@
 
             title.textContent = record.Case_Number ? `Docket #${record.Case_Number}` : 'Case Detail';
 
-            const statusValue = formatModalValue(record.Status || record.status || 'Unknown', {
-                transform: value => String(value).toUpperCase()
-            });
-            const statusClass = statusValue === 'PENDING'
-                ? 'text-orange-600'
-                : statusValue === 'CLOSED'
-                    ? 'text-gray-600'
-                    : 'text-gray-900';
-
             const metaEntries = [
                 {
                     label: 'Filed',
                     value: formatDate(record.File_Date)
-                },
-                {
-                    label: 'Status',
-                    value: statusValue,
-                    className: statusClass
                 }
             ];
 
@@ -3041,9 +3014,6 @@
                     summaries.set(key, {
                         groupKey: key,
                         totalFilings: 0,
-                        pending: 0,
-                        closed: 0,
-                        other: 0,
                         lastFiled: null,
                         properties: new Set()
                     });
@@ -3051,14 +3021,6 @@
 
                 const summary = summaries.get(key);
                 summary.totalFilings += 1;
-
-                if (record.Status === 'PENDING') {
-                    summary.pending += 1;
-                } else if (record.Status === 'CLOSED') {
-                    summary.closed += 1;
-                } else {
-                    summary.other += 1;
-                }
 
                 if (record.File_Date) {
                     const fileDate = new Date(record.File_Date);
@@ -3080,9 +3042,6 @@
                     groupKey: summary.groupKey,
                     totalFilings: summary.totalFilings,
                     percentOfTotal: totalRecords > 0 ? (summary.totalFilings / totalRecords) * 100 : 0,
-                    pending: summary.pending,
-                    closed: summary.closed,
-                    other: summary.other,
                     lastFiled: summary.lastFiled ? summary.lastFiled.toISOString() : '',
                     uniqueProperties: summary.properties.size
                 }))
@@ -3843,7 +3802,6 @@
             { key: 'Plaintiff', label: 'Plaintiff/Landlord', type: 'text' },
             { key: 'Defendant', label: 'Defendant/Tenant', type: 'text' },
             { key: 'Attorney', label: 'Attorney', type: 'text' },
-            { key: 'Status', label: 'Status', type: 'select', options: ['PENDING', 'CLOSED', 'UNKNOWN'] },
             { key: 'Case_Number', label: 'Case Number', type: 'text' },
             { key: 'District', label: 'Council District', type: 'text' },
             { key: 'File_Date', label: 'File Date', type: 'date' },
@@ -4346,24 +4304,6 @@
                         value2: ''
                     });
                     break;
-                case 'pending':
-                    group.conditions.push({
-                        id: Date.now(),
-                        field: 'Status',
-                        operator: 'equals',
-                        value: 'PENDING',
-                        value2: ''
-                    });
-                    break;
-                case 'closed':
-                    group.conditions.push({
-                        id: Date.now(),
-                        field: 'Status',
-                        operator: 'equals',
-                        value: 'CLOSED',
-                        value2: ''
-                    });
-                    break;
             }
 
             renderFilterGroups();
@@ -4473,7 +4413,7 @@
         let customGroupingConfig = {
             field1: '',
             field2: '',
-            aggregations: ['count', 'pending', 'closed', 'lastDate']
+            aggregations: ['count', 'lastDate']
         };
 
         function toggleAggregation(button) {
@@ -4571,9 +4511,6 @@
                         field1Value: key1,
                         field2Value: key2,
                         count: 0,
-                        pending: 0,
-                        closed: 0,
-                        other: 0,
                         firstDate: null,
                         lastDate: null,
                         addresses: new Set()
@@ -4582,14 +4519,6 @@
 
                 const summary = summaries.get(groupKey);
                 summary.count += 1;
-
-                if (record.Status === 'PENDING') {
-                    summary.pending += 1;
-                } else if (record.Status === 'CLOSED') {
-                    summary.closed += 1;
-                } else {
-                    summary.other += 1;
-                }
 
                 if (record.File_Date) {
                     const fileDate = new Date(record.File_Date);
@@ -4614,9 +4543,6 @@
                     field1Value: summary.field1Value,
                     field2Value: summary.field2Value,
                     count: summary.count,
-                    pending: summary.pending,
-                    closed: summary.closed,
-                    other: summary.other,
                     firstDate: summary.firstDate ? summary.firstDate.toISOString() : '',
                     lastDate: summary.lastDate ? summary.lastDate.toISOString() : '',
                     uniqueAddresses: summary.addresses.size
@@ -4667,12 +4593,6 @@
             if (aggregations.includes('count')) {
                 columns.push({ field: 'count', headerName: 'Count', width: 100, sort: 'desc', sortIndex: 0 });
             }
-            if (aggregations.includes('pending')) {
-                columns.push({ field: 'pending', headerName: 'Pending', width: 100 });
-            }
-            if (aggregations.includes('closed')) {
-                columns.push({ field: 'closed', headerName: 'Closed', width: 100 });
-            }
             if (aggregations.includes('firstDate')) {
                 columns.push({
                     field: 'firstDate',
@@ -4720,7 +4640,7 @@
             // Reset aggregation buttons
             document.querySelectorAll('.aggregation-option').forEach(btn => {
                 const agg = btn.dataset.agg;
-                if (['count', 'pending', 'closed', 'lastDate'].includes(agg)) {
+                if (['count', 'lastDate'].includes(agg)) {
                     btn.classList.add('active');
                 } else {
                     btn.classList.remove('active');
