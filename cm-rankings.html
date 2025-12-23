@@ -836,29 +836,195 @@
             margin-bottom: 1.5rem;
         }
 
-        .landlord-card {
+        .landlord-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .landlord-table th {
+            background: #f3f4f6;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .landlord-table th:hover {
+            background: #e5e7eb;
+        }
+
+        .landlord-table th.sorted-asc::after {
+            content: ' ▲';
+            font-size: 0.7rem;
+        }
+
+        .landlord-table th.sorted-desc::after {
+            content: ' ▼';
+            font-size: 0.7rem;
+        }
+
+        .landlord-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            color: #374151;
+        }
+
+        .landlord-table tr:hover {
             background: #f9fafb;
+        }
+
+        .landlord-table .name-hidden {
+            color: #9ca3af;
+            font-style: italic;
+        }
+
+        /* Login Modal Styles */
+        .login-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            z-index: 100;
+        }
+
+        .login-modal.hidden {
+            display: none;
+        }
+
+        .login-modal-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            max-width: 400px;
+            overflow: hidden;
+        }
+
+        .login-modal-header {
+            background: #fef2f2;
+            border-bottom: 1px solid #fecaca;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .login-modal-header h3 {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .login-modal-header .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #6b7280;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .login-modal-header .close-btn:hover {
+            color: #111827;
+        }
+
+        .login-modal-body {
+            padding: 1.5rem;
+        }
+
+        .login-notice {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
             border-radius: 8px;
             padding: 1rem;
-            margin-bottom: 0.75rem;
-            border-left: 4px solid #4f46e5;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            color: #92400e;
         }
 
-        .landlord-card .landlord-name {
+        .login-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .login-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            color: #dc2626;
+        }
+
+        .login-error.hidden {
+            display: none;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: #dc2626;
+            color: white;
+            border: none;
+            border-radius: 8px;
             font-weight: 600;
-            color: #111827;
-            margin-bottom: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.15s;
         }
 
-        .landlord-card .landlord-stats {
-            display: flex;
-            gap: 1.5rem;
-            font-size: 0.85rem;
+        .login-btn:hover {
+            background: #b91c1c;
+        }
+
+        .header-login-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .header-login-btn.login {
+            background: #dc2626;
+            color: white;
+            border: none;
+        }
+
+        .header-login-btn.login:hover {
+            background: #b91c1c;
+        }
+
+        .header-login-btn.logout {
+            background: white;
             color: #6b7280;
+            border: 1px solid #d1d5db;
         }
 
-        .landlord-card .landlord-stats strong {
-            color: #111827;
+        .header-login-btn.logout:hover {
+            border-color: #9ca3af;
+            color: #374151;
         }
 
         .view-toggle-btns {
@@ -901,6 +1067,8 @@
             </div>
             <div class="nav-links">
                 <a href="index.html">← Back to Eviction Tracker</a>
+                <button id="loginBtn" class="header-login-btn login" onclick="showLoginModal()">Login to View Names</button>
+                <button id="logoutBtn" class="header-login-btn logout hidden" onclick="logout()">Logout</button>
             </div>
         </div>
     </header>
@@ -1391,28 +1559,62 @@
                 <div id="evictionsContent">
             `;
 
-            // By Landlord view (default)
+            // Calculate pending/closed counts for each landlord
+            sortedLandlords.forEach(landlord => {
+                landlord.pending = landlord.evictions.filter(e => {
+                    const status = (e.Status || e.status || '').toUpperCase();
+                    return status.includes('PENDING') || status.includes('OPEN') || status.includes('ACTIVE');
+                }).length;
+                landlord.closed = landlord.evictions.length - landlord.pending;
+            });
+
+            // By Landlord view (default) - now as a sortable table
             html += `<div id="landlordView">`;
             if (sortedLandlords.length === 0) {
                 html += `<p style="color: #6b7280; text-align: center; padding: 2rem;">No eviction filings in this district.</p>`;
             } else {
-                html += `<div class="landlord-summary">`;
-                sortedLandlords.forEach((landlord, idx) => {
-                    if (idx < 20) { // Show top 20 landlords
-                        html += `
-                            <div class="landlord-card">
-                                <div class="landlord-name">${truncateLandlord(landlord.name, 50)}</div>
-                                <div class="landlord-stats">
-                                    <span><strong>${landlord.evictions.length}</strong> filings</span>
-                                </div>
-                            </div>
-                        `;
-                    }
+                html += `
+                    <div class="landlord-summary">
+                        <table class="landlord-table" id="landlordTable">
+                            <thead>
+                                <tr>
+                                    <th data-sort="name" onclick="sortLandlordTable('name', ${district})">Landlord/Plaintiff</th>
+                                    <th data-sort="filings" class="sorted-desc" onclick="sortLandlordTable('filings', ${district})">Filings</th>
+                                    <th data-sort="pending" onclick="sortLandlordTable('pending', ${district})">Pending</th>
+                                    <th data-sort="closed" onclick="sortLandlordTable('closed', ${district})">Closed</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                // Store data for sorting
+                window.landlordTableData = sortedLandlords;
+                window.currentLandlordSort = { field: 'filings', direction: 'desc' };
+
+                sortedLandlords.slice(0, 50).forEach(landlord => {
+                    const displayName = getDisplayName(landlord.name);
+                    const nameClass = isLoggedIn ? '' : 'name-hidden';
+                    html += `
+                        <tr>
+                            <td class="${nameClass}">${truncateLandlord(displayName, 40)}</td>
+                            <td><strong>${landlord.evictions.length}</strong></td>
+                            <td>${landlord.pending}</td>
+                            <td>${landlord.closed}</td>
+                        </tr>
+                    `;
                 });
-                if (sortedLandlords.length > 20) {
-                    html += `<p style="font-size: 0.8rem; color: #6b7280; text-align: center;">+ ${sortedLandlords.length - 20} more landlords</p>`;
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                if (sortedLandlords.length > 50) {
+                    html += `<p style="font-size: 0.8rem; color: #6b7280; text-align: center; margin-top: 0.5rem;">Showing top 50 of ${sortedLandlords.length} landlords</p>`;
                 }
-                html += `</div>`;
+                if (!isLoggedIn) {
+                    html += `<p style="font-size: 0.8rem; color: #9ca3af; text-align: center; margin-top: 0.5rem; font-style: italic;"><a href="#" onclick="showLoginModal(); return false;" style="color: #4f46e5;">Login</a> to view landlord names</p>`;
+                }
             }
             html += `</div>`;
 
@@ -1445,12 +1647,14 @@
                     const dateStr = fileDate ? new Date(fileDate).toLocaleDateString() : '-';
                     const caseNum = ev.Case_Number || ev.case_number || ev.CaseNumber || '-';
                     const plaintiff = ev.Plaintiff_Petitioner || ev.plaintiff_petitioner || ev.Plaintiff || '-';
+                    const displayPlaintiff = getDisplayName(plaintiff);
+                    const nameClass = isLoggedIn ? '' : 'name-hidden';
                     const status = ev.Status || ev.status || '-';
                     html += `
                         <tr>
                             <td>${dateStr}</td>
                             <td>${caseNum}</td>
-                            <td>${truncateLandlord(plaintiff, 35)}</td>
+                            <td class="${nameClass}">${truncateLandlord(displayPlaintiff, 35)}</td>
                             <td>${status}</td>
                         </tr>
                     `;
@@ -1462,6 +1666,9 @@
                 `;
                 if (districtEvictions.length > 100) {
                     html += `<p style="font-size: 0.8rem; color: #6b7280; text-align: center; margin-top: 0.5rem;">Showing 100 of ${districtEvictions.length} filings</p>`;
+                }
+                if (!isLoggedIn) {
+                    html += `<p style="font-size: 0.8rem; color: #9ca3af; text-align: center; margin-top: 0.5rem; font-style: italic;"><a href="#" onclick="showLoginModal(); return false;" style="color: #4f46e5;">Login</a> to view landlord names</p>`;
                 }
             }
             html += `</div>`;
@@ -2070,6 +2277,179 @@
 
         // Initialize on page load
         loadAllData();
+    </script>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="login-modal hidden" onclick="if(event.target === this) hideLoginModal()">
+        <div class="login-modal-content">
+            <div class="login-modal-header">
+                <div>
+                    <p style="font-size: 0.75rem; font-weight: 600; color: #dc2626; text-transform: uppercase; letter-spacing: 0.05em;">Privacy Protected</p>
+                    <h3>Login Required</h3>
+                </div>
+                <button class="close-btn" onclick="hideLoginModal()">&times;</button>
+            </div>
+            <div class="login-modal-body">
+                <div class="login-notice">
+                    <strong>Privacy Notice:</strong> Landlord/plaintiff names are protected. Authorized users can login to view full names.
+                </div>
+                <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 0.5rem;">Password</label>
+                <input type="password" id="loginPassword" class="login-input" placeholder="Enter access password" onkeypress="if(event.key === 'Enter') attemptLogin()">
+                <div id="loginError" class="login-error hidden">Incorrect password. Please try again.</div>
+                <button onclick="attemptLogin()" class="login-btn">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Login system
+        let isLoggedIn = false;
+        const LOGIN_PASSWORD = 'HIAHR';
+
+        function showLoginModal() {
+            document.getElementById('loginModal').classList.remove('hidden');
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginError').classList.add('hidden');
+            document.getElementById('loginPassword').focus();
+        }
+
+        function hideLoginModal() {
+            document.getElementById('loginModal').classList.add('hidden');
+        }
+
+        function attemptLogin() {
+            const password = document.getElementById('loginPassword').value;
+            if (password.toUpperCase() === LOGIN_PASSWORD) {
+                isLoggedIn = true;
+                hideLoginModal();
+                updateLoginButton();
+                // Refresh modal if open to show real names
+                if (selectedDistrict) {
+                    openDemographicsModal();
+                }
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        }
+
+        function logout() {
+            isLoggedIn = false;
+            updateLoginButton();
+            // Refresh modal if open to hide names
+            if (selectedDistrict) {
+                openDemographicsModal();
+            }
+        }
+
+        function updateLoginButton() {
+            const loginBtn = document.getElementById('loginBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (isLoggedIn) {
+                loginBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+            } else {
+                loginBtn.classList.remove('hidden');
+                logoutBtn.classList.add('hidden');
+            }
+        }
+
+        // Scramble a name for privacy (consistent scrambling per name)
+        function scrambleName(name) {
+            if (!name) return '';
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = ((hash << 5) - hash) + name.charCodeAt(i);
+                hash = hash & hash;
+            }
+            const firstNames = ['J.', 'M.', 'R.', 'S.', 'A.', 'D.', 'K.', 'T.', 'L.', 'C.'];
+            const lastParts = ['***', '****', '*****', '******'];
+            const firstIdx = Math.abs(hash) % firstNames.length;
+            const lastIdx = Math.abs(hash >> 4) % lastParts.length;
+            return `${firstNames[firstIdx]} ${lastParts[lastIdx]}`;
+        }
+
+        function getDisplayName(name) {
+            if (isLoggedIn) return name;
+            return scrambleName(name);
+        }
+
+        // Sorting function for landlord table
+        function sortLandlordTable(field, district) {
+            if (!window.landlordTableData) return;
+
+            const currentSort = window.currentLandlordSort || { field: 'filings', direction: 'desc' };
+            let direction = 'desc';
+
+            if (currentSort.field === field) {
+                direction = currentSort.direction === 'desc' ? 'asc' : 'desc';
+            }
+
+            window.currentLandlordSort = { field, direction };
+
+            // Sort the data
+            const sortedData = [...window.landlordTableData].sort((a, b) => {
+                let valA, valB;
+                switch (field) {
+                    case 'name':
+                        valA = a.name.toLowerCase();
+                        valB = b.name.toLowerCase();
+                        break;
+                    case 'filings':
+                        valA = a.evictions.length;
+                        valB = b.evictions.length;
+                        break;
+                    case 'pending':
+                        valA = a.pending;
+                        valB = b.pending;
+                        break;
+                    case 'closed':
+                        valA = a.closed;
+                        valB = b.closed;
+                        break;
+                    default:
+                        return 0;
+                }
+
+                if (valA < valB) return direction === 'asc' ? -1 : 1;
+                if (valA > valB) return direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // Update table headers
+            const table = document.getElementById('landlordTable');
+            if (!table) return;
+
+            table.querySelectorAll('th').forEach(th => {
+                th.classList.remove('sorted-asc', 'sorted-desc');
+                if (th.dataset.sort === field) {
+                    th.classList.add(direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
+                }
+            });
+
+            // Update table body
+            const tbody = table.querySelector('tbody');
+            if (!tbody) return;
+
+            let rowsHtml = '';
+            sortedData.slice(0, 50).forEach(landlord => {
+                const displayName = getDisplayName(landlord.name);
+                const nameClass = isLoggedIn ? '' : 'name-hidden';
+                rowsHtml += `
+                    <tr>
+                        <td class="${nameClass}">${truncateLandlord(displayName, 40)}</td>
+                        <td><strong>${landlord.evictions.length}</strong></td>
+                        <td>${landlord.pending}</td>
+                        <td>${landlord.closed}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = rowsHtml;
+        }
+
+        function truncateLandlord(str, len) {
+            if (!str) return '';
+            return str.length > len ? str.substring(0, len) + '...' : str;
+        }
     </script>
 </body>
 </html>
