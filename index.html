@@ -2245,50 +2245,31 @@
         async function loadData() {
             const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/search_detainer_cases';
 
-            // CORS proxy services to try in order
-            const CORS_PROXIES = [
-                (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-                (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`
-            ];
-
             try {
                 updateStatus('Loading data from public records API...', 'loading');
 
                 let result = null;
                 let lastError = null;
 
-                // Try each CORS proxy
-                for (let i = 0; i < CORS_PROXIES.length; i++) {
-                    try {
-                        const proxyUrl = CORS_PROXIES[i](API_URL);
-                        console.log(`Trying CORS proxy ${i + 1}...`);
+                // First, try direct API call (works if CORS is enabled in Xano)
+                try {
+                    console.log('Trying direct API call...');
+                    const response = await fetch(API_URL);
 
-                        const response = await fetch(proxyUrl);
-
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-
-                        const proxyResult = await response.json();
-
-                        // allOrigins wraps response in { contents: "..." }
-                        if (proxyResult.contents) {
-                            result = JSON.parse(proxyResult.contents);
-                        } else {
-                            result = proxyResult;
-                        }
-
-                        console.log('Successfully fetched data via CORS proxy');
-                        break; // Success, exit loop
-                    } catch (proxyError) {
-                        console.warn(`CORS proxy ${i + 1} failed:`, proxyError.message);
-                        lastError = proxyError;
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
+
+                    result = await response.json();
+                    console.log('Successfully fetched data directly from API');
+                } catch (directError) {
+                    console.warn('Direct API call failed:', directError.message);
+                    lastError = directError;
                 }
 
-                // If all proxies failed, try localStorage fallback
+                // If direct API call failed, try localStorage fallback
                 if (result === null) {
-                    console.log('All CORS proxies failed, checking localStorage...');
+                    console.log('API call failed, checking localStorage cache...');
                     const storedData = localStorage.getItem('evictionData');
                     const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
 
