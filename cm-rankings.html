@@ -1724,7 +1724,7 @@
                 if (!cmResponse.ok) throw new Error('Failed to load council member data');
                 const cmData = await cmResponse.json();
 
-                // Try to load eviction data from localStorage first
+                // Load eviction data from localStorage (cached from main tracker page)
                 let evictions = null;
                 const storedEvictionData = localStorage.getItem('evictionData');
 
@@ -1736,67 +1736,16 @@
                     }
                 }
 
-                // If no localStorage data, fetch directly from API using CORS proxy
+                // If no cached data available, show message to visit main tracker first
                 if (!evictions || evictions.length === 0) {
-                    statusEl.textContent = '⏳ Loading eviction data from public records API...';
+                    statusEl.innerHTML = '⚠️ No eviction data cached. Please <a href="index.html" style="color: #1e40af; text-decoration: underline;">visit the main Eviction Tracker</a> first to load the data.';
+                    statusEl.className = 'status-message status-error';
 
-                    const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/search_detainer_cases';
-                    const CORS_PROXIES = [
-                        (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-                        (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`
-                    ];
-
-                    let apiData = null;
-                    let lastError = null;
-
-                    // Try each CORS proxy
-                    for (let i = 0; i < CORS_PROXIES.length; i++) {
-                        try {
-                            const proxyUrl = CORS_PROXIES[i](API_URL);
-                            console.log(`Trying CORS proxy ${i + 1}...`);
-
-                            const apiResponse = await fetch(proxyUrl);
-                            if (!apiResponse.ok) {
-                                throw new Error(`HTTP error! status: ${apiResponse.status}`);
-                            }
-
-                            const proxyResult = await apiResponse.json();
-
-                            // allOrigins wraps response in { contents: "..." }
-                            if (proxyResult.contents) {
-                                apiData = JSON.parse(proxyResult.contents);
-                            } else {
-                                apiData = proxyResult;
-                            }
-
-                            console.log('Successfully fetched data via CORS proxy');
-                            break; // Success, exit loop
-                        } catch (proxyError) {
-                            console.warn(`CORS proxy ${i + 1} failed:`, proxyError.message);
-                            lastError = proxyError;
-                        }
-                    }
-
-                    if (apiData === null) {
-                        throw lastError || new Error('Failed to load eviction data from API');
-                    }
-
-                    // Normalize the data format
-                    evictions = apiData.map(record => ({
-                        ...record,
-                        District: record.council_district_number || null,
-                        Plaintiff: record.Plaintiff_Petitioner || record.plaintiff_petitioner || '',
-                        Status: record.Status || record.status || '',
-                        File_Date: record.File_Date || record.file_date || null
-                    }));
-
-                    // Store in localStorage for future use
-                    try {
-                        localStorage.setItem('evictionData', JSON.stringify(evictions));
-                        localStorage.setItem('evictionDataTimestamp', Date.now().toString());
-                    } catch (e) {
-                        console.warn('Could not store eviction data in localStorage:', e);
-                    }
+                    // Still load council member data and show empty state
+                    processCouncilMembersFromLocal(cmData);
+                    generateDistrictButtons();
+                    updateRankingsTable();
+                    return;
                 }
 
                 // Process council member data from local JSON format
