@@ -1521,13 +1521,46 @@
                 if (!cmResponse.ok) throw new Error('Failed to load council member data');
                 const cmData = await cmResponse.json();
 
-                // Load eviction data from localStorage (set by main tracker page)
+                // Try to load eviction data from localStorage first
+                let evictions = null;
                 const storedEvictionData = localStorage.getItem('evictionData');
-                if (!storedEvictionData) {
-                    throw new Error('No eviction data found. Please visit the main Eviction Tracker page first to load data.');
+
+                if (storedEvictionData) {
+                    try {
+                        evictions = JSON.parse(storedEvictionData);
+                    } catch (e) {
+                        console.warn('Failed to parse localStorage eviction data:', e);
+                    }
                 }
 
-                const evictions = JSON.parse(storedEvictionData);
+                // If no localStorage data, fetch directly from API
+                if (!evictions || evictions.length === 0) {
+                    statusEl.textContent = '⏳ Loading eviction data from public records API...';
+
+                    const apiResponse = await fetch('https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/search_detainer_cases');
+                    if (!apiResponse.ok) {
+                        throw new Error(`Failed to load eviction data from API (status: ${apiResponse.status})`);
+                    }
+
+                    const apiData = await apiResponse.json();
+
+                    // Normalize the data format
+                    evictions = apiData.map(record => ({
+                        ...record,
+                        District: record.council_district_number || null,
+                        Plaintiff: record.Plaintiff_Petitioner || record.plaintiff_petitioner || '',
+                        Status: record.Status || record.status || '',
+                        File_Date: record.File_Date || record.file_date || null
+                    }));
+
+                    // Store in localStorage for future use
+                    try {
+                        localStorage.setItem('evictionData', JSON.stringify(evictions));
+                        localStorage.setItem('evictionDataTimestamp', Date.now().toString());
+                    } catch (e) {
+                        console.warn('Could not store eviction data in localStorage:', e);
+                    }
+                }
 
                 // Process council member data from local JSON format
                 processCouncilMembersFromLocal(cmData);
