@@ -1,0 +1,1604 @@
+{
+  "metadata": {
+    "source": "Metropolitan Social Services, Know Your Community 2023",
+    "source_url": "https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf?ct=1706286236",
+    "data_source": "American Community Survey 2017-2021 5-Year Estimates",
+    "geography": "Nashville-Davidson County Metro Council Districts (35 districts, post-2021 redistricting)",
+    "citation": "Metropolitan Social Services Strategic Planning & Research, December 2023",
+    "notes": "District boundaries based on BL2021-1052 approved January 18, 2022"
+  },
+  "county_totals": {
+    "population": 708490,
+    "median_age": 35.0,
+    "median_household_income": 65348,
+    "median_family_income": 83222,
+    "per_capita_income": 40733,
+    "poverty_rate_percent": 15.0,
+    "unemployment_rate_percent": 4.2,
+    "pct_bachelors_or_higher": 44.4,
+    "pct_white": 56.4,
+    "pct_black": 25.3,
+    "pct_hispanic": 10.6,
+    "pct_asian": 3.6,
+    "total_housing_units": 343111,
+    "median_owner_housing_value": 350700,
+    "median_monthly_rent": 1298
+  },
+  "districts": {
+    "1": {
+      "population": 18124,
+      "median_age": 45.7,
+      "age": {
+        "pct_under_18": 18.5,
+        "pct_18_and_over": 81.5,
+        "pct_65_and_over": 20.8
+      },
+      "race_ethnicity": {
+        "pct_white": 41.4,
+        "pct_black": 52.2,
+        "pct_asian": 0.9,
+        "pct_hispanic": 2.8,
+        "pct_two_or_more": 4.3
+      },
+      "education": {
+        "pct_less_than_hs": 11.3,
+        "pct_hs_graduate": 30.3,
+        "pct_bachelors": 18.7,
+        "pct_graduate_professional": 10.8
+      },
+      "income": {
+        "median_household_income": 64657,
+        "mean_household_income": 85916,
+        "median_family_income": 75650,
+        "per_capita_income": 36104
+      },
+      "poverty": {
+        "pct_total_poverty": 10.2,
+        "pct_child_poverty": 19.2,
+        "pct_senior_poverty": 8.2
+      },
+      "employment": {
+        "labor_force_participation_rate": 58.8,
+        "unemployment_rate": 8.9
+      },
+      "housing": {
+        "total_housing_units": 7894,
+        "pct_occupied": 93.3,
+        "median_owner_value": 241400,
+        "median_monthly_rent": 1032,
+        "pct_owner_cost_burdened_35plus": 22.4,
+        "pct_renter_cost_burdened_35plus": 37.1
+      }
+    },
+    "2": {
+      "population": 19501,
+      "median_age": 36.2,
+      "age": {
+        "pct_under_18": 24.6,
+        "pct_18_and_over": 75.4,
+        "pct_65_and_over": 15.8
+      },
+      "race_ethnicity": {
+        "pct_white": 20.2,
+        "pct_black": 68.4,
+        "pct_asian": 0.4,
+        "pct_hispanic": 10.3,
+        "pct_two_or_more": 5.9
+      },
+      "education": {
+        "pct_less_than_hs": 15.8,
+        "pct_hs_graduate": 35.6,
+        "pct_bachelors": 15.1,
+        "pct_graduate_professional": 7.7
+      },
+      "income": {
+        "median_household_income": 43547,
+        "mean_household_income": 60986,
+        "median_family_income": 47786,
+        "per_capita_income": 28589
+      },
+      "poverty": {
+        "pct_total_poverty": 26.3,
+        "pct_child_poverty": 41.3,
+        "pct_senior_poverty": 19.7
+      },
+      "employment": {
+        "labor_force_participation_rate": 66.0,
+        "unemployment_rate": 8.9
+      },
+      "housing": {
+        "total_housing_units": 8957,
+        "pct_occupied": 91.8,
+        "median_owner_value": 195300,
+        "median_monthly_rent": 907,
+        "pct_owner_cost_burdened_35plus": 25.3,
+        "pct_renter_cost_burdened_35plus": 37.5
+      }
+    },
+    "3": {
+      "population": 20056,
+      "median_age": 40.2,
+      "age": {
+        "pct_under_18": 25.9,
+        "pct_18_and_over": 74.1,
+        "pct_65_and_over": 14.1
+      },
+      "race_ethnicity": {
+        "pct_white": 30.8,
+        "pct_black": 61.8,
+        "pct_asian": 1.7,
+        "pct_hispanic": 4.1,
+        "pct_two_or_more": 3.3
+      },
+      "education": {
+        "pct_less_than_hs": 10.2,
+        "pct_hs_graduate": 26.9,
+        "pct_bachelors": 15.6,
+        "pct_graduate_professional": 10.3
+      },
+      "income": {
+        "median_household_income": 62678,
+        "mean_household_income": 73651,
+        "median_family_income": 68937,
+        "per_capita_income": 34382
+      },
+      "poverty": {
+        "pct_total_poverty": 20.8,
+        "pct_child_poverty": 35.1,
+        "pct_senior_poverty": 14.3
+      },
+      "employment": {
+        "labor_force_participation_rate": 68.4,
+        "unemployment_rate": 5.2
+      },
+      "housing": {
+        "total_housing_units": 8393,
+        "pct_occupied": 93.4,
+        "median_owner_value": 237100,
+        "median_monthly_rent": 1058,
+        "pct_owner_cost_burdened_35plus": 23.1,
+        "pct_renter_cost_burdened_35plus": 49.5
+      }
+    },
+    "4": {
+      "population": 21482,
+      "median_age": 39.0,
+      "age": {
+        "pct_under_18": 17.4,
+        "pct_18_and_over": 82.6,
+        "pct_65_and_over": 16.3
+      },
+      "race_ethnicity": {
+        "pct_white": 77.4,
+        "pct_black": 13.7,
+        "pct_asian": 4.7,
+        "pct_hispanic": 2.9,
+        "pct_two_or_more": 3.2
+      },
+      "education": {
+        "pct_less_than_hs": 3.3,
+        "pct_hs_graduate": 14.6,
+        "pct_bachelors": 40.2,
+        "pct_graduate_professional": 24.2
+      },
+      "income": {
+        "median_household_income": 93165,
+        "mean_household_income": 122005,
+        "median_family_income": 108750,
+        "per_capita_income": 47311
+      },
+      "poverty": {
+        "pct_total_poverty": 7.6,
+        "pct_child_poverty": 11.2,
+        "pct_senior_poverty": 3.8
+      },
+      "employment": {
+        "labor_force_participation_rate": 75.2,
+        "unemployment_rate": 3.9
+      },
+      "housing": {
+        "total_housing_units": 9657,
+        "pct_occupied": 94.4,
+        "median_owner_value": 391000,
+        "median_monthly_rent": 1442,
+        "pct_owner_cost_burdened_35plus": 22.2,
+        "pct_renter_cost_burdened_35plus": 22.4
+      }
+    },
+    "5": {
+      "population": 17964,
+      "median_age": 31.9,
+      "age": {
+        "pct_under_18": 19.6,
+        "pct_18_and_over": 80.4,
+        "pct_65_and_over": 6.8
+      },
+      "race_ethnicity": {
+        "pct_white": 51.6,
+        "pct_black": 38.8,
+        "pct_asian": 1.1,
+        "pct_hispanic": 11.5,
+        "pct_two_or_more": 3.6
+      },
+      "education": {
+        "pct_less_than_hs": 12.1,
+        "pct_hs_graduate": 25.0,
+        "pct_bachelors": 29.0,
+        "pct_graduate_professional": 12.7
+      },
+      "income": {
+        "median_household_income": 63133,
+        "mean_household_income": 80557,
+        "median_family_income": 61897,
+        "per_capita_income": 37493
+      },
+      "poverty": {
+        "pct_total_poverty": 15.9,
+        "pct_child_poverty": 36.1,
+        "pct_senior_poverty": 7.8
+      },
+      "employment": {
+        "labor_force_participation_rate": 75.5,
+        "unemployment_rate": 6.0
+      },
+      "housing": {
+        "total_housing_units": 8009,
+        "pct_occupied": 87.1,
+        "median_owner_value": 300900,
+        "median_monthly_rent": 1340,
+        "pct_owner_cost_burdened_35plus": 19.3,
+        "pct_renter_cost_burdened_35plus": 32.0
+      }
+    },
+    "6": {
+      "population": 19269,
+      "median_age": 34.3,
+      "age": {
+        "pct_under_18": 23.1,
+        "pct_18_and_over": 76.9,
+        "pct_65_and_over": 7.6
+      },
+      "race_ethnicity": {
+        "pct_white": 65.6,
+        "pct_black": 26.3,
+        "pct_asian": 1.5,
+        "pct_hispanic": 2.6,
+        "pct_two_or_more": 5.2
+      },
+      "education": {
+        "pct_less_than_hs": 7.4,
+        "pct_hs_graduate": 16.3,
+        "pct_bachelors": 33.7,
+        "pct_graduate_professional": 20.9
+      },
+      "income": {
+        "median_household_income": 74256,
+        "mean_household_income": 107303,
+        "median_family_income": 100453,
+        "per_capita_income": 49030
+      },
+      "poverty": {
+        "pct_total_poverty": 19.2,
+        "pct_child_poverty": 36.8,
+        "pct_senior_poverty": 23.9
+      },
+      "employment": {
+        "labor_force_participation_rate": 80.1,
+        "unemployment_rate": 5.3
+      },
+      "housing": {
+        "total_housing_units": 9068,
+        "pct_occupied": 90.7,
+        "median_owner_value": 440900,
+        "median_monthly_rent": 1445,
+        "pct_owner_cost_burdened_35plus": 15.8,
+        "pct_renter_cost_burdened_35plus": 25.4
+      }
+    },
+    "7": {
+      "population": 21264,
+      "median_age": 34.7,
+      "age": {
+        "pct_under_18": 17.9,
+        "pct_18_and_over": 82.1,
+        "pct_65_and_over": 12.1
+      },
+      "race_ethnicity": {
+        "pct_white": 66.6,
+        "pct_black": 22.5,
+        "pct_asian": 2.4,
+        "pct_hispanic": 8.0,
+        "pct_two_or_more": 5.6
+      },
+      "education": {
+        "pct_less_than_hs": 7.3,
+        "pct_hs_graduate": 22.1,
+        "pct_bachelors": 33.1,
+        "pct_graduate_professional": 14.8
+      },
+      "income": {
+        "median_household_income": 67271,
+        "mean_household_income": 88381,
+        "median_family_income": 91401,
+        "per_capita_income": 43339
+      },
+      "poverty": {
+        "pct_total_poverty": 9.8,
+        "pct_child_poverty": 13.7,
+        "pct_senior_poverty": 10.6
+      },
+      "employment": {
+        "labor_force_participation_rate": 74.9,
+        "unemployment_rate": 3.8
+      },
+      "housing": {
+        "total_housing_units": 10547,
+        "pct_occupied": 91.5,
+        "median_owner_value": 321700,
+        "median_monthly_rent": 1338,
+        "pct_owner_cost_burdened_35plus": 20.8,
+        "pct_renter_cost_burdened_35plus": 34.6
+      }
+    },
+    "8": {
+      "population": 19482,
+      "median_age": 37.1,
+      "age": {
+        "pct_under_18": 18.3,
+        "pct_18_and_over": 81.7,
+        "pct_65_and_over": 16.2
+      },
+      "race_ethnicity": {
+        "pct_white": 53.3,
+        "pct_black": 31.7,
+        "pct_asian": 2.5,
+        "pct_hispanic": 12.2,
+        "pct_two_or_more": 5.5
+      },
+      "education": {
+        "pct_less_than_hs": 9.3,
+        "pct_hs_graduate": 32.0,
+        "pct_bachelors": 21.8,
+        "pct_graduate_professional": 9.9
+      },
+      "income": {
+        "median_household_income": 56054,
+        "mean_household_income": 69001,
+        "median_family_income": 72588,
+        "per_capita_income": 32714
+      },
+      "poverty": {
+        "pct_total_poverty": 15.8,
+        "pct_child_poverty": 20.9,
+        "pct_senior_poverty": 10.8
+      },
+      "employment": {
+        "labor_force_participation_rate": 70.3,
+        "unemployment_rate": 6.4
+      },
+      "housing": {
+        "total_housing_units": 8987,
+        "pct_occupied": 91.4,
+        "median_owner_value": 231400,
+        "median_monthly_rent": 1166,
+        "pct_owner_cost_burdened_35plus": 20.5,
+        "pct_renter_cost_burdened_35plus": 38.8
+      }
+    },
+    "9": {
+      "population": 20642,
+      "median_age": 33.2,
+      "age": {
+        "pct_under_18": 26.2,
+        "pct_18_and_over": 73.8,
+        "pct_65_and_over": 9.2
+      },
+      "race_ethnicity": {
+        "pct_white": 43.3,
+        "pct_black": 36.1,
+        "pct_asian": 0.8,
+        "pct_hispanic": 23.6,
+        "pct_two_or_more": 8.6
+      },
+      "education": {
+        "pct_less_than_hs": 19.6,
+        "pct_hs_graduate": 34.8,
+        "pct_bachelors": 11.7,
+        "pct_graduate_professional": 5.3
+      },
+      "income": {
+        "median_household_income": 51893,
+        "mean_household_income": 62091,
+        "median_family_income": 61815,
+        "per_capita_income": 32303
+      },
+      "poverty": {
+        "pct_total_poverty": 14.6,
+        "pct_child_poverty": 24.7,
+        "pct_senior_poverty": 10.4
+      },
+      "employment": {
+        "labor_force_participation_rate": 70.7,
+        "unemployment_rate": 5.6
+      },
+      "housing": {
+        "total_housing_units": 8357,
+        "pct_occupied": 93.6,
+        "median_owner_value": 204900,
+        "median_monthly_rent": 987,
+        "pct_owner_cost_burdened_35plus": 19.7,
+        "pct_renter_cost_burdened_35plus": 34.5
+      }
+    },
+    "10": {
+      "population": 18892,
+      "median_age": 38.7,
+      "age": {
+        "pct_under_18": 20.6,
+        "pct_18_and_over": 79.4,
+        "pct_65_and_over": 16.3
+      },
+      "race_ethnicity": {
+        "pct_white": 55.0,
+        "pct_black": 29.6,
+        "pct_asian": 2.5,
+        "pct_hispanic": 11.5,
+        "pct_two_or_more": 6.0
+      },
+      "education": {
+        "pct_less_than_hs": 12.7,
+        "pct_hs_graduate": 29.4,
+        "pct_bachelors": 18.8,
+        "pct_graduate_professional": 11.5
+      },
+      "income": {
+        "median_household_income": 54314,
+        "mean_household_income": 67490,
+        "median_family_income": 69051,
+        "per_capita_income": 38178
+      },
+      "poverty": {
+        "pct_total_poverty": 13.3,
+        "pct_child_poverty": 24.2,
+        "pct_senior_poverty": 12.6
+      },
+      "employment": {
+        "labor_force_participation_rate": 68.6,
+        "unemployment_rate": 6.0
+      },
+      "housing": {
+        "total_housing_units": 9005,
+        "pct_occupied": 94.9,
+        "median_owner_value": 233900,
+        "median_monthly_rent": 1176,
+        "pct_owner_cost_burdened_35plus": 21.1,
+        "pct_renter_cost_burdened_35plus": 33.5
+      }
+    },
+    "11": {
+      "population": 20345,
+      "median_age": 42.5,
+      "age": {
+        "pct_under_18": 21.9,
+        "pct_18_and_over": 78.1,
+        "pct_65_and_over": 17.1
+      },
+      "race_ethnicity": {
+        "pct_white": 73.8,
+        "pct_black": 18.7,
+        "pct_asian": 1.2,
+        "pct_hispanic": 5.3,
+        "pct_two_or_more": 3.7
+      },
+      "education": {
+        "pct_less_than_hs": 10.2,
+        "pct_hs_graduate": 24.6,
+        "pct_bachelors": 26.6,
+        "pct_graduate_professional": 9.3
+      },
+      "income": {
+        "median_household_income": 67557,
+        "mean_household_income": 91838,
+        "median_family_income": 80214,
+        "per_capita_income": 40410
+      },
+      "poverty": {
+        "pct_total_poverty": 10.1,
+        "pct_child_poverty": 10.3,
+        "pct_senior_poverty": 7.7
+      },
+      "employment": {
+        "labor_force_participation_rate": 66.0,
+        "unemployment_rate": 2.9
+      },
+      "housing": {
+        "total_housing_units": 9007,
+        "pct_occupied": 92.7,
+        "median_owner_value": 242400,
+        "median_monthly_rent": 1164,
+        "pct_owner_cost_burdened_35plus": 17.4,
+        "pct_renter_cost_burdened_35plus": 33.2
+      }
+    },
+    "12": {
+      "population": 19143,
+      "median_age": 37.6,
+      "age": {
+        "pct_under_18": 21.2,
+        "pct_18_and_over": 78.8,
+        "pct_65_and_over": 14.1
+      },
+      "race_ethnicity": {
+        "pct_white": 66.9,
+        "pct_black": 25.1,
+        "pct_asian": 2.0,
+        "pct_hispanic": 3.4,
+        "pct_two_or_more": 4.3
+      },
+      "education": {
+        "pct_less_than_hs": 4.3,
+        "pct_hs_graduate": 20.0,
+        "pct_bachelors": 24.1,
+        "pct_graduate_professional": 16.3
+      },
+      "income": {
+        "median_household_income": 77397,
+        "mean_household_income": 96124,
+        "median_family_income": 90433,
+        "per_capita_income": 43358
+      },
+      "poverty": {
+        "pct_total_poverty": 9.4,
+        "pct_child_poverty": 19.9,
+        "pct_senior_poverty": 1.7
+      },
+      "employment": {
+        "labor_force_participation_rate": 71.3,
+        "unemployment_rate": 3.1
+      },
+      "housing": {
+        "total_housing_units": 8396,
+        "pct_occupied": 94.8,
+        "median_owner_value": 279900,
+        "median_monthly_rent": 1190,
+        "pct_owner_cost_burdened_35plus": 17.9,
+        "pct_renter_cost_burdened_35plus": 33.9
+      }
+    },
+    "13": {
+      "population": 20526,
+      "median_age": 32.1,
+      "age": {
+        "pct_under_18": 22.9,
+        "pct_18_and_over": 77.1,
+        "pct_65_and_over": 8.1
+      },
+      "race_ethnicity": {
+        "pct_white": 56.2,
+        "pct_black": 38.0,
+        "pct_asian": 1.3,
+        "pct_hispanic": 16.6,
+        "pct_two_or_more": 2.5
+      },
+      "education": {
+        "pct_less_than_hs": 14.1,
+        "pct_hs_graduate": 31.1,
+        "pct_bachelors": 20.7,
+        "pct_graduate_professional": 6.8
+      },
+      "income": {
+        "median_household_income": 57328,
+        "mean_household_income": 70417,
+        "median_family_income": 58516,
+        "per_capita_income": 27957
+      },
+      "poverty": {
+        "pct_total_poverty": 13.4,
+        "pct_child_poverty": 21.5,
+        "pct_senior_poverty": 3.5
+      },
+      "employment": {
+        "labor_force_participation_rate": 68.5,
+        "unemployment_rate": 4.9
+      },
+      "housing": {
+        "total_housing_units": 7777,
+        "pct_occupied": 93.2,
+        "median_owner_value": 201300,
+        "median_monthly_rent": 1137,
+        "pct_owner_cost_burdened_35plus": 29.2,
+        "pct_renter_cost_burdened_35plus": 34.2
+      }
+    },
+    "14": {
+      "population": 20128,
+      "median_age": 33.4,
+      "age": {
+        "pct_under_18": 16.8,
+        "pct_18_and_over": 83.2,
+        "pct_65_and_over": 9.9
+      },
+      "race_ethnicity": {
+        "pct_white": 65.8,
+        "pct_black": 22.6,
+        "pct_asian": 3.7,
+        "pct_hispanic": 8.8,
+        "pct_two_or_more": 3.9
+      },
+      "education": {
+        "pct_less_than_hs": 7.7,
+        "pct_hs_graduate": 21.7,
+        "pct_bachelors": 31.8,
+        "pct_graduate_professional": 10.2
+      },
+      "income": {
+        "median_household_income": 57955,
+        "mean_household_income": 68911,
+        "median_family_income": 67757,
+        "per_capita_income": 39243
+      },
+      "poverty": {
+        "pct_total_poverty": 13.9,
+        "pct_child_poverty": 22.8,
+        "pct_senior_poverty": 7.3
+      },
+      "employment": {
+        "labor_force_participation_rate": 78.3,
+        "unemployment_rate": 5.5
+      },
+      "housing": {
+        "total_housing_units": 11001,
+        "pct_occupied": 90.9,
+        "median_owner_value": 236600,
+        "median_monthly_rent": 1237,
+        "pct_owner_cost_burdened_35plus": 20.2,
+        "pct_renter_cost_burdened_35plus": 39.1
+      }
+    },
+    "15": {
+      "population": 18615,
+      "median_age": 39.0,
+      "age": {
+        "pct_under_18": 15.9,
+        "pct_18_and_over": 84.1,
+        "pct_65_and_over": 16.7
+      },
+      "race_ethnicity": {
+        "pct_white": 72.5,
+        "pct_black": 12.5,
+        "pct_asian": 2.0,
+        "pct_hispanic": 16.5,
+        "pct_two_or_more": 8.9
+      },
+      "education": {
+        "pct_less_than_hs": 9.5,
+        "pct_hs_graduate": 25.4,
+        "pct_bachelors": 29.1,
+        "pct_graduate_professional": 9.3
+      },
+      "income": {
+        "median_household_income": 66357,
+        "mean_household_income": 79862,
+        "median_family_income": 79535,
+        "per_capita_income": 41979
+      },
+      "poverty": {
+        "pct_total_poverty": 8.6,
+        "pct_child_poverty": 13.0,
+        "pct_senior_poverty": 10.4
+      },
+      "employment": {
+        "labor_force_participation_rate": 70.7,
+        "unemployment_rate": 3.5
+      },
+      "housing": {
+        "total_housing_units": 9093,
+        "pct_occupied": 90.5,
+        "median_owner_value": 252200,
+        "median_monthly_rent": 1193,
+        "pct_owner_cost_burdened_35plus": 14.6,
+        "pct_renter_cost_burdened_35plus": 31.8
+      }
+    },
+    "16": {
+      "population": 17108,
+      "median_age": 33.7,
+      "age": {
+        "pct_under_18": 18.4,
+        "pct_18_and_over": 81.6,
+        "pct_65_and_over": 13.4
+      },
+      "race_ethnicity": {
+        "pct_white": 69.4,
+        "pct_black": 12.9,
+        "pct_asian": 6.1,
+        "pct_hispanic": 26.6,
+        "pct_two_or_more": 3.8
+      },
+      "education": {
+        "pct_less_than_hs": 19.5,
+        "pct_hs_graduate": 23.1,
+        "pct_bachelors": 25.4,
+        "pct_graduate_professional": 9.3
+      },
+      "income": {
+        "median_household_income": 51365,
+        "mean_household_income": 66751,
+        "median_family_income": 69350,
+        "per_capita_income": 32108
+      },
+      "poverty": {
+        "pct_total_poverty": 15.7,
+        "pct_child_poverty": 11.5,
+        "pct_senior_poverty": 13.8
+      },
+      "employment": {
+        "labor_force_participation_rate": 71.1,
+        "unemployment_rate": 6.9
+      },
+      "housing": {
+        "total_housing_units": 8196,
+        "pct_occupied": 86.4,
+        "median_owner_value": 259300,
+        "median_monthly_rent": 1069,
+        "pct_owner_cost_burdened_35plus": 9.6,
+        "pct_renter_cost_burdened_35plus": 38.5
+      }
+    },
+    "17": {
+      "population": 20860,
+      "median_age": 29.9,
+      "age": {
+        "pct_under_18": 13.4,
+        "pct_18_and_over": 86.6,
+        "pct_65_and_over": 8.5
+      },
+      "race_ethnicity": {
+        "pct_white": 62.8,
+        "pct_black": 27.7,
+        "pct_asian": 3.9,
+        "pct_hispanic": 4.7,
+        "pct_two_or_more": 4.2
+      },
+      "education": {
+        "pct_less_than_hs": 10.8,
+        "pct_hs_graduate": 15.6,
+        "pct_bachelors": 30.8,
+        "pct_graduate_professional": 22.2
+      },
+      "income": {
+        "median_household_income": 57527,
+        "mean_household_income": 97092,
+        "median_family_income": 80938,
+        "per_capita_income": 33673
+      },
+      "poverty": {
+        "pct_total_poverty": 21.3,
+        "pct_child_poverty": 26.2,
+        "pct_senior_poverty": 25.1
+      },
+      "employment": {
+        "labor_force_participation_rate": 70.0,
+        "unemployment_rate": 4.0
+      },
+      "housing": {
+        "total_housing_units": 10844,
+        "pct_occupied": 84.9,
+        "median_owner_value": 451200,
+        "median_monthly_rent": 1328,
+        "pct_owner_cost_burdened_35plus": 22.5,
+        "pct_renter_cost_burdened_35plus": 36.1
+      }
+    },
+    "18": {
+      "population": 16974,
+      "median_age": 25.1,
+      "age": {
+        "pct_under_18": 11.0,
+        "pct_18_and_over": 89.0,
+        "pct_65_and_over": 8.3
+      },
+      "race_ethnicity": {
+        "pct_white": 77.7,
+        "pct_black": 9.2,
+        "pct_asian": 8.4,
+        "pct_hispanic": 3.9,
+        "pct_two_or_more": 3.7
+      },
+      "education": {
+        "pct_less_than_hs": 3.3,
+        "pct_hs_graduate": 10.4,
+        "pct_bachelors": 36.2,
+        "pct_graduate_professional": 36.2
+      },
+      "income": {
+        "median_household_income": 80625,
+        "mean_household_income": 175743,
+        "median_family_income": 157271,
+        "per_capita_income": 27756
+      },
+      "poverty": {
+        "pct_total_poverty": 8.5,
+        "pct_child_poverty": 2.7,
+        "pct_senior_poverty": 6.8
+      },
+      "employment": {
+        "labor_force_participation_rate": 65.9,
+        "unemployment_rate": 3.5
+      },
+      "housing": {
+        "total_housing_units": 6253,
+        "pct_occupied": 88.1,
+        "median_owner_value": 661900,
+        "median_monthly_rent": 1393,
+        "pct_owner_cost_burdened_35plus": 16.8,
+        "pct_renter_cost_burdened_35plus": 32.7
+      }
+    },
+    "19": {
+      "population": 23044,
+      "median_age": 31.0,
+      "age": {
+        "pct_under_18": 12.4,
+        "pct_18_and_over": 87.6,
+        "pct_65_and_over": 5.8
+      },
+      "race_ethnicity": {
+        "pct_white": 59.9,
+        "pct_black": 31.3,
+        "pct_asian": 3.2,
+        "pct_hispanic": 5.7,
+        "pct_two_or_more": 3.6
+      },
+      "education": {
+        "pct_less_than_hs": 8.3,
+        "pct_hs_graduate": 12.2,
+        "pct_bachelors": 38.6,
+        "pct_graduate_professional": 23.6
+      },
+      "income": {
+        "median_household_income": 65902,
+        "mean_household_income": 95738,
+        "median_family_income": 85882,
+        "per_capita_income": 52529
+      },
+      "poverty": {
+        "pct_total_poverty": 27.0,
+        "pct_child_poverty": 74.4,
+        "pct_senior_poverty": 28.7
+      },
+      "employment": {
+        "labor_force_participation_rate": 76.3,
+        "unemployment_rate": 3.6
+      },
+      "housing": {
+        "total_housing_units": 18103,
+        "pct_occupied": 72.8,
+        "median_owner_value": 398700,
+        "median_monthly_rent": 1611,
+        "pct_owner_cost_burdened_35plus": 23.3,
+        "pct_renter_cost_burdened_35plus": 38.7
+      }
+    },
+    "20": {
+      "population": 17029,
+      "median_age": 32.5,
+      "age": {
+        "pct_under_18": 16.5,
+        "pct_18_and_over": 83.5,
+        "pct_65_and_over": 10.0
+      },
+      "race_ethnicity": {
+        "pct_white": 71.9,
+        "pct_black": 13.0,
+        "pct_asian": 5.5,
+        "pct_hispanic": 13.1,
+        "pct_two_or_more": 4.3
+      },
+      "education": {
+        "pct_less_than_hs": 13.8,
+        "pct_hs_graduate": 21.3,
+        "pct_bachelors": 30.0,
+        "pct_graduate_professional": 16.5
+      },
+      "income": {
+        "median_household_income": 59560,
+        "mean_household_income": 80636,
+        "median_family_income": 68577,
+        "per_capita_income": 40155
+      },
+      "poverty": {
+        "pct_total_poverty": 15.9,
+        "pct_child_poverty": 25.0,
+        "pct_senior_poverty": 5.5
+      },
+      "employment": {
+        "labor_force_participation_rate": 71.6,
+        "unemployment_rate": 7.0
+      },
+      "housing": {
+        "total_housing_units": 8117,
+        "pct_occupied": 91.2,
+        "median_owner_value": 349200,
+        "median_monthly_rent": 1289,
+        "pct_owner_cost_burdened_35plus": 19.0,
+        "pct_renter_cost_burdened_35plus": 42.1
+      }
+    },
+    "21": {
+      "population": 20054,
+      "median_age": 31.0,
+      "age": {
+        "pct_under_18": 14.0,
+        "pct_18_and_over": 86.0,
+        "pct_65_and_over": 11.4
+      },
+      "race_ethnicity": {
+        "pct_white": 32.0,
+        "pct_black": 58.0,
+        "pct_asian": 5.5,
+        "pct_hispanic": 2.6,
+        "pct_two_or_more": 3.1
+      },
+      "education": {
+        "pct_less_than_hs": 12.4,
+        "pct_hs_graduate": 22.1,
+        "pct_bachelors": 23.1,
+        "pct_graduate_professional": 18.0
+      },
+      "income": {
+        "median_household_income": 46662,
+        "mean_household_income": 62340,
+        "median_family_income": 55579,
+        "per_capita_income": 29392
+      },
+      "poverty": {
+        "pct_total_poverty": 27.7,
+        "pct_child_poverty": 56.1,
+        "pct_senior_poverty": 17.6
+      },
+      "employment": {
+        "labor_force_participation_rate": 63.4,
+        "unemployment_rate": 5.8
+      },
+      "housing": {
+        "total_housing_units": 10827,
+        "pct_occupied": 85.7,
+        "median_owner_value": 304400,
+        "median_monthly_rent": 1257,
+        "pct_owner_cost_burdened_35plus": 17.1,
+        "pct_renter_cost_burdened_35plus": 47.2
+      }
+    },
+    "22": {
+      "population": 21977,
+      "median_age": 37.5,
+      "age": {
+        "pct_under_18": 17.0,
+        "pct_18_and_over": 83.0,
+        "pct_65_and_over": 17.7
+      },
+      "race_ethnicity": {
+        "pct_white": 74.5,
+        "pct_black": 14.7,
+        "pct_asian": 5.2,
+        "pct_hispanic": 3.6,
+        "pct_two_or_more": 4.2
+      },
+      "education": {
+        "pct_less_than_hs": 4.1,
+        "pct_hs_graduate": 16.8,
+        "pct_bachelors": 28.6,
+        "pct_graduate_professional": 23.2
+      },
+      "income": {
+        "median_household_income": 76899,
+        "mean_household_income": 90667,
+        "median_family_income": 96985,
+        "per_capita_income": 44613
+      },
+      "poverty": {
+        "pct_total_poverty": 7.8,
+        "pct_child_poverty": 9.7,
+        "pct_senior_poverty": 4.9
+      },
+      "employment": {
+        "labor_force_participation_rate": 75.0,
+        "unemployment_rate": 1.7
+      },
+      "housing": {
+        "total_housing_units": 11531,
+        "pct_occupied": 91.5,
+        "median_owner_value": 276300,
+        "median_monthly_rent": 1362,
+        "pct_owner_cost_burdened_35plus": 22.4,
+        "pct_renter_cost_burdened_35plus": 31.0
+      }
+    },
+    "23": {
+      "population": 19390,
+      "median_age": 43.8,
+      "age": {
+        "pct_under_18": 17.8,
+        "pct_18_and_over": 82.2,
+        "pct_65_and_over": 19.3
+      },
+      "race_ethnicity": {
+        "pct_white": 84.1,
+        "pct_black": 8.9,
+        "pct_asian": 2.1,
+        "pct_hispanic": 3.4,
+        "pct_two_or_more": 4.3
+      },
+      "education": {
+        "pct_less_than_hs": 1.6,
+        "pct_hs_graduate": 7.9,
+        "pct_bachelors": 39.1,
+        "pct_graduate_professional": 30.6
+      },
+      "income": {
+        "median_household_income": 105870,
+        "mean_household_income": 184591,
+        "median_family_income": 152500,
+        "per_capita_income": 54653
+      },
+      "poverty": {
+        "pct_total_poverty": 8.3,
+        "pct_child_poverty": 5.7,
+        "pct_senior_poverty": 11.4
+      },
+      "employment": {
+        "labor_force_participation_rate": 66.2,
+        "unemployment_rate": 2.7
+      },
+      "housing": {
+        "total_housing_units": 8846,
+        "pct_occupied": 94.6,
+        "median_owner_value": 620500,
+        "median_monthly_rent": 1635,
+        "pct_owner_cost_burdened_35plus": 16.2,
+        "pct_renter_cost_burdened_35plus": 36.9
+      }
+    },
+    "24": {
+      "population": 18628,
+      "median_age": 39.3,
+      "age": {
+        "pct_under_18": 12.7,
+        "pct_18_and_over": 87.3,
+        "pct_65_and_over": 22.2
+      },
+      "race_ethnicity": {
+        "pct_white": 89.5,
+        "pct_black": 3.1,
+        "pct_asian": 4.9,
+        "pct_hispanic": 1.9,
+        "pct_two_or_more": 2.1
+      },
+      "education": {
+        "pct_less_than_hs": 2.6,
+        "pct_hs_graduate": 8.8,
+        "pct_bachelors": 38.1,
+        "pct_graduate_professional": 36.1
+      },
+      "income": {
+        "median_household_income": 100010,
+        "mean_household_income": 137476,
+        "median_family_income": 147201,
+        "per_capita_income": 49504
+      },
+      "poverty": {
+        "pct_total_poverty": 7.6,
+        "pct_child_poverty": 0.0,
+        "pct_senior_poverty": 12.4
+      },
+      "employment": {
+        "labor_force_participation_rate": 72.4,
+        "unemployment_rate": 1.9
+      },
+      "housing": {
+        "total_housing_units": 10560,
+        "pct_occupied": 90.0,
+        "median_owner_value": 612200,
+        "median_monthly_rent": 1608,
+        "pct_owner_cost_burdened_35plus": 16.4,
+        "pct_renter_cost_burdened_35plus": 42.4
+      }
+    },
+    "25": {
+      "population": 20972,
+      "median_age": 35.6,
+      "age": {
+        "pct_under_18": 17.2,
+        "pct_18_and_over": 82.8,
+        "pct_65_and_over": 16.2
+      },
+      "race_ethnicity": {
+        "pct_white": 85.1,
+        "pct_black": 4.3,
+        "pct_asian": 5.0,
+        "pct_hispanic": 1.7,
+        "pct_two_or_more": 5.2
+      },
+      "education": {
+        "pct_less_than_hs": 2.3,
+        "pct_hs_graduate": 4.2,
+        "pct_bachelors": 40.1,
+        "pct_graduate_professional": 39.7
+      },
+      "income": {
+        "median_household_income": 111909,
+        "mean_household_income": 183439,
+        "median_family_income": 163845,
+        "per_capita_income": 51883
+      },
+      "poverty": {
+        "pct_total_poverty": 6.5,
+        "pct_child_poverty": 5.1,
+        "pct_senior_poverty": 4.2
+      },
+      "employment": {
+        "labor_force_participation_rate": 72.8,
+        "unemployment_rate": 1.8
+      },
+      "housing": {
+        "total_housing_units": 9367,
+        "pct_occupied": 90.4,
+        "median_owner_value": 663500,
+        "median_monthly_rent": 1792,
+        "pct_owner_cost_burdened_35plus": 19.2,
+        "pct_renter_cost_burdened_35plus": 28.3
+      }
+    },
+    "26": {
+      "population": 17710,
+      "median_age": 35.5,
+      "age": {
+        "pct_under_18": 22.3,
+        "pct_18_and_over": 77.7,
+        "pct_65_and_over": 12.9
+      },
+      "race_ethnicity": {
+        "pct_white": 68.4,
+        "pct_black": 16.1,
+        "pct_asian": 5.6,
+        "pct_hispanic": 17.3,
+        "pct_two_or_more": 5.9
+      },
+      "education": {
+        "pct_less_than_hs": 14.7,
+        "pct_hs_graduate": 20.5,
+        "pct_bachelors": 30.8,
+        "pct_graduate_professional": 12.1
+      },
+      "income": {
+        "median_household_income": 61142,
+        "mean_household_income": 81635,
+        "median_family_income": 73789,
+        "per_capita_income": 37945
+      },
+      "poverty": {
+        "pct_total_poverty": 12.3,
+        "pct_child_poverty": 20.4,
+        "pct_senior_poverty": 13.0
+      },
+      "employment": {
+        "labor_force_participation_rate": 72.7,
+        "unemployment_rate": 4.0
+      },
+      "housing": {
+        "total_housing_units": 8209,
+        "pct_occupied": 90.8,
+        "median_owner_value": 326500,
+        "median_monthly_rent": 1087,
+        "pct_owner_cost_burdened_35plus": 19.9,
+        "pct_renter_cost_burdened_35plus": 33.6
+      }
+    },
+    "27": {
+      "population": 18449,
+      "median_age": 30.3,
+      "age": {
+        "pct_under_18": 24.2,
+        "pct_18_and_over": 75.8,
+        "pct_65_and_over": 9.0
+      },
+      "race_ethnicity": {
+        "pct_white": 65.4,
+        "pct_black": 13.0,
+        "pct_asian": 6.3,
+        "pct_hispanic": 19.2,
+        "pct_two_or_more": 9.7
+      },
+      "education": {
+        "pct_less_than_hs": 13.1,
+        "pct_hs_graduate": 19.4,
+        "pct_bachelors": 26.9,
+        "pct_graduate_professional": 16.9
+      },
+      "income": {
+        "median_household_income": 61436,
+        "mean_household_income": 73110,
+        "median_family_income": 75050,
+        "per_capita_income": 35575
+      },
+      "poverty": {
+        "pct_total_poverty": 18.4,
+        "pct_child_poverty": 25.2,
+        "pct_senior_poverty": 16.4
+      },
+      "employment": {
+        "labor_force_participation_rate": 78.3,
+        "unemployment_rate": 6.8
+      },
+      "housing": {
+        "total_housing_units": 8337,
+        "pct_occupied": 89.3,
+        "median_owner_value": 262400,
+        "median_monthly_rent": 1215,
+        "pct_owner_cost_burdened_35plus": 11.1,
+        "pct_renter_cost_burdened_35plus": 40.4
+      }
+    },
+    "28": {
+      "population": 21583,
+      "median_age": 33.2,
+      "age": {
+        "pct_under_18": 27.2,
+        "pct_18_and_over": 72.8,
+        "pct_65_and_over": 7.2
+      },
+      "race_ethnicity": {
+        "pct_white": 50.3,
+        "pct_black": 34.9,
+        "pct_asian": 2.4,
+        "pct_hispanic": 32.0,
+        "pct_two_or_more": 5.0
+      },
+      "education": {
+        "pct_less_than_hs": 22.0,
+        "pct_hs_graduate": 29.9,
+        "pct_bachelors": 17.4,
+        "pct_graduate_professional": 4.6
+      },
+      "income": {
+        "median_household_income": 54705,
+        "mean_household_income": 67712,
+        "median_family_income": 54150,
+        "per_capita_income": 30823
+      },
+      "poverty": {
+        "pct_total_poverty": 26.0,
+        "pct_child_poverty": 37.3,
+        "pct_senior_poverty": 12.1
+      },
+      "employment": {
+        "labor_force_participation_rate": 71.4,
+        "unemployment_rate": 9.0
+      },
+      "housing": {
+        "total_housing_units": 7418,
+        "pct_occupied": 92.5,
+        "median_owner_value": 215800,
+        "median_monthly_rent": 1152,
+        "pct_owner_cost_burdened_35plus": 26.4,
+        "pct_renter_cost_burdened_35plus": 42.3
+      }
+    },
+    "29": {
+      "population": 21251,
+      "median_age": 35.5,
+      "age": {
+        "pct_under_18": 25.1,
+        "pct_18_and_over": 74.9,
+        "pct_65_and_over": 10.8
+      },
+      "race_ethnicity": {
+        "pct_white": 49.3,
+        "pct_black": 39.6,
+        "pct_asian": 1.0,
+        "pct_hispanic": 12.6,
+        "pct_two_or_more": 5.7
+      },
+      "education": {
+        "pct_less_than_hs": 11.7,
+        "pct_hs_graduate": 25.1,
+        "pct_bachelors": 23.3,
+        "pct_graduate_professional": 11.2
+      },
+      "income": {
+        "median_household_income": 55687,
+        "mean_household_income": 72879,
+        "median_family_income": 55864,
+        "per_capita_income": 34583
+      },
+      "poverty": {
+        "pct_total_poverty": 19.0,
+        "pct_child_poverty": 28.5,
+        "pct_senior_poverty": 8.2
+      },
+      "employment": {
+        "labor_force_participation_rate": 72.9,
+        "unemployment_rate": 2.7
+      },
+      "housing": {
+        "total_housing_units": 9085,
+        "pct_occupied": 92.5,
+        "median_owner_value": 213600,
+        "median_monthly_rent": 1193,
+        "pct_owner_cost_burdened_35plus": 27.8,
+        "pct_renter_cost_burdened_35plus": 38.9
+      }
+    },
+    "30": {
+      "population": 18382,
+      "median_age": 29.9,
+      "age": {
+        "pct_under_18": 31.9,
+        "pct_18_and_over": 68.1,
+        "pct_65_and_over": 10.2
+      },
+      "race_ethnicity": {
+        "pct_white": 45.8,
+        "pct_black": 19.6,
+        "pct_asian": 9.4,
+        "pct_hispanic": 39.3,
+        "pct_two_or_more": 6.4
+      },
+      "education": {
+        "pct_less_than_hs": 27.7,
+        "pct_hs_graduate": 30.5,
+        "pct_bachelors": 12.2,
+        "pct_graduate_professional": 5.1
+      },
+      "income": {
+        "median_household_income": 46543,
+        "mean_household_income": 60426,
+        "median_family_income": 54680,
+        "per_capita_income": 29354
+      },
+      "poverty": {
+        "pct_total_poverty": 21.0,
+        "pct_child_poverty": 29.8,
+        "pct_senior_poverty": 23.1
+      },
+      "employment": {
+        "labor_force_participation_rate": 70.7,
+        "unemployment_rate": 3.2
+      },
+      "housing": {
+        "total_housing_units": 6415,
+        "pct_occupied": 92.8,
+        "median_owner_value": 203000,
+        "median_monthly_rent": 1105,
+        "pct_owner_cost_burdened_35plus": 23.6,
+        "pct_renter_cost_burdened_35plus": 43.2
+      }
+    },
+    "31": {
+      "population": 30276,
+      "median_age": 32.5,
+      "age": {
+        "pct_under_18": 26.0,
+        "pct_18_and_over": 74.0,
+        "pct_65_and_over": 5.7
+      },
+      "race_ethnicity": {
+        "pct_white": 63.3,
+        "pct_black": 23.7,
+        "pct_asian": 6.0,
+        "pct_hispanic": 11.2,
+        "pct_two_or_more": 4.6
+      },
+      "education": {
+        "pct_less_than_hs": 9.3,
+        "pct_hs_graduate": 18.9,
+        "pct_bachelors": 31.0,
+        "pct_graduate_professional": 17.9
+      },
+      "income": {
+        "median_household_income": 79644,
+        "mean_household_income": 97404,
+        "median_family_income": 93025,
+        "per_capita_income": 43351
+      },
+      "poverty": {
+        "pct_total_poverty": 7.9,
+        "pct_child_poverty": 10.0,
+        "pct_senior_poverty": 14.0
+      },
+      "employment": {
+        "labor_force_participation_rate": 78.6,
+        "unemployment_rate": 3.5
+      },
+      "housing": {
+        "total_housing_units": 11584,
+        "pct_occupied": 93.9,
+        "median_owner_value": 312400,
+        "median_monthly_rent": 1526,
+        "pct_owner_cost_burdened_35plus": 23.3,
+        "pct_renter_cost_burdened_35plus": 36.9
+      }
+    },
+    "32": {
+      "population": 24894,
+      "median_age": 29.4,
+      "age": {
+        "pct_under_18": 27.1,
+        "pct_18_and_over": 72.9,
+        "pct_65_and_over": 5.7
+      },
+      "race_ethnicity": {
+        "pct_white": 35.8,
+        "pct_black": 46.6,
+        "pct_asian": 6.8,
+        "pct_hispanic": 10.0,
+        "pct_two_or_more": 6.1
+      },
+      "education": {
+        "pct_less_than_hs": 8.6,
+        "pct_hs_graduate": 26.9,
+        "pct_bachelors": 22.4,
+        "pct_graduate_professional": 9.2
+      },
+      "income": {
+        "median_household_income": 54152,
+        "mean_household_income": 63815,
+        "median_family_income": 56162,
+        "per_capita_income": 32945
+      },
+      "poverty": {
+        "pct_total_poverty": 13.1,
+        "pct_child_poverty": 20.2,
+        "pct_senior_poverty": 7.8
+      },
+      "employment": {
+        "labor_force_participation_rate": 81.1,
+        "unemployment_rate": 7.2
+      },
+      "housing": {
+        "total_housing_units": 11400,
+        "pct_occupied": 91.7,
+        "median_owner_value": 210800,
+        "median_monthly_rent": 1198,
+        "pct_owner_cost_burdened_35plus": 29.9,
+        "pct_renter_cost_burdened_35plus": 33.9
+      }
+    },
+    "33": {
+      "population": 26921,
+      "median_age": 35.5,
+      "age": {
+        "pct_under_18": 28.7,
+        "pct_18_and_over": 71.3,
+        "pct_65_and_over": 7.6
+      },
+      "race_ethnicity": {
+        "pct_white": 49.5,
+        "pct_black": 35.3,
+        "pct_asian": 2.0,
+        "pct_hispanic": 12.3,
+        "pct_two_or_more": 7.6
+      },
+      "education": {
+        "pct_less_than_hs": 9.7,
+        "pct_hs_graduate": 27.3,
+        "pct_bachelors": 20.6,
+        "pct_graduate_professional": 8.3
+      },
+      "income": {
+        "median_household_income": 79667,
+        "mean_household_income": 86876,
+        "median_family_income": 84137,
+        "per_capita_income": 37873
+      },
+      "poverty": {
+        "pct_total_poverty": 16.8,
+        "pct_child_poverty": 26.2,
+        "pct_senior_poverty": 6.0
+      },
+      "employment": {
+        "labor_force_participation_rate": 73.2,
+        "unemployment_rate": 6.8
+      },
+      "housing": {
+        "total_housing_units": 9367,
+        "pct_occupied": 94.7,
+        "median_owner_value": 226600,
+        "median_monthly_rent": 1334,
+        "pct_owner_cost_burdened_35plus": 20.8,
+        "pct_renter_cost_burdened_35plus": 31.8
+      }
+    },
+    "34": {
+      "population": 18407,
+      "median_age": 46.6,
+      "age": {
+        "pct_under_18": 21.0,
+        "pct_18_and_over": 79.0,
+        "pct_65_and_over": 24.3
+      },
+      "race_ethnicity": {
+        "pct_white": 90.4,
+        "pct_black": 2.8,
+        "pct_asian": 3.4,
+        "pct_hispanic": 3.5,
+        "pct_two_or_more": 2.6
+      },
+      "education": {
+        "pct_less_than_hs": 1.7,
+        "pct_hs_graduate": 6.3,
+        "pct_bachelors": 43.0,
+        "pct_graduate_professional": 35.7
+      },
+      "income": {
+        "median_household_income": 142382,
+        "mean_household_income": 237868,
+        "median_family_income": 209018,
+        "per_capita_income": 69702
+      },
+      "poverty": {
+        "pct_total_poverty": 6.0,
+        "pct_child_poverty": 6.7,
+        "pct_senior_poverty": 2.7
+      },
+      "employment": {
+        "labor_force_participation_rate": 63.0,
+        "unemployment_rate": 2.6
+      },
+      "housing": {
+        "total_housing_units": 8619,
+        "pct_occupied": 92.2,
+        "median_owner_value": 801900,
+        "median_monthly_rent": 1967,
+        "pct_owner_cost_burdened_35plus": 16.0,
+        "pct_renter_cost_burdened_35plus": 41.6
+      }
+    },
+    "35": {
+      "population": 19148,
+      "median_age": 39.2,
+      "age": {
+        "pct_under_18": 24.6,
+        "pct_18_and_over": 75.4,
+        "pct_65_and_over": 14.2
+      },
+      "race_ethnicity": {
+        "pct_white": 88.6,
+        "pct_black": 3.9,
+        "pct_asian": 2.1,
+        "pct_hispanic": 3.2,
+        "pct_two_or_more": 4.1
+      },
+      "education": {
+        "pct_less_than_hs": 3.0,
+        "pct_hs_graduate": 11.3,
+        "pct_bachelors": 36.3,
+        "pct_graduate_professional": 26.2
+      },
+      "income": {
+        "median_household_income": 109079,
+        "mean_household_income": 140282,
+        "median_family_income": 121760,
+        "per_capita_income": 56192
+      },
+      "poverty": {
+        "pct_total_poverty": 5.2,
+        "pct_child_poverty": 3.8,
+        "pct_senior_poverty": 5.5
+      },
+      "employment": {
+        "labor_force_participation_rate": 74.2,
+        "unemployment_rate": 4.4
+      },
+      "housing": {
+        "total_housing_units": 7501,
+        "pct_occupied": 97.1,
+        "median_owner_value": 360300,
+        "median_monthly_rent": 1631,
+        "pct_owner_cost_burdened_35plus": 15.5,
+        "pct_renter_cost_burdened_35plus": 30.2
+      }
+    }
+  }
+}
