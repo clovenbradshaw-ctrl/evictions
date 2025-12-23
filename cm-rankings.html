@@ -1533,16 +1533,50 @@
                     }
                 }
 
-                // If no localStorage data, fetch directly from API
+                // If no localStorage data, fetch directly from API using CORS proxy
                 if (!evictions || evictions.length === 0) {
                     statusEl.textContent = '⏳ Loading eviction data from public records API...';
 
-                    const apiResponse = await fetch('https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/search_detainer_cases');
-                    if (!apiResponse.ok) {
-                        throw new Error(`Failed to load eviction data from API (status: ${apiResponse.status})`);
+                    const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/search_detainer_cases';
+                    const CORS_PROXIES = [
+                        (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+                        (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`
+                    ];
+
+                    let apiData = null;
+                    let lastError = null;
+
+                    // Try each CORS proxy
+                    for (let i = 0; i < CORS_PROXIES.length; i++) {
+                        try {
+                            const proxyUrl = CORS_PROXIES[i](API_URL);
+                            console.log(`Trying CORS proxy ${i + 1}...`);
+
+                            const apiResponse = await fetch(proxyUrl);
+                            if (!apiResponse.ok) {
+                                throw new Error(`HTTP error! status: ${apiResponse.status}`);
+                            }
+
+                            const proxyResult = await apiResponse.json();
+
+                            // allOrigins wraps response in { contents: "..." }
+                            if (proxyResult.contents) {
+                                apiData = JSON.parse(proxyResult.contents);
+                            } else {
+                                apiData = proxyResult;
+                            }
+
+                            console.log('Successfully fetched data via CORS proxy');
+                            break; // Success, exit loop
+                        } catch (proxyError) {
+                            console.warn(`CORS proxy ${i + 1} failed:`, proxyError.message);
+                            lastError = proxyError;
+                        }
                     }
 
-                    const apiData = await apiResponse.json();
+                    if (apiData === null) {
+                        throw lastError || new Error('Failed to load eviction data from API');
+                    }
 
                     // Normalize the data format
                     evictions = apiData.map(record => ({
