@@ -1409,8 +1409,21 @@
                 </div>
                 <div class="demo-viz-controls">
                     <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">NORMALIZE BY</label>
+                        <div class="demo-viz-toggle">
+                            <button id="normPop" class="active" onclick="setNormalization('population')">Per 1k Residents</button>
+                            <button id="normHousing" onclick="setNormalization('housing')">Per 100 Units</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="demo-viz-container">
+                <!-- Scatter Plot -->
+                <div>
+                    <div class="mb-3">
                         <label class="block text-xs font-semibold text-gray-500 mb-1">COMPARE AGAINST</label>
-                        <select id="demoXAxis" class="demo-viz-select" onchange="updateDemographicsCharts()">
+                        <select id="demoXAxis" class="demo-viz-select w-full" onchange="updateDemographicsCharts()">
                             <option value="unemployment">Unemployment Rate (%)</option>
                             <option value="medianRent">Median Monthly Rent ($)</option>
                             <option value="pctLessThanHS">% Less Than High School</option>
@@ -1424,19 +1437,6 @@
                             <option value="unitsPerPopulation">Housing Units per 1k Pop</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-gray-500 mb-1">NORMALIZE BY</label>
-                        <div class="demo-viz-toggle">
-                            <button id="normPop" class="active" onclick="setNormalization('population')">Per 1k Residents</button>
-                            <button id="normHousing" onclick="setNormalization('housing')">Per 100 Units</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="demo-viz-container">
-                <!-- Scatter Plot -->
-                <div>
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="font-semibold text-gray-700">Correlation Analysis</h3>
                         <span id="correlationBadge" class="correlation-badge correlation-weak">Loading...</span>
