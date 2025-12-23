@@ -1695,17 +1695,78 @@
         }
 
         async function loadData() {
+            const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/search_detainer_cases';
+
+            // CORS proxy services to try in order
+            const CORS_PROXIES = [
+                (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+                (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`
+            ];
+
             try {
                 updateStatus('Loading data from public records API...', 'loading');
-                
-                const response = await fetch('https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/search_detainer_cases');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+
+                let result = null;
+                let lastError = null;
+
+                // Try each CORS proxy
+                for (let i = 0; i < CORS_PROXIES.length; i++) {
+                    try {
+                        const proxyUrl = CORS_PROXIES[i](API_URL);
+                        console.log(`Trying CORS proxy ${i + 1}...`);
+
+                        const response = await fetch(proxyUrl);
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+
+                        const proxyResult = await response.json();
+
+                        // allOrigins wraps response in { contents: "..." }
+                        if (proxyResult.contents) {
+                            result = JSON.parse(proxyResult.contents);
+                        } else {
+                            result = proxyResult;
+                        }
+
+                        console.log('Successfully fetched data via CORS proxy');
+                        break; // Success, exit loop
+                    } catch (proxyError) {
+                        console.warn(`CORS proxy ${i + 1} failed:`, proxyError.message);
+                        lastError = proxyError;
+                    }
                 }
-                
-                const result = await response.json();
-                
+
+                // If all proxies failed, try localStorage fallback
+                if (result === null) {
+                    console.log('All CORS proxies failed, checking localStorage...');
+                    const storedData = localStorage.getItem('evictionData');
+                    const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
+
+                    if (storedData) {
+                        allData = JSON.parse(storedData);
+                        filteredData = allData;
+
+                        const cacheAge = storedTimestamp
+                            ? Math.round((Date.now() - parseInt(storedTimestamp)) / (1000 * 60 * 60))
+                            : 'unknown';
+
+                        updateStatus(`Loaded ${allData.length} cached records (cached ${cacheAge} hours ago). Live API unavailable.`, 'success');
+                        updateMetrics();
+                        updateCharts();
+                        createDistrictMap();
+                        initGrid();
+                        document.getElementById('lastUpdate').textContent = storedTimestamp
+                            ? new Date(parseInt(storedTimestamp)).toLocaleString() + ' (cached)'
+                            : 'Cached data';
+                        return;
+                    }
+
+                    // No cache available, throw the last error
+                    throw lastError || new Error('Unable to fetch data from API');
+                }
+
                 // Handle different response formats
                 let data;
                 if (Array.isArray(result)) {
@@ -1717,7 +1778,7 @@
                 } else {
                     data = [result];
                 }
-                
+
                 const normalizedData = data.map(normalizeRecord);
                 allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
@@ -1737,13 +1798,13 @@
                 updateCharts();
                 createDistrictMap();
                 initGrid();
-                
+
                 // Update last update time
                 document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
-                
+
             } catch (error) {
                 console.error('Error loading data:', error);
-                updateStatus(`Error loading data: ${error.message}`, 'error');
+                updateStatus(`Error loading data: ${error.message}. Please try refreshing the page.`, 'error');
             }
         }
 
