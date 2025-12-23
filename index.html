@@ -2294,6 +2294,9 @@
 
             try {
                 updateStatus('Loading data from public records API...', 'loading');
+                console.group('🔄 API Data Loading');
+                console.log('API URL:', API_URL);
+                console.log('Timestamp:', new Date().toISOString());
 
                 let result = null;
                 let lastError = null;
@@ -2303,14 +2306,33 @@
                     console.log('Trying direct API call...');
                     const response = await fetch(API_URL);
 
+                    console.log('📡 API Response:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        ok: response.ok,
+                        headers: Object.fromEntries([...response.headers.entries()]),
+                        url: response.url
+                    });
+
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
                     }
 
                     result = await response.json();
-                    console.log('Successfully fetched data directly from API');
+                    console.log('✅ Successfully fetched data directly from API');
+                    console.log('📊 Response structure:', {
+                        type: typeof result,
+                        isArray: Array.isArray(result),
+                        keys: result && typeof result === 'object' ? Object.keys(result) : 'N/A',
+                        length: Array.isArray(result) ? result.length : (result?.items?.length || result?.data?.length || 'N/A'),
+                        sample: Array.isArray(result) ? result[0] : (result?.items?.[0] || result?.data?.[0] || result)
+                    });
                 } catch (directError) {
-                    console.warn('Direct API call failed:', directError.message);
+                    console.error('❌ Direct API call failed:', {
+                        message: directError.message,
+                        name: directError.name,
+                        stack: directError.stack
+                    });
                     lastError = directError;
                 }
 
@@ -2348,33 +2370,53 @@
                 let data;
                 if (Array.isArray(result)) {
                     data = result;
+                    console.log('📦 Data format: Direct array');
                 } else if (result?.items) {
                     data = result.items;
+                    console.log('📦 Data format: {items: [...]}');
                 } else if (result?.data) {
                     data = result.data;
+                    console.log('📦 Data format: {data: [...]}');
                 } else {
                     data = [result];
+                    console.log('📦 Data format: Single object wrapped in array');
                 }
+
+                console.log('🔢 Raw record count:', data.length);
 
                 const normalizedData = data.map(normalizeRecord);
                 allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
 
+                // Log district distribution
+                const districtCounts = {};
+                allData.forEach(r => {
+                    const d = r.District || 'Unknown';
+                    districtCounts[d] = (districtCounts[d] || 0) + 1;
+                });
+                console.log('🗺️ District distribution:', districtCounts);
+                console.log('📈 Records with valid district:', Object.entries(districtCounts).filter(([k]) => k !== 'Unknown').reduce((s, [,v]) => s + v, 0));
+                console.log('❓ Records without district:', districtCounts['Unknown'] || 0);
+
                 // Invalidate computed data caches since we have new data
                 dataCache.invalidateAll();
-                console.log('Cleared computed data caches for new data');
+                console.log('🧹 Cleared computed data caches for new data');
 
                 // Store eviction data in localStorage for use by other pages (e.g., CM rankings)
                 try {
                     localStorage.setItem('evictionData', JSON.stringify(allData));
                     localStorage.setItem('evictionDataTimestamp', Date.now().toString());
+                    console.log('💾 Stored', allData.length, 'records in localStorage for CM rankings page');
                 } catch (e) {
-                    console.warn('Could not store eviction data in localStorage:', e);
+                    console.error('❌ Could not store eviction data in localStorage:', e);
                 }
 
                 const dupeCount = normalizedData.length - allData.length;
                 const dupeMsg = dupeCount > 0 ? ` (${dupeCount} duplicates removed)` : '';
+                console.log('✅ Final record count:', allData.length, dupeMsg);
+                console.groupEnd();
+
                 updateStatus(`Loaded ${allData.length} records from public court data${dupeMsg}`, 'success');
                 updateMetrics();
                 updateCharts();
@@ -2388,7 +2430,12 @@
                 restorePersistedFilters();
 
             } catch (error) {
-                console.error('Error loading data:', error);
+                console.groupEnd();
+                console.error('❌ Error loading data:', {
+                    message: error.message,
+                    name: error.name,
+                    stack: error.stack
+                });
                 updateStatus(`Error loading data: ${error.message}. Please try refreshing the page.`, 'error');
             }
         }
@@ -2822,6 +2869,9 @@
         }
 
         function createDistrictMap() {
+            console.group('🗺️ Creating District Map');
+            console.log('📊 Filtered data count:', filteredData?.length || 0);
+
             // Check cache for district counts
             const cacheKey = `district_counts_${filteredData.length}_${filteredData[0]?.Case_Number || 'empty'}`;
             let districtCounts = {};
@@ -2831,8 +2881,9 @@
             if (cachedCounts) {
                 districtCounts = cachedCounts.districtCounts;
                 unknownCount = cachedCounts.unknownCount;
-                console.log('Using cached district counts');
+                console.log('✅ Using cached district counts');
             } else {
+                console.log('🔄 Computing district counts from', filteredData.length, 'records...');
                 filteredData.forEach(record => {
                     const district = record.District;
                     if (district === 'Unknown' || district === 'unknown') {
@@ -2842,9 +2893,13 @@
                     }
                 });
 
+                console.log('📈 District counts computed:', districtCounts);
+                console.log('❓ Unknown district count:', unknownCount);
+
                 // Cache the computed counts
                 dataCache.set(cacheKey, { districtCounts, unknownCount });
             }
+            console.groupEnd();
             
             const maxCount = Math.max(...Object.values(districtCounts), 1);
             const grid = document.getElementById('districtGrid');
@@ -3149,24 +3204,48 @@
         let districtDemographics = null;
 
         async function loadDistrictDemographics() {
+            console.group('🏘️ Loading District Demographics');
+
             // Check cache first (demographics rarely change, cache for 1 hour)
             const cached = dataCache.get('district_demographics');
             if (cached) {
                 districtDemographics = cached;
-                console.log('Using cached district demographics');
+                console.log('✅ Using cached district demographics');
+                console.log('📊 Districts loaded:', Object.keys(cached.districts || {}).length);
+                console.groupEnd();
                 return;
             }
 
             try {
+                console.log('📡 Fetching district-data.json...');
                 const response = await fetch('district-data.json');
+                console.log('📡 Response:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok
+                });
+
                 if (response.ok) {
                     districtDemographics = await response.json();
+                    console.log('✅ District demographics loaded:', {
+                        hasDistricts: !!districtDemographics?.districts,
+                        districtCount: Object.keys(districtDemographics?.districts || {}).length,
+                        hasCountyTotals: !!districtDemographics?.county_totals,
+                        sampleDistrict: districtDemographics?.districts?.['1']
+                    });
                     // Cache for 1 hour
                     dataCache.set('district_demographics', districtDemographics, 60 * 60 * 1000);
+                } else {
+                    console.error('❌ Failed to load district demographics:', response.status, response.statusText);
                 }
             } catch (error) {
-                console.error('Error loading district demographics:', error);
+                console.error('❌ Error loading district demographics:', {
+                    message: error.message,
+                    name: error.name,
+                    stack: error.stack
+                });
             }
+            console.groupEnd();
         }
 
         // Load demographics on page load
