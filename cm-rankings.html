@@ -2218,6 +2218,9 @@
             document.querySelectorAll('.rankings-table tbody tr').forEach(row => {
                 row.classList.toggle('selected', row.dataset.district === String(district));
             });
+
+            // Open the district details popup
+            openDemographicsModal();
         }
 
         function truncate(str, len) {
