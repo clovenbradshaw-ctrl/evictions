@@ -1,0 +1,213 @@
+{
+  "atLarge": [
+    {
+      "name": "Zulfat Suara",
+      "position": "At-Large",
+      "phone": "615-432-1341",
+      "email": "Zulfat.Suara@nashville.gov"
+    },
+    {
+      "name": "Delishia Porterfield",
+      "position": "At-Large",
+      "phone": "615-432-1342",
+      "email": "Delishia.Porterfield@nashville.gov"
+    },
+    {
+      "name": "Quin Evans Segall",
+      "position": "At-Large",
+      "phone": "615-432-1343",
+      "email": "Quin.EvansSegall@nashville.gov"
+    },
+    {
+      "name": "Burkley Allen",
+      "position": "At-Large",
+      "phone": "615-432-1344",
+      "email": "burkley.allen@nashville.gov"
+    },
+    {
+      "name": "Olivia Hill",
+      "position": "At-Large",
+      "phone": "615-432-1341",
+      "email": "olivia.hill@nashville.gov"
+    }
+  ],
+  "districts": {
+    "1": {
+      "name": "Joy Kimbrough",
+      "phone": "615-432-1301",
+      "email": "joy.kimbrough@nashville.gov"
+    },
+    "2": {
+      "name": "Kyonzté Toombs",
+      "phone": "615-432-1302",
+      "email": "kyonzte.toombs@nashville.gov"
+    },
+    "3": {
+      "name": "Jennifer Gamble",
+      "phone": "615-432-1303",
+      "email": "Jennifer.Gamble@nashville.gov"
+    },
+    "4": {
+      "name": "Mike Cortese",
+      "phone": "615-432-1304",
+      "email": "Mike.Cortese@nashville.gov"
+    },
+    "5": {
+      "name": "Sean Parker",
+      "phone": "615-432-1305",
+      "email": "Sean.Parker@nashville.gov"
+    },
+    "6": {
+      "name": "Clay Capp",
+      "phone": "615-432-1306",
+      "email": "clay.capp@nashville.gov"
+    },
+    "7": {
+      "name": "Emily Benedict",
+      "phone": "615-432-1307",
+      "email": "Emily.Benedict@nashville.gov"
+    },
+    "8": {
+      "name": "Deonté Harrell",
+      "phone": "615-432-1308",
+      "email": "deonte.harrell@nashville.gov"
+    },
+    "9": {
+      "name": "Tonya Hancock",
+      "phone": "615-432-1309",
+      "email": "Tonya.Hancock@nashville.gov"
+    },
+    "10": {
+      "name": "Jennifer Frensley Webb",
+      "phone": "615-432-1310",
+      "email": "Jennifer.Webb@nashville.gov"
+    },
+    "11": {
+      "name": "Jeff Eslick",
+      "phone": "615-432-1311",
+      "email": "Jeff.Eslick@nashville.gov"
+    },
+    "12": {
+      "name": "Erin Evans",
+      "phone": "615-432-1312",
+      "email": "Erin.Evans@nashville.gov"
+    },
+    "13": {
+      "name": "Russ Bradford",
+      "phone": "615-432-1313",
+      "email": "Russ.Bradford@nashville.gov"
+    },
+    "14": {
+      "name": "Jordan Huffman",
+      "phone": "615-432-1314",
+      "email": "Jordan.Huffman@nashville.gov"
+    },
+    "15": {
+      "name": "Jeff Gregg",
+      "phone": "615-432-1315",
+      "email": "jeff.gregg@nashville.gov"
+    },
+    "16": {
+      "name": "Ginny Welsch",
+      "phone": "615-432-1316",
+      "email": "Ginny.Welsch@nashville.gov"
+    },
+    "17": {
+      "name": "Terry Vo",
+      "phone": "615-432-1317",
+      "email": "Terry.Vo@nashville.gov"
+    },
+    "18": {
+      "name": "Tom Cash",
+      "phone": "615-432-1318",
+      "email": "Thomas.Cash@Nashville.gov"
+    },
+    "19": {
+      "name": "Jacob Kupin",
+      "phone": "615-432-1319",
+      "email": "Jacob.Kupin@nashville.gov"
+    },
+    "20": {
+      "name": "Rollin Horton",
+      "phone": "615-432-1320",
+      "email": "Rollin.Horton@nashville.gov"
+    },
+    "21": {
+      "name": "Brandon Taylor",
+      "phone": "615-432-1321",
+      "email": "Brandon.Taylor@nashville.gov"
+    },
+    "22": {
+      "name": "Sheri Weiner",
+      "phone": "615-432-1322",
+      "email": "Sheri.Weiner@nashville.gov"
+    },
+    "23": {
+      "name": "Thom Druffel",
+      "phone": "615-432-1323",
+      "email": "Thom.Druffel@nashville.gov"
+    },
+    "24": {
+      "name": "Brenda Gadd",
+      "phone": "615-432-1324",
+      "email": "Brenda.Gadd@nashville.gov"
+    },
+    "25": {
+      "name": "Jeff Preptit",
+      "phone": "615-432-1325",
+      "email": "Jeff.Preptit@nashville.gov"
+    },
+    "26": {
+      "name": "Courtney Johnston",
+      "phone": "615-432-1326",
+      "email": "Courtney.Johnston@nashville.gov"
+    },
+    "27": {
+      "name": "Robert Nash",
+      "phone": "615-432-1327",
+      "email": "Bob.Nash@nashville.gov"
+    },
+    "28": {
+      "name": "David Benton",
+      "phone": "615-432-1328",
+      "email": "David.Benton@nashville.gov"
+    },
+    "29": {
+      "name": "Tasha Ellis",
+      "phone": "615-432-1329",
+      "email": "Tasha.Ellis@nashville.gov"
+    },
+    "30": {
+      "name": "Sandra Sepulveda",
+      "phone": "",
+      "email": "Sandra.Sepulveda@nashville.gov"
+    },
+    "31": {
+      "name": "John Rutherford",
+      "phone": "615-432-1331",
+      "email": "John.Rutherford@nashville.gov"
+    },
+    "32": {
+      "name": "Joy Styles",
+      "phone": "615-432-1332",
+      "email": "Joy.Styles@nashville.gov"
+    },
+    "33": {
+      "name": "Antoinette Lee",
+      "phone": "615-432-1333",
+      "email": "antoinette.lee@nashville.gov"
+    },
+    "34": {
+      "name": "Sandy Ewing",
+      "phone": "615-432-1334",
+      "email": "Sandy.Ewing@nashville.gov"
+    },
+    "35": {
+      "name": "Jason Spain",
+      "phone": "615-432-1335",
+      "email": "Jason.Spain@nashville.gov"
+    }
+  },
+  "source": "https://www.nashville.gov/departments/council/council-members",
+  "lastUpdated": "2025-12-23"
+}

@@ -1539,6 +1539,14 @@
                 allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
 
+                // Store eviction data in localStorage for use by other pages (e.g., CM rankings)
+                try {
+                    localStorage.setItem('evictionData', JSON.stringify(allData));
+                    localStorage.setItem('evictionDataTimestamp', Date.now().toString());
+                } catch (e) {
+                    console.warn('Could not store eviction data in localStorage:', e);
+                }
+
                 const dupeCount = normalizedData.length - allData.length;
                 const dupeMsg = dupeCount > 0 ? ` (${dupeCount} duplicates removed)` : '';
                 updateStatus(`Loaded ${allData.length} records from public court data${dupeMsg}`, 'success');
