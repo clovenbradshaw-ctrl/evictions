@@ -1377,6 +1377,16 @@
                 }
                 
                 const normalizedData = data.map(normalizeRecord);
+                // Debug: log first 3 records to check council district data
+                console.log('Sample API data (first 3):', data.slice(0, 3).map(r => ({
+                    Docket_Number: r.Docket_Number,
+                    council_district_number: r.council_district_number,
+                    council_district: r.council_district
+                })));
+                console.log('Sample normalized (first 3):', normalizedData.slice(0, 3).map(r => ({
+                    Case_Number: r.Case_Number,
+                    District: r.District
+                })));
                 allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
 
