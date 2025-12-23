@@ -1089,8 +1089,8 @@
                 <div class="label">Districts w/ Data</div>
             </div>
             <div class="summary-card">
-                <div class="value" id="avgPerDistrict">-</div>
-                <div class="label">Avg per District</div>
+                <div class="value" id="medianPerDistrict">-</div>
+                <div class="label">Median (30 Days)</div>
             </div>
             <div class="summary-card">
                 <div class="value" id="lastUpdated">-</div>
@@ -2094,17 +2094,16 @@
                 }
             });
 
-            // Calculate 30-day average for each district
+            // Calculate 30-day prorated value for each district
             Object.values(districtStats).forEach(stats => {
                 const districtDays = stats.earliestFiling && stats.lastFiling
                     ? Math.ceil((stats.lastFiling - stats.earliestFiling) / (1000 * 60 * 60 * 24)) + 1
                     : 0;
 
-                // Use the district's actual data range, capped at 30 days for the average
-                const daysForAverage = Math.min(districtDays, 30) || 1;
-                stats.avg30Day = districtDays <= 30
-                    ? stats.total  // If we have 30 days or less, just use the total
-                    : Math.round((stats.total / districtDays) * 30);  // Otherwise calculate the 30-day average
+                // Prorate to 30 days based on actual data period
+                stats.avg30Day = districtDays > 0
+                    ? Math.round((stats.total / districtDays) * 30)
+                    : stats.total;
                 stats.dataRangeDays = districtDays;
             });
 
@@ -2226,6 +2225,15 @@
             return str.length > len ? str.substring(0, len) + '...' : str;
         }
 
+        function calculateMedian(values) {
+            if (!values || values.length === 0) return 0;
+            const sorted = [...values].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            return sorted.length % 2 !== 0
+                ? sorted[mid]
+                : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+        }
+
         function updateRankingsTable() {
             const tbody = document.getElementById('rankingsBody');
             const totalFilings = Object.values(districtStats).reduce((sum, d) => sum + d.total, 0);
@@ -2308,15 +2316,14 @@
         function updateSummaryCards() {
             // Total from ALL eviction records
             const totalAllRecords = evictionData.length;
-            // Total from records with district data
-            const totalWithDistrict = Object.values(districtStats).reduce((sum, d) => sum + d.total, 0);
-            const avgPerDistrict = districtsWithData.length > 0
-                ? Math.round(totalWithDistrict / districtsWithData.length)
-                : 0;
+
+            // Calculate median of 30-day prorated values across districts
+            const thirtyDayValues = Object.values(districtStats).map(d => d.avg30Day || 0);
+            const medianPerDistrict = calculateMedian(thirtyDayValues);
 
             document.getElementById('totalEvictions').textContent = totalAllRecords.toLocaleString();
             document.getElementById('districtsWithData').textContent = `${districtsWithData.length}/35`;
-            document.getElementById('avgPerDistrict').textContent = avgPerDistrict.toLocaleString();
+            document.getElementById('medianPerDistrict').textContent = medianPerDistrict.toLocaleString();
 
             // Find most recent filing from all data
             let mostRecent = null;
