@@ -732,7 +732,19 @@
                 if (!evictionResponse.ok) throw new Error('Failed to load eviction data');
 
                 const cmData = await cmResponse.json();
-                const evictions = await evictionResponse.json();
+                const evictionResult = await evictionResponse.json();
+
+                // Handle different response formats from eviction API
+                let evictions;
+                if (Array.isArray(evictionResult)) {
+                    evictions = evictionResult;
+                } else if (evictionResult?.items) {
+                    evictions = evictionResult.items;
+                } else if (evictionResult?.data) {
+                    evictions = evictionResult.data;
+                } else {
+                    evictions = [evictionResult];
+                }
 
                 // Process council member data
                 processCouncilMembers(cmData);
@@ -741,7 +753,8 @@
                 processEvictionData(evictions);
 
                 // Update UI
-                statusEl.textContent = `✓ Loaded ${Object.keys(councilMembers).length} council members and ${evictionData.length} eviction records`;
+                const recordsWithDistrict = Object.values(districtStats).reduce((sum, d) => sum + d.total, 0);
+                statusEl.textContent = `✓ Loaded ${Object.keys(councilMembers).length} council members and ${evictionData.length} eviction records (${recordsWithDistrict} with district data)`;
                 statusEl.className = 'status-message status-success';
 
                 // Generate UI
@@ -754,10 +767,14 @@
 
             } catch (error) {
                 console.error('Error loading data:', error);
-                statusEl.textContent = `✗ Error: ${error.message}`;
+                let errorMsg = error.message;
+                if (error.message === 'Failed to fetch') {
+                    errorMsg = 'Unable to connect to data API. Please check your internet connection and try again.';
+                }
+                statusEl.textContent = `✗ Error: ${errorMsg}`;
                 statusEl.className = 'status-message status-error';
 
-                // Try to load fallback CM data
+                // Try to load fallback CM data so at least district buttons work
                 loadFallbackCMData();
             }
         }
@@ -789,13 +806,42 @@
             });
         }
 
+        // Deduplicate records by docket number, keeping the most recent by File_Date
+        function dedupeByDocketNumber(records) {
+            const seen = new Map();
+
+            for (const record of records) {
+                const docketNumber = (record.Docket_Number || record.Case_Number || '').trim();
+
+                // Skip records with empty docket numbers
+                if (!docketNumber) {
+                    continue;
+                }
+
+                if (!seen.has(docketNumber)) {
+                    seen.set(docketNumber, record);
+                } else {
+                    // Keep the record with the more recent File_Date
+                    const existing = seen.get(docketNumber);
+                    const existingDate = new Date(existing.File_Date || existing.file_date || 0);
+                    const currentDate = new Date(record.File_Date || record.file_date || 0);
+
+                    if (currentDate > existingDate) {
+                        seen.set(docketNumber, record);
+                    }
+                }
+            }
+
+            return Array.from(seen.values());
+        }
+
         function processEvictionData(data) {
-            // Store all eviction data without filtering
-            evictionData = data;
+            // Dedupe and store all eviction data
+            evictionData = dedupeByDocketNumber(data);
             districtStats = {};
 
             // Calculate stats per district (only for records with valid district data)
-            data.forEach(record => {
+            evictionData.forEach(record => {
                 let district = null;
 
                 if (record.council_district_number && typeof record.council_district_number === 'number' && record.council_district_number > 0) {
