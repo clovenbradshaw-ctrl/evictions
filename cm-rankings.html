@@ -978,10 +978,6 @@
                                 <div class="value" id="cmPercent">-</div>
                                 <div class="label">% of Total</div>
                             </div>
-                            <div class="stat-card">
-                                <div class="value" id="cmPending">-</div>
-                                <div class="label">Pending Cases</div>
-                            </div>
                         </div>
 
                         <div class="top-landlords" id="topLandlords" style="display: none;">
@@ -1020,7 +1016,6 @@
                 <div class="sort-options">
                     <span style="font-size: 0.85rem; color: #6b7280; margin-right: 0.5rem;">Sort by:</span>
                     <button class="filter-btn active" data-sort="filings" onclick="setSortOrder('filings')">Total Filings</button>
-                    <button class="filter-btn" data-sort="pending" onclick="setSortOrder('pending')">Pending</button>
                     <button class="filter-btn" data-sort="percent" onclick="setSortOrder('percent')">% of Total</button>
                     <button class="filter-btn" data-sort="recent" onclick="setSortOrder('recent')">Most Recent</button>
                 </div>
@@ -1032,14 +1027,13 @@
                                 <th>Rank</th>
                                 <th>Representative</th>
                                 <th>Filings</th>
-                                <th>Pending</th>
                                 <th>% of Total</th>
                                 <th>Activity</th>
                             </tr>
                         </thead>
                         <tbody id="rankingsBody">
                             <tr>
-                                <td colspan="6" style="text-align: center; padding: 2rem;">
+                                <td colspan="5" style="text-align: center; padding: 2rem;">
                                     <div class="loading-spinner"></div>
                                     <p style="margin-top: 1rem; color: #6b7280;">Loading rankings...</p>
                                 </td>
@@ -1371,12 +1365,9 @@
             districtEvictions.forEach(ev => {
                 const landlord = ev.Plaintiff_Petitioner || ev.plaintiff_petitioner || ev.Plaintiff || 'Unknown';
                 if (!landlordGroups[landlord]) {
-                    landlordGroups[landlord] = { name: landlord, evictions: [], pending: 0, closed: 0 };
+                    landlordGroups[landlord] = { name: landlord, evictions: [] };
                 }
                 landlordGroups[landlord].evictions.push(ev);
-                const status = (ev.Status || ev.status || '').toUpperCase();
-                if (status === 'PENDING') landlordGroups[landlord].pending++;
-                else if (status === 'CLOSED') landlordGroups[landlord].closed++;
             });
 
             // Sort landlords by total evictions
@@ -1406,8 +1397,6 @@
                                 <div class="landlord-name">${truncateLandlord(landlord.name, 50)}</div>
                                 <div class="landlord-stats">
                                     <span><strong>${landlord.evictions.length}</strong> filings</span>
-                                    <span><strong>${landlord.pending}</strong> pending</span>
-                                    <span><strong>${landlord.closed}</strong> closed</span>
                                 </div>
                             </div>
                         `;
@@ -1696,21 +1685,12 @@
                     districtStats[district] = {
                         district: district,
                         total: 0,
-                        pending: 0,
-                        closed: 0,
                         lastFiling: null,
                         landlords: {}
                     };
                 }
 
                 districtStats[district].total++;
-
-                const status = (record.Status || record.status || '').toUpperCase();
-                if (status === 'PENDING') {
-                    districtStats[district].pending++;
-                } else if (status === 'CLOSED') {
-                    districtStats[district].closed++;
-                }
 
                 // Track filing date
                 const fileDate = record.File_Date || record.file_date;
@@ -1799,7 +1779,6 @@
 
                 document.getElementById('cmEvictions').textContent = totalFilings.toLocaleString();
                 document.getElementById('cmPercent').textContent = `${percent}%`;
-                document.getElementById('cmPending').textContent = stats?.pending || 0;
 
                 // Calculate rank (only among districts with data)
                 const sortedDistricts = Object.values(districtStats).sort((a, b) => b.total - a.total);
@@ -1845,7 +1824,7 @@
             if (districtsWithData.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="empty-state">
+                        <td colspan="5" class="empty-state">
                             <div class="icon">📊</div>
                             <p>No eviction data available</p>
                         </td>
@@ -1860,9 +1839,6 @@
             switch (currentSort) {
                 case 'filings':
                     sortedData.sort((a, b) => b.total - a.total);
-                    break;
-                case 'pending':
-                    sortedData.sort((a, b) => b.pending - a.pending);
                     break;
                 case 'percent':
                     sortedData.sort((a, b) => b.total - a.total);
@@ -1909,7 +1885,6 @@
                             </div>
                         </td>
                         <td><strong>${stats.total.toLocaleString()}</strong></td>
-                        <td>${stats.pending.toLocaleString()}</td>
                         <td><span class="percent-badge ${percentClass}">${percent}%</span></td>
                         <td>
                             <div class="bar-container">
