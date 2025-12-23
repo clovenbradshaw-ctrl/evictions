@@ -1320,7 +1320,7 @@
                         🔄 Refresh
                     </button>
                     <button id="loginBtn" onclick="showLoginModal()" class="btn btn-primary" style="background: #dc2626; padding: 10px 24px;">
-                        🔒 Login to View Names
+                        🔒 Login to View Tenant Names
                     </button>
                     <button id="logoutBtn" onclick="logout()" class="btn btn-secondary hidden">
                         🔓 Logout
@@ -2498,7 +2498,7 @@
                   if (!params.value) return '';
                   const displayName = getDefendantDisplayName(params.value);
                   if (!isLoggedIn) {
-                      return `<span class="text-gray-500 cursor-default" title="Login to view name">${displayName}</span>`;
+                      return `<span class="text-gray-500 cursor-default" title="Login to view tenant name">${displayName}</span>`;
                   }
                   return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${displayName}</span>`;
               },
@@ -5040,7 +5040,7 @@
                           ? getDefendantDisplayName(params.value)
                           : params.value;
                       if (pivotDimension === 'defendant' && !isLoggedIn) {
-                          return `<span class="text-gray-500 cursor-default" title="Login to view name">${displayValue}</span>`;
+                          return `<span class="text-gray-500 cursor-default" title="Login to view tenant name">${displayValue}</span>`;
                       }
                       return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${displayValue}</span>`;
                   }
@@ -6530,7 +6530,7 @@
                         ? getDefendantDisplayName(params.value)
                         : params.value;
                     if (isDefendantField1 && !isLoggedIn) {
-                        return `<span class="text-gray-500 cursor-default" title="Login to view name">${displayValue}</span>`;
+                        return `<span class="text-gray-500 cursor-default" title="Login to view tenant name">${displayValue}</span>`;
                     }
                     return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${displayValue}</span>`;
                 }
@@ -6546,7 +6546,7 @@
                         if (!params.value) return '';
                         // Scramble defendant names when not logged in
                         if (isDefendantField2 && !isLoggedIn) {
-                            return `<span class="text-gray-500" title="Login to view name">${getDefendantDisplayName(params.value)}</span>`;
+                            return `<span class="text-gray-500" title="Login to view tenant name">${getDefendantDisplayName(params.value)}</span>`;
                         }
                         return params.value;
                     }
