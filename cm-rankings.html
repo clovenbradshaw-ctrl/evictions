@@ -1237,7 +1237,7 @@
 
     <script>
         // Council member data is loaded from local JSON file
-        // Eviction data is loaded from localStorage (set by main tracker page)
+        // Eviction data is loaded from localStorage or IndexedDB (set by main tracker page)
 
         let councilMembers = {};
         let evictionData = [];
@@ -1246,6 +1246,60 @@
         let currentSort = 'filings';
         let districtsWithData = [];
         let districtDemographics = null;
+
+        // IndexedDB helper for loading large data (mirrors index.html implementation)
+        const evictionDB = {
+            DB_NAME: 'evictionTrackerDB',
+            DB_VERSION: 1,
+            STORE_NAME: 'evictionData',
+
+            async open() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+                            db.createObjectStore(this.STORE_NAME, { keyPath: 'id' });
+                        }
+                    };
+                });
+            },
+
+            async load() {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.STORE_NAME, 'readonly');
+                        const store = tx.objectStore(this.STORE_NAME);
+                        const request = store.get('evictionData');
+                        request.onsuccess = () => {
+                            db.close();
+                            resolve(request.result || null);
+                        };
+                        request.onerror = () => {
+                            db.close();
+                            reject(request.error);
+                        };
+                    });
+                } catch (e) {
+                    console.error('IndexedDB load failed:', e);
+                    return null;
+                }
+            }
+        };
+
+        // Decompress eviction data from compressed format
+        function decompressEvictionData(compressed) {
+            return compressed.map(r => ({
+                Case_Number: r.id,
+                District: r.d,
+                File_Date: r.fd,
+                Plaintiff_Petitioner: r.p,
+                Status: r.s
+            }));
+        }
 
         // Load district demographic data
         async function loadDistrictDemographics() {
@@ -1745,38 +1799,63 @@
                     districtCount: Object.keys(cmData.districts || {}).length
                 });
 
-                // Load eviction data from localStorage (cached from main tracker page)
-                console.log('💾 Checking localStorage for eviction data...');
+                // Load eviction data from cache (localStorage or IndexedDB, set by main tracker page)
+                console.log('💾 Checking cache for eviction data...');
                 let evictions = null;
-                const storedEvictionData = localStorage.getItem('evictionData');
+                const storageType = localStorage.getItem('evictionDataStorage');
                 const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
 
-                console.log('💾 localStorage status:', {
-                    hasData: !!storedEvictionData,
-                    dataLength: storedEvictionData?.length || 0,
+                console.log('💾 Storage info:', {
+                    storageType: storageType || 'unknown',
                     timestamp: storedTimestamp ? new Date(parseInt(storedTimestamp)).toISOString() : 'none',
                     ageMinutes: storedTimestamp ? Math.round((Date.now() - parseInt(storedTimestamp)) / 60000) : 'N/A'
                 });
 
-                if (storedEvictionData) {
+                // Try compressed localStorage first (new format)
+                const compressedData = localStorage.getItem('evictionDataCompressed');
+                if (compressedData) {
                     try {
-                        evictions = JSON.parse(storedEvictionData);
-                        console.log('✅ Parsed eviction data:', {
+                        const compressed = JSON.parse(compressedData);
+                        evictions = decompressEvictionData(compressed);
+                        console.log('✅ Loaded compressed eviction data from localStorage:', {
                             recordCount: evictions?.length || 0,
-                            sampleRecord: evictions?.[0],
-                            hasDistrictField: evictions?.[0]?.District !== undefined
+                            sampleRecord: evictions?.[0]
                         });
                     } catch (e) {
-                        console.error('❌ Failed to parse localStorage eviction data:', {
-                            message: e.message,
-                            dataPreview: storedEvictionData.substring(0, 200)
+                        console.error('❌ Failed to parse compressed localStorage data:', e.message);
+                    }
+                }
+
+                // Try legacy uncompressed format
+                if (!evictions) {
+                    const legacyData = localStorage.getItem('evictionData');
+                    if (legacyData) {
+                        try {
+                            evictions = JSON.parse(legacyData);
+                            console.log('✅ Loaded legacy eviction data from localStorage:', {
+                                recordCount: evictions?.length || 0
+                            });
+                        } catch (e) {
+                            console.error('❌ Failed to parse legacy localStorage data:', e.message);
+                        }
+                    }
+                }
+
+                // Try IndexedDB if localStorage didn't have data
+                if (!evictions && storageType === 'indexedDB') {
+                    console.log('💾 Checking IndexedDB...');
+                    const idbResult = await evictionDB.load();
+                    if (idbResult?.data) {
+                        evictions = decompressEvictionData(idbResult.data);
+                        console.log('✅ Loaded eviction data from IndexedDB:', {
+                            recordCount: evictions?.length || 0
                         });
                     }
                 }
 
                 // If no cached data available, show message to visit main tracker first
                 if (!evictions || evictions.length === 0) {
-                    console.warn('⚠️ No eviction data available in localStorage');
+                    console.warn('⚠️ No eviction data available in cache');
                     console.groupEnd();
                     statusEl.innerHTML = '⚠️ No eviction data cached. Please <a href="index.html" style="color: #1e40af; text-decoration: underline;">visit the main Eviction Tracker</a> first to load the data.';
                     statusEl.className = 'status-message status-error';
