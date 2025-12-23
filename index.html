@@ -1377,16 +1377,6 @@
                 }
                 
                 const normalizedData = data.map(normalizeRecord);
-                // Debug: log first 3 records to check council district data
-                console.log('Sample API data (first 3):', data.slice(0, 3).map(r => ({
-                    Docket_Number: r.Docket_Number,
-                    council_district_number: r.council_district_number,
-                    council_district: r.council_district
-                })));
-                console.log('Sample normalized (first 3):', normalizedData.slice(0, 3).map(r => ({
-                    Case_Number: r.Case_Number,
-                    District: r.District
-                })));
                 allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
 
@@ -1437,6 +1427,18 @@
         }
 
         function normalizeRecord(record) {
+            // Extract council district - prefer council_district_number if it's a valid number
+            let district = 'Unknown';
+            if (record.council_district_number && typeof record.council_district_number === 'number' && record.council_district_number > 0) {
+                district = record.council_district_number;
+            } else if (record.council_district) {
+                // Extract number from strings like "Council District 8"
+                const match = String(record.council_district).match(/(\d+)/);
+                if (match) {
+                    district = parseInt(match[1], 10);
+                }
+            }
+
             const normalized = {
                 ...record,
                 File_Date: parseDate(record.File_Date || record.file_date),
@@ -1444,38 +1446,13 @@
                 Plaintiff: record.Plaintiff_Petitioner || record.Plaintiff || record.plaintiff || '',
                 Defendant: record.Defendant_Respondent || record.Defendant || record.defendant || '',
                 Address: record.address_formatted || record.formatted_address || record.address || '',
-                District: record.council_district_number || record.council_district || 'Unknown',
+                District: district,
                 Case_Number: record.Docket_Number || record.Case_Number || record.case_number || record.id || '',
                 Attorney: cleanAttorney(record.Attorney || record.attorney || ''),
                 CouncilMember: record.council_member || '',
                 individual_ll: record.individual_ll === "1" || record.individual_ll === true || record.individual_ll === 'true'
             };
-            
-            // Only mark as unknown for TRULY generic addresses
-            const addressLower = normalized.Address.toLowerCase().trim();
-            
-            // Check if this is JUST a generic address (not part of a real address)
-            const isGenericAddress = 
-                // Exactly "Nashville, TN, USA" or similar (no street info)
-                /^nashville,?\s*(tn|tennessee)?,?\s*(usa)?$/i.test(addressLower) ||
-                // Just "1 Public Square" (generic placeholder address)
-                addressLower.includes('1 public square') ||
-                // Just an apartment number with no street
-                /^#\d+,?\s*nashville/i.test(addressLower) ||
-                // Empty or missing
-                addressLower === '' ||
-                addressLower === 'unknown';
-            
-            if (isGenericAddress) {
-                normalized.District = 'Unknown';
-                normalized.CouncilMember = 'Unknown';
-            }
-            
-            // Also mark as unknown if district is 0 or invalid
-            if (normalized.District === 0 || normalized.District === '0' || normalized.District === null) {
-                normalized.District = 'Unknown';
-            }
-            
+
             return normalized;
         }
 
