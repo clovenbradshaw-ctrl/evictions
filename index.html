@@ -1588,7 +1588,7 @@
                             <label class="text-xs font-semibold text-gray-600">Sort by:</label>
                             <select id="demographicsSortField" class="grouping-field-select text-sm" onchange="renderDemographicsTable()">
                                 <option value="district">District Number</option>
-                                <option value="evictions">Eviction Filings</option>
+                                <option value="evictionsPerMonth">Avg Evictions/Month</option>
                                 <option value="evictionRate">Evictions per 1,000</option>
                                 <option value="population">Population</option>
                                 <option value="medianIncome">Median Income</option>
@@ -1633,7 +1633,7 @@
                             <thead>
                                 <tr>
                                     <th>District</th>
-                                    <th>Evictions</th>
+                                    <th title="Average eviction filings per month">Avg/Mo</th>
                                     <th id="perCapitaHeader">Per 1K</th>
                                     <th>Population</th>
                                     <th>Med. Income</th>
@@ -2541,7 +2541,7 @@
             }
 
             if (earliest && latest) {
-                const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24)) + 1;
+                const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24));
                 // Annualization factor: how much to multiply to get full year estimate
                 const annualizationFactor = days > 0 ? 365 / days : 1;
 
@@ -3976,7 +3976,7 @@
                     }
                 }
                 if (earliest && latest) {
-                    const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24)) + 1;
+                    const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24));
                     const annualizationFactor = days > 0 ? 365 / days : 1;
                     districtDateRange = { earliest, latest, days, annualizationFactor };
                 }
@@ -4233,17 +4233,41 @@
                 const demo = districtDemographics.districts[i];
                 if (!demo) continue;
 
-                // Count evictions for this district
+                // Get evictions for this district and calculate district-specific date range
                 let evictionCount = 0;
+                let districtEvictions = [];
+                let earliest = null;
+                let latest = null;
+
                 if (allData) {
-                    evictionCount = allData.filter(r => r.District == i).length;
+                    districtEvictions = allData.filter(r => r.District == i);
+                    evictionCount = districtEvictions.length;
+
+                    // Calculate district-specific date range
+                    for (const record of districtEvictions) {
+                        if (record.File_Date) {
+                            const date = new Date(record.File_Date);
+                            if (!isNaN(date.getTime())) {
+                                if (earliest === null || date < earliest) earliest = date;
+                                if (latest === null || date > latest) latest = date;
+                            }
+                        }
+                    }
                 }
 
-                // Pro-rate to full year if we have partial year data
-                const annualizedCount = Math.round(evictionCount * globalDataRange.annualizationFactor);
+                // Calculate months of data coverage for this district
+                let monthsOfData = 0;
+                if (earliest && latest) {
+                    const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24));
+                    monthsOfData = Math.max(days / 30, 1); // At least 1 month to avoid division issues
+                }
+
+                // Calculate per-month average
+                const evictionsPerMonth = monthsOfData > 0 ? evictionCount / monthsOfData : 0;
 
                 const population = demo.population || 0;
-                // Use annualized count for per capita calculation
+                // Use per-month average annualized to yearly for per capita calculation
+                const annualizedCount = evictionsPerMonth * 12;
                 const evictionRate = population > 0 ? ((annualizedCount / population) * 1000) : 0;
                 const medianIncome = demo.income?.median_household_income || 0;
                 const povertyRate = demo.poverty?.pct_total_poverty || 0;
@@ -4253,6 +4277,8 @@
                 districts.push({
                     district: i,
                     evictions: evictionCount,
+                    evictionsPerMonth: evictionsPerMonth,
+                    monthsOfData: monthsOfData,
                     evictionRate: evictionRate,
                     population: population,
                     medianIncome: medianIncome,
@@ -4284,26 +4310,23 @@
                 return valA - valB;
             });
 
-            // Calculate averages for highlighting
-            const avgEvictions = data.reduce((s, d) => s + d.evictions, 0) / data.length;
+            // Calculate averages for highlighting (using per-month averages)
+            const avgEvictionsPerMonth = data.reduce((s, d) => s + d.evictionsPerMonth, 0) / data.length;
             const avgEvictionRate = data.reduce((s, d) => s + d.evictionRate, 0) / data.length;
 
-            // Update per capita header to show if annualized
-            const isProRated = globalDataRange.days > 0 && globalDataRange.days < 365;
+            // Update per capita header
             const perCapitaHeader = document.getElementById('perCapitaHeader');
             if (perCapitaHeader) {
-                perCapitaHeader.textContent = isProRated ? 'Per 1K*' : 'Per 1K';
-                perCapitaHeader.title = isProRated ? 'Annualized rate (projected to full year)' : 'Evictions per 1,000 population';
+                perCapitaHeader.textContent = 'Per 1K';
+                perCapitaHeader.title = 'Annualized evictions per 1,000 population (based on monthly average)';
             }
 
-            // Show data range info
+            // Show data range info - explain per-month averaging
             const dataRangeEl = document.getElementById('demographicsDataRange');
             if (dataRangeEl && globalDataRange.earliest && globalDataRange.latest) {
                 dataRangeEl.style.display = 'block';
                 const dateRange = `${globalDataRange.earliest.toLocaleDateString()} - ${globalDataRange.latest.toLocaleDateString()}`;
-                dataRangeEl.innerHTML = isProRated
-                    ? `📊 Data: ${dateRange} (${globalDataRange.days} days) — <em>*Per capita rates annualized to full year</em>`
-                    : `📊 Data: ${dateRange} (${globalDataRange.days} days)`;
+                dataRangeEl.innerHTML = `📊 Data: ${dateRange} — <em>Showing monthly averages for fair comparison across districts</em>`;
             }
 
             // Update county summary
@@ -4319,13 +4342,13 @@
             let html = '';
 
             data.forEach(d => {
-                const isHighEviction = d.evictions > avgEvictions * 1.5;
+                const isHighEviction = d.evictionsPerMonth > avgEvictionsPerMonth * 1.5;
                 const badgeClass = isHighEviction ? 'high-evictions' : '';
 
                 html += `
                     <tr onclick="openDistrictModal(${d.district})">
                         <td><span class="district-num-badge ${badgeClass}">${d.district}</span></td>
-                        <td class="${d.evictions > avgEvictions ? 'value-highlight' : ''}">${d.evictions.toLocaleString()}</td>
+                        <td class="${d.evictionsPerMonth > avgEvictionsPerMonth ? 'value-highlight' : ''}">${d.evictionsPerMonth.toFixed(1)}</td>
                         <td class="${d.evictionRate > avgEvictionRate ? 'value-highlight' : ''}">${d.evictionRate.toFixed(2)}</td>
                         <td>${d.population.toLocaleString()}</td>
                         <td class="${d.isLowIncome ? 'value-highlight' : 'value-positive'}">$${d.medianIncome.toLocaleString()}</td>
@@ -4339,15 +4362,15 @@
             tbody.innerHTML = html;
 
             // Also render card view
-            renderDemographicsCards(data, avgEvictions);
+            renderDemographicsCards(data, avgEvictionsPerMonth);
         }
 
-        function renderDemographicsCards(data, avgEvictions) {
+        function renderDemographicsCards(data, avgEvictionsPerMonth) {
             const cardContainer = document.getElementById('demographicsCardView');
             let html = '';
 
             data.forEach(d => {
-                const isHighEviction = d.evictions > avgEvictions * 1.5;
+                const isHighEviction = d.evictionsPerMonth > avgEvictionsPerMonth * 1.5;
                 const badgeClass = isHighEviction ? 'high-evictions' : '';
 
                 html += `
@@ -4357,11 +4380,11 @@
                             <span class="demo-card-title">District ${d.district}</span>
                         </div>
                         <div class="demo-card-stat">
-                            <span class="demo-card-stat-label">Evictions</span>
-                            <span class="demo-card-stat-value ${d.evictions > avgEvictions ? 'highlight' : ''}">${d.evictions.toLocaleString()}</span>
+                            <span class="demo-card-stat-label">Avg/Month</span>
+                            <span class="demo-card-stat-value ${d.evictionsPerMonth > avgEvictionsPerMonth ? 'highlight' : ''}">${d.evictionsPerMonth.toFixed(1)}</span>
                         </div>
                         <div class="demo-card-stat">
-                            <span class="demo-card-stat-label">Per 1,000${globalDataRange.days > 0 && globalDataRange.days < 365 ? '*' : ''}</span>
+                            <span class="demo-card-stat-label">Per 1,000</span>
                             <span class="demo-card-stat-value">${d.evictionRate.toFixed(2)}</span>
                         </div>
                         <div class="demo-card-stat">
