@@ -1086,6 +1086,33 @@
             }
         }
 
+        @media (max-width: 640px) {
+            .scatter-chart-container {
+                height: 350px;
+            }
+
+            .demo-viz-controls {
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+            }
+
+            .demo-viz-select {
+                width: 100%;
+                min-width: unset;
+            }
+
+            .demo-viz-toggle {
+                justify-content: center;
+            }
+
+            .demo-viz-toggle button {
+                flex: 1;
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+        }
+
         .demo-viz-controls {
             display: flex;
             gap: 16px;
@@ -1137,6 +1164,68 @@
         .scatter-chart-container {
             position: relative;
             height: 400px;
+        }
+
+        /* Variable Labels Overlay */
+        .chart-variable-labels {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: none;
+        }
+
+        .variable-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 6px 10px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            font-size: 12px;
+            font-weight: 500;
+            max-width: 180px;
+        }
+
+        .variable-label .variable-icon {
+            font-size: 14px;
+            color: #6b7280;
+            flex-shrink: 0;
+        }
+
+        .variable-label .variable-name {
+            color: #374151;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .variable-label.y-label {
+            border-left: 3px solid #4f46e5;
+        }
+
+        .variable-label.x-label {
+            border-left: 3px solid #10b981;
+        }
+
+        @media (max-width: 640px) {
+            .chart-variable-labels {
+                position: static;
+                flex-direction: row;
+                flex-wrap: wrap;
+                margin-bottom: 8px;
+                justify-content: center;
+            }
+
+            .variable-label {
+                max-width: none;
+                font-size: 11px;
+                padding: 4px 8px;
+            }
         }
 
         .bar-chart-container {
@@ -1352,6 +1441,16 @@
                         <span id="correlationBadge" class="correlation-badge correlation-weak">Loading...</span>
                     </div>
                     <div class="scatter-chart-container">
+                        <div id="chartVariableLabels" class="chart-variable-labels">
+                            <div class="variable-label y-label">
+                                <span class="variable-icon">↕</span>
+                                <span id="yVarLabel" class="variable-name">Eviction Rate</span>
+                            </div>
+                            <div class="variable-label x-label">
+                                <span class="variable-icon">↔</span>
+                                <span id="xVarLabel" class="variable-name">Demographic Factor</span>
+                            </div>
+                        </div>
                         <canvas id="scatterChart"></canvas>
                     </div>
                     <div id="scatterInsight" class="demo-insight-box">
@@ -3133,6 +3232,69 @@
             return { label: 'Weak', class: 'correlation-weak' };
         }
 
+        // Calculate linear regression line (least squares method)
+        function calculateLinearRegression(xValues, yValues) {
+            const n = xValues.length;
+            if (n < 2) return null;
+
+            const sumX = xValues.reduce((a, b) => a + b, 0);
+            const sumY = yValues.reduce((a, b) => a + b, 0);
+            const sumXY = xValues.reduce((total, x, i) => total + x * yValues[i], 0);
+            const sumX2 = xValues.reduce((total, x) => total + x * x, 0);
+
+            const meanX = sumX / n;
+            const meanY = sumY / n;
+
+            const denominator = n * sumX2 - sumX * sumX;
+            if (denominator === 0) return null;
+
+            const slope = (n * sumXY - sumX * sumY) / denominator;
+            const intercept = meanY - slope * meanX;
+
+            // Get min and max X values with some padding
+            const minX = Math.min(...xValues);
+            const maxX = Math.max(...xValues);
+
+            return {
+                slope,
+                intercept,
+                minX,
+                maxX,
+                // Generate line points
+                getLinePoints: function() {
+                    return [
+                        { x: minX, y: slope * minX + intercept },
+                        { x: maxX, y: slope * maxX + intercept }
+                    ];
+                }
+            };
+        }
+
+        // Get regression line styling based on correlation strength
+        function getRegressionLineStyle(correlation) {
+            const absR = Math.abs(correlation);
+            // Line width and opacity based on correlation strength
+            // Stronger correlation = thicker, more opaque line
+            const baseWidth = 2;
+            const maxWidth = 6;
+            const lineWidth = baseWidth + (absR * (maxWidth - baseWidth));
+
+            // Opacity ranges from 0.2 (weak) to 0.9 (strong)
+            const opacity = 0.2 + (absR * 0.7);
+
+            // Color based on direction: positive = green-ish, negative = red-ish
+            let color;
+            if (absR >= 0.6) {
+                color = correlation > 0 ? `rgba(220, 38, 38, ${opacity})` : `rgba(37, 99, 235, ${opacity})`; // Strong: red/blue
+            } else if (absR >= 0.3) {
+                color = correlation > 0 ? `rgba(249, 115, 22, ${opacity})` : `rgba(59, 130, 246, ${opacity})`; // Moderate: orange/blue
+            } else {
+                color = `rgba(156, 163, 175, ${opacity})`; // Weak: gray
+            }
+
+            return { lineWidth, color, opacity };
+        }
+
         function getDemographicLabel(key) {
             const labels = {
                 renterCostBurden: 'Renter Cost Burden (%)',
@@ -3150,21 +3312,40 @@
         }
 
         function initDemographicsCharts() {
-            // Initialize Scatter Chart
+            // Initialize Scatter Chart with responsive point sizing
             const scatterCtx = document.getElementById('scatterChart').getContext('2d');
+            const isMobile = window.innerWidth < 640;
+            const pointRadius = isMobile ? 6 : 8;
+            const pointHoverRadius = isMobile ? 9 : 12;
+
             scatterChart = new Chart(scatterCtx, {
                 type: 'scatter',
                 data: {
-                    datasets: [{
-                        label: 'Districts',
-                        data: [],
-                        backgroundColor: 'rgba(79, 70, 229, 0.6)',
-                        borderColor: '#4f46e5',
-                        borderWidth: 2,
-                        pointRadius: 8,
-                        pointHoverRadius: 12,
-                        pointHoverBackgroundColor: '#4f46e5'
-                    }]
+                    datasets: [
+                        {
+                            label: 'Districts',
+                            data: [],
+                            backgroundColor: 'rgba(79, 70, 229, 0.6)',
+                            borderColor: '#4f46e5',
+                            borderWidth: isMobile ? 1 : 2,
+                            pointRadius: pointRadius,
+                            pointHoverRadius: pointHoverRadius,
+                            pointHoverBackgroundColor: '#4f46e5',
+                            order: 2 // Draw points above the line
+                        },
+                        {
+                            label: 'Trend Line',
+                            data: [],
+                            type: 'line',
+                            borderColor: 'rgba(156, 163, 175, 0.5)',
+                            borderWidth: 3,
+                            fill: false,
+                            pointRadius: 0,
+                            pointHoverRadius: 0,
+                            tension: 0,
+                            order: 1 // Draw line behind points
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
@@ -3172,9 +3353,14 @@
                     plugins: {
                         legend: { display: false },
                         tooltip: {
+                            filter: function(tooltipItem) {
+                                // Only show tooltip for scatter points, not trend line
+                                return tooltipItem.datasetIndex === 0;
+                            },
                             callbacks: {
                                 label: function(context) {
                                     const point = context.raw;
+                                    if (!point.district) return null;
                                     return [
                                         `District ${point.district}`,
                                         `Eviction Rate: ${point.y.toFixed(2)}`,
@@ -3204,13 +3390,14 @@
                         }
                     },
                     onClick: function(event, elements) {
-                        if (elements.length > 0) {
+                        if (elements.length > 0 && elements[0].datasetIndex === 0) {
                             const point = scatterChart.data.datasets[0].data[elements[0].index];
                             openDistrictModal(point.district);
                         }
                     },
                     onHover: function(event, elements) {
-                        event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                        const hasScatterPoint = elements.some(el => el.datasetIndex === 0);
+                        event.native.target.style.cursor = hasScatterPoint ? 'pointer' : 'default';
                     }
                 }
             });
@@ -3305,13 +3492,33 @@
             scatterChart.data.datasets[0].data = scatterData;
             scatterChart.options.scales.x.title.text = getDemographicLabel(xAxisKey);
             scatterChart.options.scales.y.title.text = yAxisLabel;
-            scatterChart.update();
+
+            // Update variable labels overlay
+            const xVarLabel = document.getElementById('xVarLabel');
+            const yVarLabel = document.getElementById('yVarLabel');
+            if (xVarLabel) xVarLabel.textContent = getDemographicLabel(xAxisKey);
+            if (yVarLabel) yVarLabel.textContent = yAxisLabel;
 
             // Calculate and display correlation
             const xValues = data.map(d => d[xAxisKey]);
             const yValues = data.map(d => d[yAxisKey]);
             const correlation = calculateCorrelation(xValues, yValues);
             const strength = getCorrelationStrength(correlation);
+
+            // Calculate and add regression line with correlation-based styling
+            const regression = calculateLinearRegression(xValues, yValues);
+            if (regression) {
+                const lineStyle = getRegressionLineStyle(correlation);
+                const linePoints = regression.getLinePoints();
+
+                scatterChart.data.datasets[1].data = linePoints;
+                scatterChart.data.datasets[1].borderColor = lineStyle.color;
+                scatterChart.data.datasets[1].borderWidth = lineStyle.lineWidth;
+            } else {
+                scatterChart.data.datasets[1].data = [];
+            }
+
+            scatterChart.update();
 
             const correlationBadge = document.getElementById('correlationBadge');
             correlationBadge.textContent = `${strength.label} (r = ${correlation.toFixed(2)})`;
