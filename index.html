@@ -2433,10 +2433,12 @@
                 }
             });
 
+            const totalRecords = filteredData.length;
             return Array.from(summaries.values())
                 .map(summary => ({
                     groupKey: summary.groupKey,
                     totalFilings: summary.totalFilings,
+                    percentOfTotal: totalRecords > 0 ? (summary.totalFilings / totalRecords) * 100 : 0,
                     pending: summary.pending,
                     closed: summary.closed,
                     other: summary.other,
@@ -2486,9 +2488,8 @@
                   }
                 },
                 { field: 'totalFilings', headerName: 'Total Filings', width: 140, sort: 'desc', sortIndex: 0 },
-                { field: 'pending', headerName: 'Pending', width: 120 },
-                { field: 'closed', headerName: 'Closed', width: 120 },
-                { field: 'other', headerName: 'Other Status', width: 140 },
+                { field: 'percentOfTotal', headerName: '% of Total', width: 120,
+                  valueFormatter: params => params.value != null ? params.value.toFixed(1) + '%' : '' },
                 { field: 'lastFiled', headerName: 'Last Filing', width: 140,
                   valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
                   comparator: (valueA, valueB) => {
