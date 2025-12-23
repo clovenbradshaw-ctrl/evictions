@@ -721,6 +721,12 @@
                     <button onclick="loadData()" class="btn btn-secondary">
                         🔄 Refresh
                     </button>
+                    <button id="loginBtn" onclick="showLoginModal()" class="btn btn-primary" style="background: #dc2626; padding: 10px 24px;">
+                        🔒 Login to View Names
+                    </button>
+                    <button id="logoutBtn" onclick="logout()" class="btn btn-secondary hidden">
+                        🔓 Logout
+                    </button>
                 </div>
             </div>
         </div>
@@ -1042,6 +1048,46 @@
         </div>
     </div>
 
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-gray-900/70 backdrop-blur-sm flex items-center justify-center px-4 py-10 z-[70] hidden" onclick="if (event.target === this) hideLoginModal()">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-red-50">
+                <div>
+                    <p class="text-xs font-semibold text-red-600 uppercase tracking-wide">Privacy Protected</p>
+                    <h3 class="text-xl font-bold text-gray-900">Login Required</h3>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600 text-2xl leading-none" onclick="hideLoginModal()" aria-label="Close login modal">
+                    &times;
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p class="text-sm text-amber-800">
+                        <strong>Privacy Notice:</strong> Defendant names are protected to respect the privacy of individuals facing eviction proceedings. Authorized users can login to view full names.
+                    </p>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label for="loginPassword" class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                        <input
+                            type="password"
+                            id="loginPassword"
+                            class="search-input w-full"
+                            placeholder="Enter access password"
+                            onkeypress="if(event.key === 'Enter') attemptLogin()"
+                        >
+                    </div>
+                    <div id="loginError" class="hidden p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p class="text-sm text-red-700">Incorrect password. Please try again.</p>
+                    </div>
+                    <button onclick="attemptLogin()" class="btn btn-primary w-full" style="background: #dc2626;">
+                        🔓 Login
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bulk Upload Modal (Secret: ESC x3 + "detainer") -->
     <div id="bulkUploadModal" class="upload-modal fixed inset-0 bg-gray-900/70 backdrop-blur-sm flex items-center justify-center px-4 py-6 z-[60] hidden" onclick="if (event.target === this) hideBulkUploadModal()">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -1176,6 +1222,81 @@
         let viewMode = 'records';
         let pivotDimension = 'plaintiff';
 
+        // Login state for defendant privacy protection
+        let isLoggedIn = false;
+        const LOGIN_PASSWORD = 'HIAHR';
+
+        // Scramble a name for privacy (consistent scrambling per name)
+        function scrambleName(name) {
+            if (!name) return '';
+            // Use a simple hash-based approach for consistent scrambling
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = ((hash << 5) - hash) + name.charCodeAt(i);
+                hash = hash & hash;
+            }
+            // Generate scrambled name parts
+            const firstNames = ['J.', 'M.', 'R.', 'S.', 'A.', 'D.', 'K.', 'T.', 'L.', 'C.'];
+            const lastParts = ['***', '****', '*****', '******'];
+            const firstIdx = Math.abs(hash) % firstNames.length;
+            const lastIdx = Math.abs(hash >> 4) % lastParts.length;
+            return `${firstNames[firstIdx]} ${lastParts[lastIdx]}`;
+        }
+
+        // Get display name for defendant (scrambled unless logged in)
+        function getDefendantDisplayName(name) {
+            if (isLoggedIn) return name;
+            return scrambleName(name);
+        }
+
+        // Login functions
+        function showLoginModal() {
+            document.getElementById('loginModal').classList.remove('hidden');
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginError').classList.add('hidden');
+            document.getElementById('loginPassword').focus();
+        }
+
+        function hideLoginModal() {
+            document.getElementById('loginModal').classList.add('hidden');
+        }
+
+        function attemptLogin() {
+            const password = document.getElementById('loginPassword').value;
+            if (password.toUpperCase() === LOGIN_PASSWORD) {
+                isLoggedIn = true;
+                hideLoginModal();
+                updateLoginButton();
+                // Refresh grid to show real names
+                if (gridApi) {
+                    gridApi.refreshCells({ force: true });
+                }
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        }
+
+        function logout() {
+            isLoggedIn = false;
+            updateLoginButton();
+            // Refresh grid to scramble names again
+            if (gridApi) {
+                gridApi.refreshCells({ force: true });
+            }
+        }
+
+        function updateLoginButton() {
+            const loginBtn = document.getElementById('loginBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (isLoggedIn) {
+                loginBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+            } else {
+                loginBtn.classList.remove('hidden');
+                logoutBtn.classList.add('hidden');
+            }
+        }
+
         const pivotFieldMap = {
             plaintiff: 'Plaintiff',
             defendant: 'Defendant',
@@ -1218,10 +1339,14 @@
             { field: 'Defendant', headerName: 'Defendant/Tenant', width: 250,
               cellRenderer: params => {
                   if (!params.value) return '';
-                  return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${params.value}</span>`;
+                  const displayName = getDefendantDisplayName(params.value);
+                  if (!isLoggedIn) {
+                      return `<span class="text-gray-500 cursor-default" title="Login to view name">${displayName}</span>`;
+                  }
+                  return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${displayName}</span>`;
               },
               onCellClicked: params => {
-                  if (params.value && params.event) {
+                  if (params.value && params.event && isLoggedIn) {
                       params.event.stopPropagation();
                       filterByName(params.value, 'defendant');
                   }
@@ -2042,10 +2167,11 @@
                 metaContainer.appendChild(card);
             });
 
+            const defendantName = record.Defendant || record.defendant;
             const details = [
                 { label: 'Docket #', value: record.Case_Number || record.case_number || record.id },
                 { label: 'Plaintiff / Landlord', value: record.Plaintiff || record.plaintiff },
-                { label: 'Defendant / Tenant', value: record.Defendant || record.defendant },
+                { label: 'Defendant / Tenant', value: getDefendantDisplayName(defendantName) },
                 { label: 'Attorney of Record', value: record.Attorney || record.attorney },
                 { label: 'Case Notes', value: record.Notes || record.notes }
             ];
@@ -2484,7 +2610,14 @@
                 { field: 'groupKey', headerName: label, flex: 2, minWidth: 160,
                   cellRenderer: params => {
                       if (!params.value) return '';
-                      return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${params.value}</span>`;
+                      // Scramble defendant names in pivot view when not logged in
+                      const displayValue = (pivotDimension === 'defendant' && !isLoggedIn)
+                          ? getDefendantDisplayName(params.value)
+                          : params.value;
+                      if (pivotDimension === 'defendant' && !isLoggedIn) {
+                          return `<span class="text-gray-500 cursor-default" title="Login to view name">${displayValue}</span>`;
+                      }
+                      return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${displayValue}</span>`;
                   }
                 },
                 { field: 'totalFilings', headerName: 'Total Filings', width: 140, sort: 'desc', sortIndex: 0 },
@@ -3978,6 +4111,8 @@
 
         function getCustomPivotColumnDefs(field1, field2, aggregations) {
             const columns = [];
+            const isDefendantField1 = field1 === 'Defendant';
+            const isDefendantField2 = field2 === 'Defendant';
 
             columns.push({
                 field: 'field1Value',
@@ -3986,7 +4121,14 @@
                 minWidth: 160,
                 cellRenderer: params => {
                     if (!params.value) return '';
-                    return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${params.value}</span>`;
+                    // Scramble defendant names when not logged in
+                    const displayValue = (isDefendantField1 && !isLoggedIn)
+                        ? getDefendantDisplayName(params.value)
+                        : params.value;
+                    if (isDefendantField1 && !isLoggedIn) {
+                        return `<span class="text-gray-500 cursor-default" title="Login to view name">${displayValue}</span>`;
+                    }
+                    return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${displayValue}</span>`;
                 }
             });
 
@@ -3995,7 +4137,15 @@
                     field: 'field2Value',
                     headerName: getFieldLabel(field2),
                     flex: 1,
-                    minWidth: 120
+                    minWidth: 120,
+                    cellRenderer: params => {
+                        if (!params.value) return '';
+                        // Scramble defendant names when not logged in
+                        if (isDefendantField2 && !isLoggedIn) {
+                            return `<span class="text-gray-500" title="Login to view name">${getDefendantDisplayName(params.value)}</span>`;
+                        }
+                        return params.value;
+                    }
                 });
             }
 
