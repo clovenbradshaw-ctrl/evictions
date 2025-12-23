@@ -1726,27 +1726,58 @@
 
         async function loadAllData() {
             const statusEl = document.getElementById('statusMessage');
+            console.group('🔄 CM Rankings - Loading All Data');
+            console.log('Timestamp:', new Date().toISOString());
 
             try {
                 // Load council member data from local JSON file
+                console.log('📡 Fetching council-members.json...');
                 const cmResponse = await fetch('council-members.json');
-                if (!cmResponse.ok) throw new Error('Failed to load council member data');
+                console.log('📡 Council Members Response:', {
+                    status: cmResponse.status,
+                    statusText: cmResponse.statusText,
+                    ok: cmResponse.ok
+                });
+                if (!cmResponse.ok) throw new Error(`Failed to load council member data: ${cmResponse.status} ${cmResponse.statusText}`);
                 const cmData = await cmResponse.json();
+                console.log('✅ Council members loaded:', {
+                    hasDistricts: !!cmData.districts,
+                    districtCount: Object.keys(cmData.districts || {}).length
+                });
 
                 // Load eviction data from localStorage (cached from main tracker page)
+                console.log('💾 Checking localStorage for eviction data...');
                 let evictions = null;
                 const storedEvictionData = localStorage.getItem('evictionData');
+                const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
+
+                console.log('💾 localStorage status:', {
+                    hasData: !!storedEvictionData,
+                    dataLength: storedEvictionData?.length || 0,
+                    timestamp: storedTimestamp ? new Date(parseInt(storedTimestamp)).toISOString() : 'none',
+                    ageMinutes: storedTimestamp ? Math.round((Date.now() - parseInt(storedTimestamp)) / 60000) : 'N/A'
+                });
 
                 if (storedEvictionData) {
                     try {
                         evictions = JSON.parse(storedEvictionData);
+                        console.log('✅ Parsed eviction data:', {
+                            recordCount: evictions?.length || 0,
+                            sampleRecord: evictions?.[0],
+                            hasDistrictField: evictions?.[0]?.District !== undefined
+                        });
                     } catch (e) {
-                        console.warn('Failed to parse localStorage eviction data:', e);
+                        console.error('❌ Failed to parse localStorage eviction data:', {
+                            message: e.message,
+                            dataPreview: storedEvictionData.substring(0, 200)
+                        });
                     }
                 }
 
                 // If no cached data available, show message to visit main tracker first
                 if (!evictions || evictions.length === 0) {
+                    console.warn('⚠️ No eviction data available in localStorage');
+                    console.groupEnd();
                     statusEl.innerHTML = '⚠️ No eviction data cached. Please <a href="index.html" style="color: #1e40af; text-decoration: underline;">visit the main Eviction Tracker</a> first to load the data.';
                     statusEl.className = 'status-message status-error';
 
@@ -1761,10 +1792,22 @@
                 processCouncilMembersFromLocal(cmData);
 
                 // Process eviction data
+                console.log('🔄 Processing eviction data...');
                 processEvictionData(evictions);
+
+                // Log district stats
+                console.log('📊 District stats computed:', districtStats);
+                console.log('📈 Districts with data:', Object.keys(districtStats).length);
 
                 // Update UI
                 const recordsWithDistrict = Object.values(districtStats).reduce((sum, d) => sum + d.total, 0);
+                console.log('✅ Processing complete:', {
+                    councilMembers: Object.keys(councilMembers).length,
+                    totalEvictions: evictionData.length,
+                    recordsWithDistrict
+                });
+                console.groupEnd();
+
                 statusEl.textContent = `✓ Loaded ${Object.keys(councilMembers).length} council members and ${evictionData.length} eviction records (${recordsWithDistrict} with district data)`;
                 statusEl.className = 'status-message status-success';
 
@@ -1777,7 +1820,12 @@
                 document.getElementById('disclaimer').style.display = 'block';
 
             } catch (error) {
-                console.error('Error loading data:', error);
+                console.groupEnd();
+                console.error('❌ Error loading data:', {
+                    message: error.message,
+                    name: error.name,
+                    stack: error.stack
+                });
                 let errorMsg = error.message;
                 statusEl.textContent = `✗ Error: ${errorMsg}`;
                 statusEl.className = 'status-message status-error';
@@ -1865,8 +1913,13 @@
         let globalDataRange = { earliest: null, latest: null, days: 0, annualizationFactor: 1 };
 
         function processEvictionData(data) {
+            console.group('📊 Processing Eviction Data for Districts');
+            console.log('📥 Input records:', data?.length || 0);
+
             // Data from localStorage is already deduped, but dedupe again just in case
             evictionData = dedupeByDocketNumber(data);
+            console.log('🔢 After dedup:', evictionData.length);
+
             districtStats = {};
             globalDataRange = { earliest: null, latest: null, days: 0, annualizationFactor: 1 };
 
@@ -1891,6 +1944,16 @@
             globalDataRange.days = dataRangeDays;
             globalDataRange.annualizationFactor = dataRangeDays > 0 ? 365 / dataRangeDays : 1;
 
+            console.log('📅 Date range:', {
+                earliest: globalDataRange.earliest?.toISOString(),
+                latest: globalDataRange.latest?.toISOString(),
+                days: globalDataRange.days,
+                annualizationFactor: globalDataRange.annualizationFactor.toFixed(2)
+            });
+
+            // Track district field sources for debugging
+            let districtSources = { District: 0, council_district_number: 0, council_district: 0, none: 0 };
+
             // Calculate stats per district (only for records with valid district data)
             evictionData.forEach(record => {
                 let district = null;
@@ -1898,13 +1961,22 @@
                 // Check normalized District field first (from localStorage data)
                 if (record.District && typeof record.District === 'number' && record.District > 0) {
                     district = record.District;
+                    districtSources.District++;
                 }
                 // Fallback to raw field names
                 else if (record.council_district_number && typeof record.council_district_number === 'number' && record.council_district_number > 0) {
                     district = record.council_district_number;
+                    districtSources.council_district_number++;
                 } else if (record.council_district) {
                     const match = String(record.council_district).match(/(\d+)/);
-                    if (match) district = parseInt(match[1]);
+                    if (match) {
+                        district = parseInt(match[1]);
+                        districtSources.council_district++;
+                    }
+                }
+
+                if (!district) {
+                    districtSources.none++;
                 }
 
                 // Skip district stats for records without valid district, but don't filter them out
@@ -1961,6 +2033,15 @@
             districtsWithData = Object.keys(districtStats).map(d => parseInt(d)).sort((a, b) => a - b);
 
             document.getElementById('dataDistrictCount').textContent = districtsWithData.length;
+
+            // Log final district processing stats
+            console.log('🏷️ District field sources:', districtSources);
+            console.log('📊 Final district stats:', {
+                districtsWithData: districtsWithData.length,
+                districtsList: districtsWithData,
+                totalRecordsAssigned: Object.values(districtStats).reduce((s, d) => s + d.total, 0)
+            });
+            console.groupEnd();
         }
 
         function generateDistrictButtons() {
