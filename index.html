@@ -1022,6 +1022,10 @@
             gap: 1rem;
         }
 
+        .demographics-card-grid.hidden {
+            display: none;
+        }
+
         .demo-card {
             background: white;
             border-radius: 10px;
@@ -1749,8 +1753,8 @@
 
                     <!-- Visual District Cards (Alternative View) -->
                     <div class="mt-4">
-                        <button onclick="toggleDemographicsView()" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
-                            Toggle Card View
+                        <button id="demographicsViewToggleBtn" onclick="toggleDemographicsView()" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                            Show Card View
                         </button>
                     </div>
                     <div id="demographicsCardView" class="demographics-card-grid hidden mt-4">
@@ -4616,9 +4620,16 @@
         function toggleDemographicsView() {
             const cardView = document.getElementById('demographicsCardView');
             const tableContainer = document.querySelector('.demographics-table-container');
+            const toggleBtn = document.getElementById('demographicsViewToggleBtn');
 
             cardView.classList.toggle('hidden');
             tableContainer.classList.toggle('hidden');
+
+            // Update button text to reflect current state
+            if (toggleBtn) {
+                const isCardViewVisible = !cardView.classList.contains('hidden');
+                toggleBtn.textContent = isCardViewVisible ? 'Show Table View' : 'Show Card View';
+            }
         }
 
         document.addEventListener('keydown', event => {
