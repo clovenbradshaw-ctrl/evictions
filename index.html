@@ -1295,6 +1295,33 @@
             background: #d1fae5;
             color: #065f46;
         }
+
+        /* District Location Mini-Map Styles */
+        .district-location-map {
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+        }
+
+        .district-location-map-lg {
+            width: 48px;
+            height: 48px;
+        }
+
+        .location-grid-cell {
+            fill: #e5e7eb;
+            stroke: #d1d5db;
+            stroke-width: 0.5;
+        }
+
+        .location-grid-cell.highlighted {
+            fill: #4f46e5;
+            stroke: #4338ca;
+        }
+
+        .location-grid-cell.county-shape {
+            fill: #f3f4f6;
+        }
     </style>
 </head>
 <body>
@@ -1868,8 +1895,13 @@
         <div class="district-modal" onclick="event.stopPropagation()">
             <div class="district-modal-header">
                 <button class="district-modal-close" onclick="closeDistrictModal()">&times;</button>
-                <h2 id="districtModalTitle">District Demographics</h2>
-                <p class="subtitle" id="districtModalSubtitle">Community Profile</p>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div id="districtModalLocation"></div>
+                    <div>
+                        <h2 id="districtModalTitle">District Demographics</h2>
+                        <p class="subtitle" id="districtModalSubtitle">Community Profile</p>
+                    </div>
+                </div>
             </div>
             <div class="district-modal-body" id="districtModalBody">
                 <!-- Populated by JavaScript -->
@@ -2023,6 +2055,89 @@
         // Login state for defendant privacy protection
         let isLoggedIn = false;
         const LOGIN_PASSWORD = 'HIAHR';
+
+        // ============================================
+        // DISTRICT LOCATION MAPPING
+        // ============================================
+        // Maps each district to approximate position in Davidson County
+        // Grid is 5x5, coordinates are [row, col] where:
+        // row 0 = north, row 4 = south
+        // col 0 = west, col 4 = east
+        // Based on Nashville Metro Council district geographic locations
+        const districtLocations = {
+            1:  [0, 2],  // North Nashville - north center
+            2:  [0, 1],  // North Nashville - northwest
+            3:  [1, 1],  // North Nashville - west-center
+            4:  [1, 2],  // Germantown/Downtown North
+            5:  [1, 3],  // East Nashville
+            6:  [2, 3],  // East Nashville/Lockeland
+            7:  [1, 4],  // Inglewood/East
+            8:  [2, 4],  // East Nashville/Madison border
+            9:  [0, 3],  // Madison
+            10: [1, 4],  // Donelson
+            11: [0, 4],  // Hermitage
+            12: [0, 4],  // Old Hickory
+            13: [3, 2],  // South Nashville/Woodbine
+            14: [2, 3],  // East/Rosebank
+            15: [2, 4],  // Donelson/Airport
+            16: [3, 2],  // Berry Hill/Melrose
+            17: [2, 2],  // Downtown Nashville - center
+            18: [2, 2],  // West End/Vanderbilt
+            19: [2, 2],  // Downtown/SoBro
+            20: [2, 1],  // Sylvan Park/West
+            21: [2, 1],  // Fisk/TSU area
+            22: [3, 0],  // West Nashville
+            23: [4, 0],  // Bellevue
+            24: [3, 1],  // West Meade/Belle Meade
+            25: [3, 1],  // Green Hills
+            26: [3, 1],  // Southwest
+            27: [2, 1],  // Hillwood/West
+            28: [4, 2],  // South Nashville
+            29: [4, 3],  // South Nashville
+            30: [4, 2],  // Nolensville Road area
+            31: [4, 3],  // Antioch
+            32: [3, 4],  // Antioch/Southeast
+            33: [4, 4],  // Southeast
+            34: [4, 1],  // Forest Hills/Oak Hill
+            35: [3, 0]   // Southwest/Bellevue border
+        };
+
+        // Generate a mini-map SVG showing district location in county
+        function getDistrictLocationSVG(districtNum, size = 'sm') {
+            const location = districtLocations[districtNum];
+            if (!location) return '';
+
+            const [row, col] = location;
+            const sizeClass = size === 'lg' ? 'district-location-map-lg' : 'district-location-map';
+
+            // Define which cells are part of the county shape (simplified Davidson County outline)
+            // The county is roughly blob-shaped, narrower at edges
+            const countyShape = [
+                [0, 1, 1, 1, 1],  // Row 0: north - skip far west
+                [1, 1, 1, 1, 1],  // Row 1: full width
+                [1, 1, 1, 1, 1],  // Row 2: full width (downtown area)
+                [1, 1, 1, 1, 1],  // Row 3: full width
+                [0, 1, 1, 1, 1]   // Row 4: south - skip far west corner
+            ];
+
+            let cells = '';
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 5; c++) {
+                    const isHighlighted = r === row && c === col;
+                    const isInCounty = countyShape[r][c] === 1;
+
+                    if (isInCounty) {
+                        const cellClass = isHighlighted ? 'location-grid-cell highlighted' : 'location-grid-cell county-shape';
+                        cells += `<rect x="${c * 6 + 1}" y="${r * 6 + 1}" width="5" height="5" class="${cellClass}" rx="0.5"/>`;
+                    }
+                }
+            }
+
+            return `<svg class="${sizeClass}" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                <title>District ${districtNum} location in Davidson County</title>
+                ${cells}
+            </svg>`;
+        }
 
         // ============================================
         // DATA PERSISTENCE & CACHING SYSTEM
@@ -4159,6 +4274,7 @@
 
             document.getElementById('districtModalTitle').textContent = `District ${districtNumber}`;
             document.getElementById('districtModalSubtitle').textContent = 'Community Profile';
+            document.getElementById('districtModalLocation').innerHTML = getDistrictLocationSVG(districtNumber, 'lg');
 
             // Calculate eviction stats for this district
             let evictionCount = 0;
@@ -4558,7 +4674,7 @@
 
                 html += `
                     <tr onclick="openDistrictModal(${d.district})">
-                        <td><span class="district-num-badge ${badgeClass}">${d.district}</span></td>
+                        <td><div style="display: flex; align-items: center; gap: 8px;">${getDistrictLocationSVG(d.district)}<span class="district-num-badge ${badgeClass}">${d.district}</span></div></td>
                         <td class="${d.evictionsPerMonth > avgEvictionsPerMonth ? 'value-highlight' : ''}">${d.evictionsPerMonth.toFixed(1)}</td>
                         <td class="${d.evictionRate > avgEvictionRate ? 'value-highlight' : ''}">${d.evictionRate.toFixed(2)}</td>
                         <td>${d.population.toLocaleString()}</td>
@@ -4587,6 +4703,7 @@
                 html += `
                     <div class="demo-card" onclick="openDistrictModal(${d.district})">
                         <div class="demo-card-header">
+                            ${getDistrictLocationSVG(d.district)}
                             <span class="district-num-badge ${badgeClass}">${d.district}</span>
                             <span class="demo-card-title">District ${d.district}</span>
                         </div>
