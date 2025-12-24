@@ -47,7 +47,72 @@
             font-weight: 700;
             font-variant-numeric: tabular-nums;
         }
-        
+
+        /* Clickable metric styling */
+        .metric-clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .metric-clickable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+            border-color: var(--primary);
+        }
+
+        .metric-clickable:hover .metric-value {
+            color: var(--primary);
+        }
+
+        .metric-clickable::after {
+            content: "Click to filter";
+            position: absolute;
+            bottom: 4px;
+            right: 8px;
+            font-size: 10px;
+            color: #9ca3af;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .metric-clickable:hover::after {
+            opacity: 1;
+        }
+
+        .metric-clickable.active {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+        }
+
+        .metric-source-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            color: #6b7280;
+            transition: color 0.2s ease;
+        }
+
+        .metric-source-link:hover {
+            color: var(--primary);
+        }
+
+        .metric-source-link .source-icon {
+            font-size: 12px;
+        }
+
+        .county-stat.clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 8px;
+        }
+
+        .county-stat.clickable:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(1.05);
+        }
+
         .trend-up { color: var(--danger); }
         .trend-down { color: var(--success); }
         
@@ -969,6 +1034,26 @@
             border-bottom: 2px solid #e5e7eb;
         }
 
+        .demographics-table th.th-clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .demographics-table th.th-clickable:hover {
+            color: var(--primary);
+            background: #ede9fe;
+        }
+
+        .demographics-table th .th-info {
+            font-size: 10px;
+            opacity: 0.6;
+            margin-left: 2px;
+        }
+
+        .demographics-table th.th-clickable:hover .th-info {
+            opacity: 1;
+        }
+
         .demographics-table td {
             padding: 0.75rem 0.5rem;
             border-bottom: 1px solid #e5e7eb;
@@ -1373,20 +1458,32 @@
 
         <!-- Key Metrics -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <div class="data-card p-6">
+            <div id="metricTotal" class="data-card p-6 metric-clickable" onclick="filterByMetric('total')" title="Click to view all records">
                 <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Total Records</div>
                 <div id="totalRecords" class="metric-value text-gray-900">-</div>
                 <div id="totalChange" class="text-sm mt-2"></div>
+                <div class="metric-source-link" onclick="event.stopPropagation(); showMetricSource('total')">
+                    <span class="source-icon">ℹ️</span>
+                    <span class="text-xs">Source</span>
+                </div>
             </div>
-            <div class="data-card p-6">
+            <div id="metricMonth" class="data-card p-6 metric-clickable" onclick="filterByMetric('thisMonth')" title="Click to view this month's records">
                 <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">This Month</div>
                 <div id="thisMonth" class="metric-value text-gray-900">-</div>
                 <div id="monthChange" class="text-sm mt-2"></div>
+                <div class="metric-source-link" onclick="event.stopPropagation(); showMetricSource('thisMonth')">
+                    <span class="source-icon">ℹ️</span>
+                    <span class="text-xs">Source</span>
+                </div>
             </div>
-            <div class="data-card p-6">
+            <div id="metricThirty" class="data-card p-6 metric-clickable" onclick="filterByMetric('last30Days')" title="Click to view last 30 days">
                 <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Last 30 Days</div>
                 <div id="last30Days" class="metric-value text-gray-900">-</div>
                 <div id="thirtyChange" class="text-sm mt-2"></div>
+                <div class="metric-source-link" onclick="event.stopPropagation(); showMetricSource('last30Days')">
+                    <span class="source-icon">ℹ️</span>
+                    <span class="text-xs">Source</span>
+                </div>
             </div>
         </div>
 
@@ -1736,19 +1833,19 @@
                     <div class="county-summary-card mb-4">
                         <div class="county-summary-title">Davidson County Overview</div>
                         <div class="county-summary-grid">
-                            <div class="county-stat">
+                            <div class="county-stat clickable" onclick="showCountyStatSource('evictions')" title="Click for source">
                                 <div class="county-stat-value" id="countyTotalEvictions">-</div>
                                 <div class="county-stat-label">Evictions/Year</div>
                             </div>
-                            <div class="county-stat">
+                            <div class="county-stat clickable" onclick="showCountyStatSource('population')" title="Click for source">
                                 <div class="county-stat-value" id="countyPopulation">-</div>
                                 <div class="county-stat-label">Population</div>
                             </div>
-                            <div class="county-stat">
+                            <div class="county-stat clickable" onclick="showCountyStatSource('income')" title="Click for source">
                                 <div class="county-stat-value" id="countyMedianIncome">-</div>
                                 <div class="county-stat-label">Median Income</div>
                             </div>
-                            <div class="county-stat">
+                            <div class="county-stat clickable" onclick="showCountyStatSource('poverty')" title="Click for source">
                                 <div class="county-stat-value" id="countyPovertyRate">-</div>
                                 <div class="county-stat-label">Poverty Rate</div>
                             </div>
@@ -1762,13 +1859,13 @@
                             <thead>
                                 <tr>
                                     <th>District</th>
-                                    <th title="Average eviction filings per month">Avg/Mo</th>
-                                    <th id="perCapitaHeader">Per 1K</th>
-                                    <th>Population</th>
-                                    <th>Med. Income</th>
-                                    <th>Poverty</th>
-                                    <th>Rent Burden</th>
-                                    <th>Unemploy.</th>
+                                    <th class="th-clickable" onclick="showDemographicMetricSource('avgPerMonth')" title="Click for source: Average eviction filings per month">Avg/Mo <span class="th-info">ℹ️</span></th>
+                                    <th id="perCapitaHeader" class="th-clickable" onclick="showDemographicMetricSource('perCapita')" title="Click for source">Per 1K <span class="th-info">ℹ️</span></th>
+                                    <th class="th-clickable" onclick="showDemographicMetricSource('population')" title="Click for source">Population <span class="th-info">ℹ️</span></th>
+                                    <th class="th-clickable" onclick="showDemographicMetricSource('income')" title="Click for source">Med. Income <span class="th-info">ℹ️</span></th>
+                                    <th class="th-clickable" onclick="showDemographicMetricSource('poverty')" title="Click for source">Poverty <span class="th-info">ℹ️</span></th>
+                                    <th class="th-clickable" onclick="showDemographicMetricSource('rentBurden')" title="Click for source">Rent Burden <span class="th-info">ℹ️</span></th>
+                                    <th class="th-clickable" onclick="showDemographicMetricSource('unemployment')" title="Click for source">Unemploy. <span class="th-info">ℹ️</span></th>
                                 </tr>
                             </thead>
                             <tbody id="demographicsTableBody">
@@ -3115,6 +3212,268 @@
                 return date >= thirtyDaysAgo;
             }).length;
             document.getElementById('last30Days').textContent = last30Count.toLocaleString();
+        }
+
+        // Track active metric filter
+        let activeMetricFilter = null;
+
+        function filterByMetric(metricType) {
+            const now = new Date();
+            const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+            const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+            // Clear previous metric filter styling
+            document.querySelectorAll('.metric-clickable').forEach(el => el.classList.remove('active'));
+
+            // Clear chart filter if any
+            if (chartFilter) {
+                clearChartFilter();
+            }
+
+            // If clicking the same filter, toggle it off
+            if (activeMetricFilter === metricType) {
+                activeMetricFilter = null;
+                filteredData = [...allData];
+                updateGridData();
+                return;
+            }
+
+            activeMetricFilter = metricType;
+
+            // Apply the appropriate filter
+            switch(metricType) {
+                case 'total':
+                    document.getElementById('metricTotal').classList.add('active');
+                    filteredData = [...allData];
+                    break;
+                case 'thisMonth':
+                    document.getElementById('metricMonth').classList.add('active');
+                    filteredData = allData.filter(d => {
+                        const date = new Date(d.File_Date);
+                        return date >= thisMonthStart;
+                    });
+                    break;
+                case 'last30Days':
+                    document.getElementById('metricThirty').classList.add('active');
+                    filteredData = allData.filter(d => {
+                        const date = new Date(d.File_Date);
+                        return date >= thirtyDaysAgo;
+                    });
+                    break;
+            }
+
+            updateGridData();
+
+            // Scroll to the grid
+            document.getElementById('dataGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function showMetricSource(metricType) {
+            const sourceInfo = {
+                total: {
+                    title: 'Total Records',
+                    description: 'Total number of eviction filings in the dataset.',
+                    source: 'Davidson County Sessions Court',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    methodology: 'Records are collected from public court filings. This count represents all eviction cases filed in Davidson County that are available in the public records system.'
+                },
+                thisMonth: {
+                    title: 'This Month',
+                    description: 'Eviction filings from the first day of the current month to today.',
+                    source: 'Davidson County Sessions Court',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    methodology: 'Calculated by filtering records where the filing date is on or after the first day of the current calendar month.'
+                },
+                last30Days: {
+                    title: 'Last 30 Days',
+                    description: 'Eviction filings from the past 30 calendar days.',
+                    source: 'Davidson County Sessions Court',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    methodology: 'Calculated by filtering records where the filing date is within the last 30 days from today.'
+                }
+            };
+
+            const info = sourceInfo[metricType];
+            if (!info) return;
+
+            // Create modal content
+            const modalHtml = `
+                <div class="modal-overlay" onclick="closeMetricSourceModal(event)">
+                    <div class="modal-container" style="max-width: 500px;" onclick="event.stopPropagation()">
+                        <button class="modal-close" onclick="closeMetricSourceModal()">&times;</button>
+                        <h2 style="font-size: 1.5rem; font-weight: 700; color: #1e3a5f; margin-bottom: 1rem;">${info.title}</h2>
+                        <div style="margin-bottom: 1rem;">
+                            <p style="color: #374151; margin-bottom: 0.5rem;">${info.description}</p>
+                        </div>
+                        <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 0.5rem;">Methodology</div>
+                            <p style="color: #374151; font-size: 0.875rem;">${info.methodology}</p>
+                        </div>
+                        <div class="modal-source">
+                            Source: <a href="${info.sourceUrl}" target="_blank">${info.source}</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add modal to body
+            const modalWrapper = document.createElement('div');
+            modalWrapper.id = 'metricSourceModal';
+            modalWrapper.innerHTML = modalHtml;
+            document.body.appendChild(modalWrapper);
+        }
+
+        function closeMetricSourceModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            const modal = document.getElementById('metricSourceModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        function showCountyStatSource(statType) {
+            const sourceInfo = {
+                evictions: {
+                    title: 'Evictions Per Year',
+                    description: 'Annualized count of eviction filings in Davidson County.',
+                    source: 'Davidson County Sessions Court',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    methodology: 'Calculated by annualizing the eviction filing count based on available data. If data spans less than a full year, the count is pro-rated to estimate the annual total.'
+                },
+                population: {
+                    title: 'Population',
+                    description: 'Total population of Davidson County.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Population data from the U.S. Census Bureau American Community Survey, aggregated across all 35 council districts.'
+                },
+                income: {
+                    title: 'Median Household Income',
+                    description: 'Median annual household income for Davidson County residents.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Median income calculated from census data representing the midpoint of all household incomes in the county.'
+                },
+                poverty: {
+                    title: 'Poverty Rate',
+                    description: 'Percentage of Davidson County residents living below the federal poverty line.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Poverty rate based on federal poverty thresholds which vary by family size and composition.'
+                }
+            };
+
+            const info = sourceInfo[statType];
+            if (!info) return;
+
+            // Create modal content
+            const modalHtml = `
+                <div class="modal-overlay" onclick="closeMetricSourceModal(event)">
+                    <div class="modal-container" style="max-width: 500px;" onclick="event.stopPropagation()">
+                        <button class="modal-close" onclick="closeMetricSourceModal()">&times;</button>
+                        <h2 style="font-size: 1.5rem; font-weight: 700; color: #1e3a5f; margin-bottom: 1rem;">${info.title}</h2>
+                        <div style="margin-bottom: 1rem;">
+                            <p style="color: #374151; margin-bottom: 0.5rem;">${info.description}</p>
+                        </div>
+                        <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 0.5rem;">Methodology</div>
+                            <p style="color: #374151; font-size: 0.875rem;">${info.methodology}</p>
+                        </div>
+                        <div class="modal-source">
+                            Source: <a href="${info.sourceUrl}" target="_blank">${info.source}</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add modal to body
+            const modalWrapper = document.createElement('div');
+            modalWrapper.id = 'metricSourceModal';
+            modalWrapper.innerHTML = modalHtml;
+            document.body.appendChild(modalWrapper);
+        }
+
+        function showDemographicMetricSource(metricType) {
+            const sourceInfo = {
+                avgPerMonth: {
+                    title: 'Average Evictions per Month',
+                    description: 'Average number of eviction filings per month in each district.',
+                    source: 'Davidson County Sessions Court',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    methodology: 'Calculated by dividing total eviction filings by the number of months in the data range for each district.'
+                },
+                perCapita: {
+                    title: 'Evictions per 1,000 Residents',
+                    description: 'Normalized eviction rate per 1,000 population in each district.',
+                    source: 'Court records + American Community Survey',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    methodology: 'Calculated as (Total Evictions / District Population) × 1,000. Allows comparison across districts of different sizes.'
+                },
+                population: {
+                    title: 'District Population',
+                    description: 'Total population count for each council district.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Population data from U.S. Census Bureau, aggregated by council district boundaries.'
+                },
+                income: {
+                    title: 'Median Household Income',
+                    description: 'Median annual household income for residents in each district.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Median income represents the midpoint of all household incomes in the district.'
+                },
+                poverty: {
+                    title: 'Poverty Rate',
+                    description: 'Percentage of residents living below the federal poverty line.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Based on federal poverty thresholds which vary by family size and composition.'
+                },
+                rentBurden: {
+                    title: 'Renter Cost Burden',
+                    description: 'Percentage of renters spending more than 30% of income on housing.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'HUD defines cost-burdened households as those paying more than 30% of income for housing costs.'
+                },
+                unemployment: {
+                    title: 'Unemployment Rate',
+                    description: 'Percentage of labor force that is unemployed in each district.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Unemployment rate for civilian labor force aged 16 and over.'
+                }
+            };
+
+            const info = sourceInfo[metricType];
+            if (!info) return;
+
+            // Create modal content
+            const modalHtml = `
+                <div class="modal-overlay" onclick="closeMetricSourceModal(event)">
+                    <div class="modal-container" style="max-width: 500px;" onclick="event.stopPropagation()">
+                        <button class="modal-close" onclick="closeMetricSourceModal()">&times;</button>
+                        <h2 style="font-size: 1.5rem; font-weight: 700; color: #1e3a5f; margin-bottom: 1rem;">${info.title}</h2>
+                        <div style="margin-bottom: 1rem;">
+                            <p style="color: #374151; margin-bottom: 0.5rem;">${info.description}</p>
+                        </div>
+                        <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 0.5rem;">Methodology</div>
+                            <p style="color: #374151; font-size: 0.875rem;">${info.methodology}</p>
+                        </div>
+                        <div class="modal-source">
+                            Source: <a href="${info.sourceUrl}" target="_blank">${info.source}</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add modal to body
+            const modalWrapper = document.createElement('div');
+            modalWrapper.id = 'metricSourceModal';
+            modalWrapper.innerHTML = modalHtml;
+            document.body.appendChild(modalWrapper);
         }
 
         // Track active chart filter for month/year
