@@ -378,14 +378,132 @@
         .secret-overlay .placeholder-content p {
             font-size: 14px;
         }
+
+        /* Access modal styles */
+        .access-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .access-modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .access-modal {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .access-modal-overlay.visible .access-modal {
+            transform: scale(1);
+        }
+
+        .access-modal h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .access-modal p {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .access-modal input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 16px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .access-modal input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .access-modal input.error {
+            border-color: var(--danger);
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+        }
+
+        .access-modal .error-message {
+            color: var(--danger);
+            font-size: 13px;
+            margin-top: -12px;
+            margin-bottom: 12px;
+            display: none;
+        }
+
+        .access-modal .error-message.visible {
+            display: block;
+        }
+
+        .access-modal .btn-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .access-modal .btn-group .btn {
+            flex: 1;
+        }
+
+        .access-modal .btn-cancel {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .access-modal .btn-cancel:hover {
+            background: #e5e7eb;
+        }
     </style>
 </head>
 <body>
-    <!-- Secret access overlay - hidden by escape x3 + "map" -->
+    <!-- Secret access overlay - hidden by escape x3 + "wilson" modal -->
     <div class="secret-overlay" id="secretOverlay">
         <div class="placeholder-content">
             <h2>Page Not Available</h2>
             <p>This content is currently unavailable.</p>
+        </div>
+    </div>
+
+    <!-- Access verification modal -->
+    <div class="access-modal-overlay" id="accessModal" onclick="if(event.target === this) hideAccessModal()">
+        <div class="access-modal" onclick="event.stopPropagation()">
+            <h3>Access Verification</h3>
+            <p>Enter the access code to continue.</p>
+            <input type="password" id="accessCodeInput" placeholder="Enter access code" autocomplete="off" onkeydown="if(event.key === 'Enter') verifyAccessCode()">
+            <div class="error-message" id="accessError">Incorrect access code. Please try again.</div>
+            <div class="btn-group">
+                <button class="btn btn-cancel" onclick="hideAccessModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="verifyAccessCode()">Verify</button>
+            </div>
         </div>
     </div>
 
@@ -497,20 +615,16 @@
 
     <script>
         // =============================================
-        // SECRET ACCESS SEQUENCE (ESC x3 + "map")
+        // SECRET ACCESS SEQUENCE (ESC x3 + modal with "wilson")
         // =============================================
         (function() {
             let escapeCount = 0;
             let escapeTimeout = null;
-            let inputBuffer = '';
-            let inputTimeout = null;
-            const SECRET_WORD = 'map';
+            const ACCESS_CODE = 'wilson';
 
-            function resetSequence() {
+            function resetEscapeCount() {
                 escapeCount = 0;
-                inputBuffer = '';
                 if (escapeTimeout) clearTimeout(escapeTimeout);
-                if (inputTimeout) clearTimeout(inputTimeout);
             }
 
             function revealMap() {
@@ -520,11 +634,64 @@
                 }
             }
 
+            // Global functions for modal control
+            window.showAccessModal = function() {
+                const modal = document.getElementById('accessModal');
+                const input = document.getElementById('accessCodeInput');
+                const error = document.getElementById('accessError');
+
+                if (modal) {
+                    modal.classList.add('visible');
+                    error.classList.remove('visible');
+                    input.classList.remove('error');
+                    input.value = '';
+                    setTimeout(() => input.focus(), 100);
+                }
+            };
+
+            window.hideAccessModal = function() {
+                const modal = document.getElementById('accessModal');
+                const input = document.getElementById('accessCodeInput');
+                const error = document.getElementById('accessError');
+
+                if (modal) {
+                    modal.classList.remove('visible');
+                    input.value = '';
+                    input.classList.remove('error');
+                    error.classList.remove('visible');
+                }
+                resetEscapeCount();
+            };
+
+            window.verifyAccessCode = function() {
+                const input = document.getElementById('accessCodeInput');
+                const error = document.getElementById('accessError');
+                const code = input.value.toLowerCase().trim();
+
+                if (code === ACCESS_CODE) {
+                    hideAccessModal();
+                    revealMap();
+                } else {
+                    input.classList.add('error');
+                    error.classList.add('visible');
+                    input.value = '';
+                    input.focus();
+                }
+            };
+
             document.addEventListener('keydown', function(e) {
+                // Don't track escape when modal is open
+                const modal = document.getElementById('accessModal');
+                if (modal && modal.classList.contains('visible')) {
+                    if (e.key === 'Escape') {
+                        hideAccessModal();
+                    }
+                    return;
+                }
+
                 // Handle Escape key
                 if (e.key === 'Escape') {
                     escapeCount++;
-                    inputBuffer = ''; // Reset input buffer on escape
 
                     // Reset escape count after 2 seconds of no escape presses
                     if (escapeTimeout) clearTimeout(escapeTimeout);
@@ -532,31 +699,10 @@
                         escapeCount = 0;
                     }, 2000);
 
-                    return;
-                }
-
-                // Only track letter input after 3 escapes
-                if (escapeCount >= 3) {
-                    // Add letter to buffer (lowercase)
-                    if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
-                        inputBuffer += e.key.toLowerCase();
-
-                        // Reset input buffer after 3 seconds of no input
-                        if (inputTimeout) clearTimeout(inputTimeout);
-                        inputTimeout = setTimeout(() => {
-                            inputBuffer = '';
-                        }, 3000);
-
-                        // Check if the secret word was typed
-                        if (inputBuffer.includes(SECRET_WORD)) {
-                            revealMap();
-                            resetSequence();
-                        }
-
-                        // Keep buffer from growing too large
-                        if (inputBuffer.length > 20) {
-                            inputBuffer = inputBuffer.slice(-10);
-                        }
+                    // Show modal after 3 escapes
+                    if (escapeCount >= 3) {
+                        showAccessModal();
+                        resetEscapeCount();
                     }
                 }
             });
