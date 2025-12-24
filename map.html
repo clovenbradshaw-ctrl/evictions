@@ -150,6 +150,88 @@
             margin-top: 2px;
         }
 
+        .stat-card.clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .stat-card.clickable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+            border-color: var(--primary);
+        }
+
+        .stat-card.clickable:hover .stat-value {
+            color: var(--primary);
+        }
+
+        .stat-card.clickable::after {
+            content: "ℹ️";
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 10px;
+            opacity: 0.5;
+        }
+
+        .stat-card.clickable:hover::after {
+            opacity: 1;
+        }
+
+        /* Modal styles for map page */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .modal-close:hover {
+            color: #111827;
+        }
+
+        .modal-source {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-align: center;
+        }
+
+        .modal-source a {
+            color: var(--primary);
+        }
+
         .legend {
             margin-bottom: 24px;
         }
@@ -529,19 +611,19 @@
         <aside class="sidebar">
             <div class="section-title">Overview</div>
             <div class="stats-grid">
-                <div class="stat-card">
+                <div class="stat-card clickable" onclick="showMapMetricSource('totalEvictions')" title="Click for source">
                     <div class="stat-value" id="totalEvictions">--</div>
                     <div class="stat-label">Total Evictions</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card clickable" onclick="showMapMetricSource('avgPerDistrict')" title="Click for source">
                     <div class="stat-value" id="avgPerDistrict">--</div>
                     <div class="stat-label">Avg per District</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card clickable" onclick="showMapMetricSource('hotspotDistrict')" title="Click for source">
                     <div class="stat-value" id="hotspotDistrict">--</div>
                     <div class="stat-label">Top Hotspot</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card clickable" onclick="showMapMetricSource('hotspotCount')" title="Click for source">
                     <div class="stat-value" id="hotspotCount">--</div>
                     <div class="stat-label">Hotspot Evictions</div>
                 </div>
@@ -717,6 +799,79 @@
                 }
             });
         })();
+
+        // =============================================
+        // METRIC SOURCE MODAL FUNCTIONS
+        // =============================================
+        function showMapMetricSource(metricType) {
+            const sourceInfo = {
+                totalEvictions: {
+                    title: 'Total Evictions',
+                    description: 'Total number of eviction filings within the selected date range and filters.',
+                    source: 'Davidson County Sessions Court',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    methodology: 'Sum of all eviction filings recorded in the public court records that match the current filter criteria.'
+                },
+                avgPerDistrict: {
+                    title: 'Average per District',
+                    description: 'Mean number of eviction filings across all 35 council districts.',
+                    source: 'Davidson County Sessions Court',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    methodology: 'Calculated as Total Evictions / 35 districts. This provides a baseline for comparing individual district activity.'
+                },
+                hotspotDistrict: {
+                    title: 'Top Hotspot District',
+                    description: 'The council district with the highest number of eviction filings.',
+                    source: 'Davidson County Sessions Court',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    methodology: 'Identified by ranking all districts by eviction count and selecting the district with the maximum value.'
+                },
+                hotspotCount: {
+                    title: 'Hotspot Evictions',
+                    description: 'Number of eviction filings in the top hotspot district.',
+                    source: 'Davidson County Sessions Court',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    methodology: 'Total eviction count for the district identified as having the highest activity.'
+                }
+            };
+
+            const info = sourceInfo[metricType];
+            if (!info) return;
+
+            // Create modal content
+            const modalHtml = `
+                <div class="modal-overlay" onclick="closeMapMetricSourceModal(event)">
+                    <div class="modal-container" onclick="event.stopPropagation()">
+                        <button class="modal-close" onclick="closeMapMetricSourceModal()">&times;</button>
+                        <h2 style="font-size: 1.5rem; font-weight: 700; color: #1e3a5f; margin-bottom: 1rem;">${info.title}</h2>
+                        <div style="margin-bottom: 1rem;">
+                            <p style="color: #374151; margin-bottom: 0.5rem;">${info.description}</p>
+                        </div>
+                        <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 0.5rem;">Methodology</div>
+                            <p style="color: #374151; font-size: 0.875rem;">${info.methodology}</p>
+                        </div>
+                        <div class="modal-source">
+                            Source: <a href="${info.sourceUrl}" target="_blank">${info.source}</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add modal to body
+            const modalWrapper = document.createElement('div');
+            modalWrapper.id = 'mapMetricSourceModal';
+            modalWrapper.innerHTML = modalHtml;
+            document.body.appendChild(modalWrapper);
+        }
+
+        function closeMapMetricSourceModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            const modal = document.getElementById('mapMetricSourceModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
 
         // =============================================
         // CONFIGURATION
