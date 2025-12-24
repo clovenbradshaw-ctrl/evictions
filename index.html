@@ -1614,9 +1614,6 @@
                 <!-- Hidden legacy inputs for compatibility -->
                 <input type="date" id="dateFrom" class="hidden">
                 <input type="date" id="dateTo" class="hidden">
-                <select id="statusFilter" class="hidden">
-                    <option value="">All</option>
-                </select>
             </div>
 
             <!-- Custom Grouping Tab -->
@@ -1631,7 +1628,6 @@
                                 <option value="Plaintiff">Plaintiff/Landlord</option>
                                 <option value="Defendant">Defendant/Tenant</option>
                                 <option value="Attorney">Attorney</option>
-                                <option value="Status">Status</option>
                                 <option value="District">Council District</option>
                                 <option value="File_Date_Month">Month Filed</option>
                                 <option value="File_Date_Year">Year Filed</option>
@@ -1645,7 +1641,6 @@
                                 <option value="Plaintiff">Plaintiff/Landlord</option>
                                 <option value="Defendant">Defendant/Tenant</option>
                                 <option value="Attorney">Attorney</option>
-                                <option value="Status">Status</option>
                                 <option value="District">Council District</option>
                                 <option value="File_Date_Month">Month Filed</option>
                                 <option value="File_Date_Year">Year Filed</option>
@@ -2188,8 +2183,7 @@
                 id: r.Case_Number || r.case_number || r.Docket_Number || '',
                 d: r.District || null,  // District number
                 fd: r.File_Date || r.file_date || '',  // File date
-                p: r.Plaintiff_Petitioner || r.plaintiff_petitioner || r.Plaintiff || '',  // Plaintiff/Landlord
-                s: r.Status || r.status || ''  // Status (for pending/closed)
+                p: r.Plaintiff_Petitioner || r.plaintiff_petitioner || r.Plaintiff || ''  // Plaintiff/Landlord
             }));
         }
 
@@ -2199,8 +2193,7 @@
                 Case_Number: r.id,
                 District: r.d,
                 File_Date: r.fd,
-                Plaintiff_Petitioner: r.p,
-                Status: r.s
+                Plaintiff_Petitioner: r.p
             }));
         }
 
@@ -2957,7 +2950,6 @@
             const normalized = {
                 ...record,
                 File_Date: parseDate(record.File_Date || record.file_date),
-                Status: record.Status || record.status || 'UNKNOWN',
                 Plaintiff: record.Plaintiff_Petitioner || record.Plaintiff || record.plaintiff || '',
                 Defendant: record.Defendant_Respondent || record.Defendant || record.defendant || '',
                 Address: record.address_formatted || record.formatted_address || record.address || '',
@@ -3589,11 +3581,10 @@
             filteredData = allData;
 
             // Re-apply any existing filters from the filter panel
-            const status = document.getElementById('statusFilter').value;
             const dateFrom = document.getElementById('dateFrom').value;
             const dateTo = document.getElementById('dateTo').value;
 
-            if (status || dateFrom || dateTo) {
+            if (dateFrom || dateTo) {
                 applyFilters();
             } else {
                 if (viewMode === 'pivot') {
@@ -3688,11 +3679,10 @@
             filteredData = allData;
 
             // Re-apply any existing filters from the filter panel
-            const status = document.getElementById('statusFilter').value;
             const dateFrom = document.getElementById('dateFrom').value;
             const dateTo = document.getElementById('dateTo').value;
 
-            if (status || dateFrom || dateTo) {
+            if (dateFrom || dateTo) {
                 applyFilters();
             } else {
                 if (viewMode === 'pivot') {
@@ -4797,7 +4787,6 @@
                             <td><span class="confidence-badge ${confClass}">${(r.confidence * 100).toFixed(0)}%</span></td>
                             <td>${escapeHtml(fileDate)}</td>
                             <td>${escapeHtml(r.record.Attorney || 'Unavailable')}</td>
-                            <td>${escapeHtml(r.record.Status || 'Unavailable')}</td>
                         </tr>
                     `;
                 }).join('');
@@ -4813,7 +4802,6 @@
                                     <th>Confidence</th>
                                     <th>File Date</th>
                                     <th>Attorney</th>
-                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -4848,14 +4836,10 @@
             chartFilter = null;
             updateChartFilterIndicator();
 
-            const status = document.getElementById('statusFilter').value;
             const dateFrom = document.getElementById('dateFrom').value;
             const dateTo = document.getElementById('dateTo').value;
 
             filteredData = allData.filter(record => {
-                // Status filter
-                if (status && record.Status !== status) return false;
-
                 // Date filter
                 if (dateFrom || dateTo) {
                     const recordDate = new Date(record.File_Date);
@@ -4882,7 +4866,6 @@
         }
 
         function clearFilters() {
-            document.getElementById('statusFilter').value = '';
             document.getElementById('dateFrom').value = '';
             document.getElementById('dateTo').value = '';
 
@@ -5162,10 +5145,10 @@
         }
 
         function exportCSV() {
-            let csv = 'File Date,Docket Number,Plaintiff,Defendant,Attorney,Status\n';
+            let csv = 'File Date,Docket Number,Plaintiff,Defendant,Attorney\n';
 
             filteredData.forEach(row => {
-                csv += `"${new Date(row.File_Date).toLocaleDateString()}","${row.Case_Number}","${row.Plaintiff}","${row.Defendant}","${row.Attorney}","${row.Status}"\n`;
+                csv += `"${new Date(row.File_Date).toLocaleDateString()}","${row.Case_Number}","${row.Plaintiff}","${row.Defendant}","${row.Attorney}"\n`;
             });
             
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -5182,10 +5165,10 @@
                 return;
             }
 
-            let csv = 'Search Term,Matched Name,Confidence,File Date,Attorney,Status\n';
+            let csv = 'Search Term,Matched Name,Confidence,File Date,Attorney\n';
 
             searchMatches.forEach(match => {
-                csv += `"${match.searchTerm}","${match.match}","${(match.confidence * 100).toFixed(1)}%","${new Date(match.record.File_Date).toLocaleDateString()}","${match.record.Attorney}","${match.record.Status}"\n`;
+                csv += `"${match.searchTerm}","${match.match}","${(match.confidence * 100).toFixed(1)}%","${new Date(match.record.File_Date).toLocaleDateString()}","${match.record.Attorney}"\n`;
             });
 
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -5218,7 +5201,6 @@
             { key: 'id', label: 'ID', type: 'integer' },
             { key: 'Office', label: 'Office', type: 'text' },
             { key: 'Docket_Number', label: 'Docket Number', type: 'text' },
-            { key: 'Status', label: 'Status', type: 'text' },
             { key: 'File_Date', label: 'File Date', type: 'text' },
             { key: 'Description', label: 'Description', type: 'text' },
             { key: 'Plaintiff_Petitioner', label: 'Plaintiff/Petitioner', type: 'text' },
@@ -5241,7 +5223,6 @@
             'docket': 'Docket_Number',
             'case_number': 'Docket_Number',
             'case': 'Docket_Number',
-            'status': 'Status',
             'file_date': 'File_Date',
             'filedate': 'File_Date',
             'date': 'File_Date',
@@ -6451,7 +6432,6 @@
                 'Plaintiff': 'Landlord',
                 'Defendant': 'Tenant',
                 'Attorney': 'Attorney',
-                'Status': 'Status',
                 'District': 'Council District',
                 'File_Date_Month': 'Month',
                 'File_Date_Year': 'Year',
@@ -6741,9 +6721,8 @@
 
             const dateFrom = document.getElementById('dateFrom').value;
             const dateTo = document.getElementById('dateTo').value;
-            const status = document.getElementById('statusFilter').value;
 
-            if (dateFrom || dateTo || status) {
+            if (dateFrom || dateTo) {
                 const groupId = addFilterGroup();
                 const group = findGroupById(groupId);
                 group.conditions = [];
@@ -6770,16 +6749,6 @@
                         field: 'File_Date',
                         operator: 'before',
                         value: dateTo,
-                        value2: ''
-                    });
-                }
-
-                if (status) {
-                    group.conditions.push({
-                        id: Date.now() + 1,
-                        field: 'Status',
-                        operator: 'equals',
-                        value: status,
                         value2: ''
                     });
                 }

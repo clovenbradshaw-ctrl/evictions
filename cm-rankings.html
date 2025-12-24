@@ -1296,8 +1296,7 @@
                 Case_Number: r.id,
                 District: r.d,
                 File_Date: r.fd,
-                Plaintiff_Petitioner: r.p,
-                Status: r.s
+                Plaintiff_Petitioner: r.p
             }));
         }
 
@@ -1628,15 +1627,6 @@
                 <div id="evictionsContent">
             `;
 
-            // Calculate pending/closed counts for each landlord
-            sortedLandlords.forEach(landlord => {
-                landlord.pending = landlord.evictions.filter(e => {
-                    const status = (e.Status || e.status || '').toUpperCase();
-                    return status.includes('PENDING') || status.includes('OPEN') || status.includes('ACTIVE');
-                }).length;
-                landlord.closed = landlord.evictions.length - landlord.pending;
-            });
-
             // By Landlord view (default) - now as a sortable table
             html += `<div id="landlordView">`;
             if (sortedLandlords.length === 0) {
@@ -1649,8 +1639,6 @@
                                 <tr>
                                     <th data-sort="name" onclick="sortLandlordTable('name', ${district})">Landlord/Plaintiff</th>
                                     <th data-sort="filings" class="sorted-desc" onclick="sortLandlordTable('filings', ${district})">Filings</th>
-                                    <th data-sort="pending" onclick="sortLandlordTable('pending', ${district})">Pending</th>
-                                    <th data-sort="closed" onclick="sortLandlordTable('closed', ${district})">Closed</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1667,8 +1655,6 @@
                         <tr>
                             <td class="${nameClass}">${truncateLandlord(displayName, 40)}</td>
                             <td><strong>${landlord.evictions.length}</strong></td>
-                            <td>${landlord.pending}</td>
-                            <td>${landlord.closed}</td>
                         </tr>
                     `;
                 });
@@ -1700,7 +1686,6 @@
                                     <th>Date</th>
                                     <th>Case #</th>
                                     <th>Landlord/Plaintiff</th>
-                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1718,13 +1703,11 @@
                     const plaintiff = ev.Plaintiff_Petitioner || ev.plaintiff_petitioner || ev.Plaintiff || '-';
                     const displayPlaintiff = getDisplayName(plaintiff);
                     const nameClass = isLoggedIn ? '' : 'name-hidden';
-                    const status = ev.Status || ev.status || '-';
                     html += `
                         <tr>
                             <td>${dateStr}</td>
                             <td>${caseNum}</td>
                             <td class="${nameClass}">${truncateLandlord(displayPlaintiff, 35)}</td>
-                            <td>${status}</td>
                         </tr>
                     `;
                 });
@@ -2534,14 +2517,6 @@
                         valA = a.evictions.length;
                         valB = b.evictions.length;
                         break;
-                    case 'pending':
-                        valA = a.pending;
-                        valB = b.pending;
-                        break;
-                    case 'closed':
-                        valA = a.closed;
-                        valB = b.closed;
-                        break;
                     default:
                         return 0;
                 }
@@ -2574,8 +2549,6 @@
                     <tr>
                         <td class="${nameClass}">${truncateLandlord(displayName, 40)}</td>
                         <td><strong>${landlord.evictions.length}</strong></td>
-                        <td>${landlord.pending}</td>
-                        <td>${landlord.closed}</td>
                     </tr>
                 `;
             });
