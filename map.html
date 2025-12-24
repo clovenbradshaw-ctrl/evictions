@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eviction Hotspots Map - Nashville</title>
+    <link rel="icon" type="image/png" href="https://storage.googleapis.com/intelechia-content/im/eviction%20prevention%20logo.png">
+    <link rel="stylesheet" href="dist/output.css">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        :root {
+            --primary: #4f46e5;
+            --secondary: #06b6d4;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --success: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f9fafb;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            height: 40px;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #4338ca;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .main-container {
+            display: flex;
+            height: calc(100vh - 73px);
+        }
+
+        .sidebar {
+            width: 360px;
+            background: white;
+            border-right: 1px solid #e5e7eb;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .legend {
+            margin-bottom: 24px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .district-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .district-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .district-item:hover {
+            background: #f3f4f6;
+        }
+
+        .district-item.active {
+            background: #eef2ff;
+            border: 1px solid var(--primary);
+        }
+
+        .district-name {
+            font-weight: 500;
+            color: #111827;
+        }
+
+        .district-count {
+            font-weight: 600;
+            color: var(--danger);
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e5e7eb;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-top: 16px;
+            font-weight: 500;
+            color: #6b7280;
+        }
+
+        /* Heat colors matching main app */
+        .heat-0 { background: #f3f4f6; }
+        .heat-1 { background: #dbeafe; }
+        .heat-2 { background: #fef3c7; }
+        .heat-3 { background: #fed7aa; }
+        .heat-4 { background: #fca5a5; }
+        .heat-5 { background: #ef4444; }
+
+        .info-popup {
+            padding: 12px;
+            min-width: 200px;
+        }
+
+        .info-popup h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #111827;
+        }
+
+        .info-popup .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 13px;
+        }
+
+        .info-popup .stat-row .label {
+            color: #6b7280;
+        }
+
+        .info-popup .stat-row .value {
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .filters {
+            margin-bottom: 24px;
+        }
+
+        .filter-group {
+            margin-bottom: 12px;
+        }
+
+        .filter-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .filter-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .date-range {
+            display: flex;
+            gap: 8px;
+        }
+
+        .date-range input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .notice-banner {
+            background: #fef3c7;
+            border-bottom: 2px solid #f59e0b;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #92400e;
+        }
+
+        .notice-banner a {
+            color: #b45309;
+            font-weight: 600;
+        }
+
+        .notice-banner.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="notice-banner" id="noticeBanner">
+        <span>Using placeholder district shapes. For accurate boundaries, download the GeoJSON from
+            <a href="https://www.arcgis.com/home/item.html?id=76563eb036964dbab90ba7449ebba8c9" target="_blank">Nashville ArcGIS</a>
+            and save as <code>council-districts.geojson</code> in the project folder.
+        </span>
+        <button onclick="document.getElementById('noticeBanner').classList.add('hidden')" style="background: none; border: none; cursor: pointer; font-size: 18px;">&times;</button>
+    </div>
+
+    <header class="header">
+        <div class="header-left">
+            <img src="https://storage.googleapis.com/intelechia-content/im/eviction%20prevention%20logo.png" alt="Logo" class="logo">
+            <h1>Eviction Hotspots Map</h1>
+        </div>
+        <div class="header-right">
+            <a href="index.html" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <aside class="sidebar">
+            <div class="section-title">Overview</div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalEvictions">--</div>
+                    <div class="stat-label">Total Evictions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgPerDistrict">--</div>
+                    <div class="stat-label">Avg per District</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="hotspotDistrict">--</div>
+                    <div class="stat-label">Top Hotspot</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="hotspotCount">--</div>
+                    <div class="stat-label">Hotspot Evictions</div>
+                </div>
+            </div>
+
+            <div class="filters">
+                <div class="section-title">Filters</div>
+                <div class="filter-group">
+                    <div class="filter-label">Date Range</div>
+                    <div class="date-range">
+                        <input type="date" id="startDate">
+                        <input type="date" id="endDate">
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <div class="filter-label">Heat Metric</div>
+                    <select class="filter-select" id="heatMetric">
+                        <option value="total">Total Evictions</option>
+                        <option value="per_capita">Per 1,000 Residents</option>
+                        <option value="per_rental">Per 100 Rental Units</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" style="width: 100%; margin-top: 12px;" onclick="applyFilters()">Apply Filters</button>
+            </div>
+
+            <div class="legend">
+                <div class="section-title">Heat Legend</div>
+                <div class="legend-item">
+                    <div class="legend-color heat-5"></div>
+                    <span>Critical (Top 20%)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color heat-4"></div>
+                    <span>High (60-80%)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color heat-3"></div>
+                    <span>Moderate (40-60%)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color heat-2"></div>
+                    <span>Low (20-40%)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color heat-1"></div>
+                    <span>Minimal (Bottom 20%)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color heat-0"></div>
+                    <span>No Data</span>
+                </div>
+            </div>
+
+            <div class="section-title">Districts by Evictions</div>
+            <div class="district-list" id="districtList">
+                <!-- Populated by JS -->
+            </div>
+        </aside>
+
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="spinner"></div>
+                <div class="loading-text">Loading eviction data...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // =============================================
+        // CONFIGURATION
+        // =============================================
+        const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainers';
+        const NASHVILLE_CENTER = [36.1627, -86.7816];
+        const DEFAULT_ZOOM = 11;
+
+        // Heat colors matching the main app
+        const HEAT_COLORS = {
+            0: { fill: '#f3f4f6', stroke: '#9ca3af', text: '#9ca3af' },
+            1: { fill: '#dbeafe', stroke: '#3b82f6', text: '#1e40af' },
+            2: { fill: '#fef3c7', stroke: '#f59e0b', text: '#92400e' },
+            3: { fill: '#fed7aa', stroke: '#f97316', text: '#9a3412' },
+            4: { fill: '#fca5a5', stroke: '#ef4444', text: '#991b1b' },
+            5: { fill: '#ef4444', stroke: '#dc2626', text: '#ffffff' }
+        };
+
+        // =============================================
+        // STATE
+        // =============================================
+        let map;
+        let districtLayer;
+        let evictionData = [];
+        let districtGeoJSON = null;
+        let districtDemographics = {};
+        let districtEvictionCounts = {};
+
+        // =============================================
+        // INITIALIZATION
+        // =============================================
+        async function init() {
+            initMap();
+            await Promise.all([
+                loadDistrictBoundaries(),
+                loadDistrictDemographics(),
+                loadEvictionData()
+            ]);
+            calculateDistrictCounts();
+            renderDistricts();
+            updateStats();
+            updateDistrictList();
+            hideLoading();
+        }
+
+        function initMap() {
+            map = L.map('map', {
+                center: NASHVILLE_CENTER,
+                zoom: DEFAULT_ZOOM,
+                zoomControl: true
+            });
+
+            // Add tile layer (CartoDB Positron for clean look)
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        // =============================================
+        // DATA LOADING
+        // =============================================
+        async function loadDistrictBoundaries() {
+            try {
+                // Try to load from local file first
+                const response = await fetch('council-districts.geojson');
+                if (response.ok) {
+                    districtGeoJSON = await response.json();
+                    console.log('Loaded council district boundaries:', districtGeoJSON.features?.length || 0, 'districts');
+                    // Hide the notice banner since real data is loaded
+                    document.getElementById('noticeBanner').classList.add('hidden');
+                    return;
+                }
+            } catch (e) {
+                console.log('Local GeoJSON not found, using placeholder districts');
+            }
+
+            // Fallback: Create placeholder district centroids
+            // User should download real GeoJSON from ArcGIS
+            districtGeoJSON = createPlaceholderDistricts();
+        }
+
+        async function loadDistrictDemographics() {
+            try {
+                const response = await fetch('district-data.json');
+                const data = await response.json();
+                districtDemographics = data.districts || {};
+                console.log('Loaded demographics for', Object.keys(districtDemographics).length, 'districts');
+            } catch (e) {
+                console.error('Failed to load district demographics:', e);
+            }
+        }
+
+        async function loadEvictionData() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error('API request failed');
+                const data = await response.json();
+                evictionData = Array.isArray(data) ? data : (data.items || []);
+                console.log('Loaded', evictionData.length, 'eviction records');
+            } catch (e) {
+                console.error('Failed to load eviction data:', e);
+                // Try localStorage fallback
+                const cached = localStorage.getItem('evictionData');
+                if (cached) {
+                    evictionData = JSON.parse(cached);
+                    console.log('Using cached data:', evictionData.length, 'records');
+                }
+            }
+        }
+
+        // =============================================
+        // DATA PROCESSING
+        // =============================================
+        function calculateDistrictCounts() {
+            districtEvictionCounts = {};
+
+            // Initialize all 35 districts
+            for (let i = 1; i <= 35; i++) {
+                districtEvictionCounts[i] = 0;
+            }
+
+            // Get date filters
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            evictionData.forEach(record => {
+                let district = extractDistrict(record);
+                if (district && district >= 1 && district <= 35) {
+                    // Apply date filter if set
+                    if (startDate || endDate) {
+                        const recordDate = parseDate(record.File_Date || record.file_date);
+                        if (recordDate) {
+                            if (startDate && recordDate < new Date(startDate)) return;
+                            if (endDate && recordDate > new Date(endDate)) return;
+                        }
+                    }
+                    districtEvictionCounts[district]++;
+                }
+            });
+
+            console.log('District counts:', districtEvictionCounts);
+        }
+
+        function extractDistrict(record) {
+            // Try various field names
+            const fields = ['District', 'district', 'council_district', 'Council_District'];
+            for (const field of fields) {
+                if (record[field]) {
+                    const num = parseInt(record[field]);
+                    if (!isNaN(num)) return num;
+                }
+            }
+            return null;
+        }
+
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            const d = new Date(dateStr);
+            return isNaN(d.getTime()) ? null : d;
+        }
+
+        function getHeatLevel(count, maxCount) {
+            if (count === 0) return 0;
+            const ratio = count / maxCount;
+            if (ratio >= 0.8) return 5;
+            if (ratio >= 0.6) return 4;
+            if (ratio >= 0.4) return 3;
+            if (ratio >= 0.2) return 2;
+            return 1;
+        }
+
+        function getMetricValue(district, count) {
+            const metric = document.getElementById('heatMetric').value;
+            const demo = districtDemographics[district];
+
+            if (metric === 'per_capita' && demo?.population) {
+                return (count / demo.population) * 1000;
+            }
+            if (metric === 'per_rental' && demo?.housing?.total_housing_units) {
+                const rentalUnits = demo.housing.total_housing_units * (1 - (demo.housing.pct_owner_occupied || 0.5));
+                return (count / rentalUnits) * 100;
+            }
+            return count;
+        }
+
+        // =============================================
+        // MAP RENDERING
+        // =============================================
+        function renderDistricts() {
+            if (districtLayer) {
+                map.removeLayer(districtLayer);
+            }
+
+            if (!districtGeoJSON || !districtGeoJSON.features) {
+                console.warn('No district GeoJSON available');
+                return;
+            }
+
+            const metric = document.getElementById('heatMetric').value;
+
+            // Calculate metric values for all districts
+            const metricValues = {};
+            Object.keys(districtEvictionCounts).forEach(d => {
+                metricValues[d] = getMetricValue(d, districtEvictionCounts[d]);
+            });
+            const maxValue = Math.max(...Object.values(metricValues), 1);
+
+            districtLayer = L.geoJSON(districtGeoJSON, {
+                style: (feature) => {
+                    const district = feature.properties.district || feature.properties.DISTRICT || feature.properties.District;
+                    const value = metricValues[district] || 0;
+                    const heatLevel = getHeatLevel(value, maxValue);
+                    const colors = HEAT_COLORS[heatLevel];
+
+                    return {
+                        fillColor: colors.fill,
+                        fillOpacity: 0.7,
+                        color: colors.stroke,
+                        weight: 2,
+                        opacity: 1
+                    };
+                },
+                onEachFeature: (feature, layer) => {
+                    const district = feature.properties.district || feature.properties.DISTRICT || feature.properties.District;
+                    const count = districtEvictionCounts[district] || 0;
+                    const demo = districtDemographics[district] || {};
+                    const metricVal = metricValues[district] || 0;
+
+                    // Create popup content
+                    const popupContent = createPopupContent(district, count, demo, metricVal);
+                    layer.bindPopup(popupContent);
+
+                    // Hover effects
+                    layer.on({
+                        mouseover: (e) => {
+                            e.target.setStyle({
+                                weight: 4,
+                                fillOpacity: 0.85
+                            });
+                            e.target.bringToFront();
+                        },
+                        mouseout: (e) => {
+                            districtLayer.resetStyle(e.target);
+                        },
+                        click: (e) => {
+                            map.fitBounds(e.target.getBounds());
+                            highlightDistrictInList(district);
+                        }
+                    });
+                }
+            }).addTo(map);
+
+            // Fit map to district bounds
+            if (districtLayer.getBounds().isValid()) {
+                map.fitBounds(districtLayer.getBounds(), { padding: [20, 20] });
+            }
+        }
+
+        function createPopupContent(district, count, demo, metricVal) {
+            const metric = document.getElementById('heatMetric').value;
+            let metricLabel = 'Evictions';
+            let metricDisplay = count.toLocaleString();
+
+            if (metric === 'per_capita') {
+                metricLabel = 'Per 1,000 Residents';
+                metricDisplay = metricVal.toFixed(2);
+            } else if (metric === 'per_rental') {
+                metricLabel = 'Per 100 Rental Units';
+                metricDisplay = metricVal.toFixed(2);
+            }
+
+            return `
+                <div class="info-popup">
+                    <h3>District ${district}</h3>
+                    <div class="stat-row">
+                        <span class="label">Total Evictions</span>
+                        <span class="value">${count.toLocaleString()}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">${metricLabel}</span>
+                        <span class="value">${metricDisplay}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Population</span>
+                        <span class="value">${demo.population?.toLocaleString() || 'N/A'}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Median Income</span>
+                        <span class="value">${demo.income?.median_household_income ? '$' + demo.income.median_household_income.toLocaleString() : 'N/A'}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Poverty Rate</span>
+                        <span class="value">${demo.poverty?.pct_total_poverty ? demo.poverty.pct_total_poverty + '%' : 'N/A'}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // =============================================
+        // UI UPDATES
+        // =============================================
+        function updateStats() {
+            const counts = Object.values(districtEvictionCounts);
+            const total = counts.reduce((a, b) => a + b, 0);
+            const avg = Math.round(total / 35);
+
+            // Find hotspot
+            let maxDistrict = 1;
+            let maxCount = 0;
+            Object.entries(districtEvictionCounts).forEach(([d, c]) => {
+                if (c > maxCount) {
+                    maxCount = c;
+                    maxDistrict = d;
+                }
+            });
+
+            document.getElementById('totalEvictions').textContent = total.toLocaleString();
+            document.getElementById('avgPerDistrict').textContent = avg.toLocaleString();
+            document.getElementById('hotspotDistrict').textContent = `District ${maxDistrict}`;
+            document.getElementById('hotspotCount').textContent = maxCount.toLocaleString();
+        }
+
+        function updateDistrictList() {
+            const listEl = document.getElementById('districtList');
+
+            // Sort districts by eviction count (descending)
+            const sorted = Object.entries(districtEvictionCounts)
+                .sort((a, b) => b[1] - a[1]);
+
+            const maxCount = sorted[0]?.[1] || 1;
+
+            listEl.innerHTML = sorted.map(([district, count]) => {
+                const heatLevel = getHeatLevel(count, maxCount);
+                return `
+                    <div class="district-item" data-district="${district}" onclick="focusDistrict(${district})">
+                        <span class="district-name">
+                            <span class="legend-color heat-${heatLevel}" style="display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: middle;"></span>
+                            District ${district}
+                        </span>
+                        <span class="district-count">${count.toLocaleString()}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function highlightDistrictInList(district) {
+            document.querySelectorAll('.district-item').forEach(el => {
+                el.classList.remove('active');
+                if (el.dataset.district == district) {
+                    el.classList.add('active');
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+        }
+
+        function focusDistrict(district) {
+            if (!districtLayer) return;
+
+            districtLayer.eachLayer(layer => {
+                const d = layer.feature?.properties?.district ||
+                          layer.feature?.properties?.DISTRICT ||
+                          layer.feature?.properties?.District;
+                if (d == district) {
+                    map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+                    layer.openPopup();
+                }
+            });
+
+            highlightDistrictInList(district);
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        function applyFilters() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            document.querySelector('.loading-text').textContent = 'Applying filters...';
+
+            setTimeout(() => {
+                calculateDistrictCounts();
+                renderDistricts();
+                updateStats();
+                updateDistrictList();
+                hideLoading();
+            }, 100);
+        }
+
+        // =============================================
+        // PLACEHOLDER DISTRICTS (until real GeoJSON is loaded)
+        // =============================================
+        function createPlaceholderDistricts() {
+            // Create approximate district positions based on Nashville geography
+            // These are rough centroids - real boundaries should be loaded from ArcGIS
+            const districtCenters = {
+                1: [36.30, -86.78], 2: [36.28, -86.70], 3: [36.25, -86.65],
+                4: [36.22, -86.72], 5: [36.20, -86.78], 6: [36.18, -86.68],
+                7: [36.16, -86.62], 8: [36.22, -86.85], 9: [36.18, -86.82],
+                10: [36.15, -86.78], 11: [36.12, -86.72], 12: [36.10, -86.82],
+                13: [36.08, -86.76], 14: [36.06, -86.70], 15: [36.18, -86.75],
+                16: [36.16, -86.78], 17: [36.14, -86.82], 18: [36.12, -86.86],
+                19: [36.16, -86.86], 20: [36.19, -86.88], 21: [36.14, -86.76],
+                22: [36.12, -86.78], 23: [36.10, -86.75], 24: [36.08, -86.80],
+                25: [36.20, -86.68], 26: [36.17, -86.72], 27: [36.15, -86.70],
+                28: [36.13, -86.68], 29: [36.11, -86.65], 30: [36.08, -86.68],
+                31: [36.05, -86.85], 32: [36.02, -86.78], 33: [36.00, -86.72],
+                34: [36.04, -86.65], 35: [36.06, -86.60]
+            };
+
+            const features = Object.entries(districtCenters).map(([district, [lat, lng]]) => {
+                // Create a small polygon around the centroid
+                const size = 0.02;
+                return {
+                    type: 'Feature',
+                    properties: { district: parseInt(district) },
+                    geometry: {
+                        type: 'Polygon',
+                        coordinates: [[
+                            [lng - size, lat - size],
+                            [lng + size, lat - size],
+                            [lng + size, lat + size],
+                            [lng - size, lat + size],
+                            [lng - size, lat - size]
+                        ]]
+                    }
+                };
+            });
+
+            return {
+                type: 'FeatureCollection',
+                features: features
+            };
+        }
+
+        // =============================================
+        // START
+        // =============================================
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
