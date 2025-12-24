@@ -328,6 +328,21 @@
         .notice-banner.hidden {
             display: none;
         }
+
+        /* District label styling for circle markers */
+        .district-label {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            font-weight: 700;
+            font-size: 11px;
+            color: #1f2937;
+            text-shadow: 1px 1px 2px white, -1px -1px 2px white, 1px -1px 2px white, -1px 1px 2px white;
+        }
+
+        .leaflet-tooltip.district-label::before {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -475,7 +490,21 @@
                 loadDistrictDemographics(),
                 loadEvictionData()
             ]);
+
+            // Debug output
+            console.log('=== Data Loading Summary ===');
+            console.log('Eviction records loaded:', evictionData.length);
+            console.log('Sample record:', evictionData[0]);
+            console.log('District demographics loaded:', Object.keys(districtDemographics).length);
+            console.log('GeoJSON available:', !!districtGeoJSON);
+
             calculateDistrictCounts();
+
+            // Debug district counts
+            const totalMapped = Object.values(districtEvictionCounts).reduce((a, b) => a + b, 0);
+            console.log('Total evictions mapped to districts:', totalMapped);
+            console.log('District counts:', districtEvictionCounts);
+
             renderDistricts();
             updateStats();
             updateDistrictList();
@@ -583,12 +612,32 @@
         }
 
         function extractDistrict(record) {
-            // Try various field names
-            const fields = ['District', 'district', 'council_district', 'Council_District'];
+            // Match the main app's normalizeRecord logic
+            // First try council_district_number if it's a valid number
+            if (record.council_district_number && typeof record.council_district_number === 'number' && record.council_district_number > 0) {
+                return record.council_district_number;
+            }
+
+            // Try council_district_number as string
+            if (record.council_district_number) {
+                const num = parseInt(record.council_district_number);
+                if (!isNaN(num) && num > 0) return num;
+            }
+
+            // Extract from council_district string like "Council District 8"
+            if (record.council_district) {
+                const match = String(record.council_district).match(/(\d+)/);
+                if (match) return parseInt(match[1], 10);
+            }
+
+            // Fallback: try other field names
+            const fields = ['District', 'district', 'Council_District'];
             for (const field of fields) {
                 if (record[field]) {
-                    const num = parseInt(record[field]);
-                    if (!isNaN(num)) return num;
+                    const val = record[field];
+                    if (typeof val === 'number' && val > 0) return val;
+                    const match = String(val).match(/(\d+)/);
+                    if (match) return parseInt(match[1], 10);
                 }
             }
             return null;
@@ -630,10 +679,13 @@
         function renderDistricts() {
             if (districtLayer) {
                 map.removeLayer(districtLayer);
+                districtLayer = null;
             }
 
+            // If no GeoJSON, use circle markers instead
             if (!districtGeoJSON || !districtGeoJSON.features) {
-                console.warn('No district GeoJSON available');
+                console.log('No GeoJSON available, using circle markers');
+                renderCircleMarkers();
                 return;
             }
 
@@ -795,17 +847,30 @@
         }
 
         function focusDistrict(district) {
-            if (!districtLayer) return;
-
-            districtLayer.eachLayer(layer => {
-                const d = layer.feature?.properties?.district ||
-                          layer.feature?.properties?.DISTRICT ||
-                          layer.feature?.properties?.District;
-                if (d == district) {
-                    map.fitBounds(layer.getBounds(), { padding: [50, 50] });
-                    layer.openPopup();
-                }
-            });
+            // Try GeoJSON layer first
+            if (districtLayer) {
+                districtLayer.eachLayer(layer => {
+                    const d = layer.feature?.properties?.district ||
+                              layer.feature?.properties?.DISTRICT ||
+                              layer.feature?.properties?.District;
+                    if (d == district) {
+                        map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+                        layer.openPopup();
+                    }
+                });
+            }
+            // Fall back to circle markers
+            else if (circleMarkers.length > 0 && DISTRICT_CENTROIDS[district]) {
+                const [lat, lng] = DISTRICT_CENTROIDS[district];
+                map.setView([lat, lng], 13);
+                // Find and open popup on the marker
+                circleMarkers.forEach(marker => {
+                    const pos = marker.getLatLng();
+                    if (Math.abs(pos.lat - lat) < 0.001 && Math.abs(pos.lng - lng) < 0.001) {
+                        marker.openPopup();
+                    }
+                });
+            }
 
             highlightDistrictInList(district);
         }
@@ -828,49 +893,105 @@
         }
 
         // =============================================
-        // PLACEHOLDER DISTRICTS (until real GeoJSON is loaded)
+        // PLACEHOLDER DISTRICTS (circle markers when no GeoJSON)
         // =============================================
+
+        // Better approximate district centroids based on Nashville geography
+        const DISTRICT_CENTROIDS = {
+            1: [36.302, -86.787],   // Joelton/Whites Creek area (north)
+            2: [36.255, -86.698],   // Madison/Rivergate area
+            3: [36.227, -86.620],   // Hermitage/Old Hickory
+            4: [36.195, -86.655],   // Donelson area
+            5: [36.175, -86.612],   // Mt. Juliet adjacent
+            6: [36.140, -86.595],   // Antioch east
+            7: [36.085, -86.620],   // Southeast Davidson
+            8: [36.240, -86.850],   // Bordeaux/north Nashville
+            9: [36.200, -86.830],   // North Nashville
+            10: [36.178, -86.805],  // Germantown/Salemtown
+            11: [36.152, -86.760],  // East Nashville
+            12: [36.115, -86.810],  // South Nashville
+            13: [36.080, -86.780],  // Berry Hill/Woodbine
+            14: [36.050, -86.720],  // Antioch central
+            15: [36.175, -86.775],  // Downtown adjacent
+            16: [36.158, -86.795],  // Downtown/Midtown
+            17: [36.135, -86.830],  // West End/Hillsboro
+            18: [36.100, -86.865],  // Green Hills
+            19: [36.145, -86.880],  // Belle Meade/West
+            20: [36.185, -86.900],  // West Nashville
+            21: [36.160, -86.762],  // East Nashville/Inglewood
+            22: [36.130, -86.765],  // Lockeland Springs
+            23: [36.105, -86.750],  // Woodbine/Flatrock
+            24: [36.070, -86.815],  // Lenox Village
+            25: [36.215, -86.700],  // Lakewood/Briley area
+            26: [36.192, -86.725],  // Inglewood/Madison
+            27: [36.165, -86.695],  // East Nashville outer
+            28: [36.140, -86.670],  // Donelson inner
+            29: [36.110, -86.655],  // Priest Lake area
+            30: [36.080, -86.680],  // Antioch west
+            31: [36.030, -86.870],  // Oak Hill/Forest Hills
+            32: [36.015, -86.785],  // Brentwood adjacent
+            33: [35.985, -86.720],  // Southeast corner
+            34: [36.025, -86.660],  // Antioch south
+            35: [36.055, -86.600]   // Percy Priest Lake area
+        };
+
+        let circleMarkers = [];
+        let usingPlaceholder = false;
+
         function createPlaceholderDistricts() {
-            // Create approximate district positions based on Nashville geography
-            // These are rough centroids - real boundaries should be loaded from ArcGIS
-            const districtCenters = {
-                1: [36.30, -86.78], 2: [36.28, -86.70], 3: [36.25, -86.65],
-                4: [36.22, -86.72], 5: [36.20, -86.78], 6: [36.18, -86.68],
-                7: [36.16, -86.62], 8: [36.22, -86.85], 9: [36.18, -86.82],
-                10: [36.15, -86.78], 11: [36.12, -86.72], 12: [36.10, -86.82],
-                13: [36.08, -86.76], 14: [36.06, -86.70], 15: [36.18, -86.75],
-                16: [36.16, -86.78], 17: [36.14, -86.82], 18: [36.12, -86.86],
-                19: [36.16, -86.86], 20: [36.19, -86.88], 21: [36.14, -86.76],
-                22: [36.12, -86.78], 23: [36.10, -86.75], 24: [36.08, -86.80],
-                25: [36.20, -86.68], 26: [36.17, -86.72], 27: [36.15, -86.70],
-                28: [36.13, -86.68], 29: [36.11, -86.65], 30: [36.08, -86.68],
-                31: [36.05, -86.85], 32: [36.02, -86.78], 33: [36.00, -86.72],
-                34: [36.04, -86.65], 35: [36.06, -86.60]
-            };
+            usingPlaceholder = true;
+            // Return null - we'll render circle markers directly instead
+            return null;
+        }
 
-            const features = Object.entries(districtCenters).map(([district, [lat, lng]]) => {
-                // Create a small polygon around the centroid
-                const size = 0.02;
-                return {
-                    type: 'Feature',
-                    properties: { district: parseInt(district) },
-                    geometry: {
-                        type: 'Polygon',
-                        coordinates: [[
-                            [lng - size, lat - size],
-                            [lng + size, lat - size],
-                            [lng + size, lat + size],
-                            [lng - size, lat + size],
-                            [lng - size, lat - size]
-                        ]]
-                    }
-                };
+        function renderCircleMarkers() {
+            // Remove existing markers
+            circleMarkers.forEach(m => map.removeLayer(m));
+            circleMarkers = [];
+
+            const metric = document.getElementById('heatMetric').value;
+
+            // Calculate metric values
+            const metricValues = {};
+            Object.keys(districtEvictionCounts).forEach(d => {
+                metricValues[d] = getMetricValue(d, districtEvictionCounts[d]);
             });
+            const maxValue = Math.max(...Object.values(metricValues), 1);
 
-            return {
-                type: 'FeatureCollection',
-                features: features
-            };
+            Object.entries(DISTRICT_CENTROIDS).forEach(([district, [lat, lng]]) => {
+                const count = districtEvictionCounts[district] || 0;
+                const value = metricValues[district] || 0;
+                const heatLevel = getHeatLevel(value, maxValue);
+                const colors = HEAT_COLORS[heatLevel];
+
+                // Size based on count (min 15, max 40)
+                const radius = Math.max(15, Math.min(40, 15 + (value / maxValue) * 25));
+
+                const marker = L.circleMarker([lat, lng], {
+                    radius: radius,
+                    fillColor: colors.fill,
+                    fillOpacity: 0.8,
+                    color: colors.stroke,
+                    weight: 3,
+                    opacity: 1
+                });
+
+                const demo = districtDemographics[district] || {};
+                const popupContent = createPopupContent(district, count, demo, value);
+                marker.bindPopup(popupContent);
+
+                // Add district label
+                marker.bindTooltip(`D${district}`, {
+                    permanent: true,
+                    direction: 'center',
+                    className: 'district-label'
+                });
+
+                marker.on('click', () => highlightDistrictInList(district));
+
+                marker.addTo(map);
+                circleMarkers.push(marker);
+            });
         }
 
         // =============================================
