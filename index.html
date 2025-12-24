@@ -2045,44 +2045,44 @@
         // DISTRICT LOCATION MAPPING
         // ============================================
         // Maps each district to [x, y] coordinates within Davidson County
-        // Coordinates are percentages (0-100) of county width/height
-        // Based on Nashville Metro Council district geographic locations
+        // Coordinates derived from actual GeoJSON council district boundaries
+        // X: 0=west, 100=east; Y: 0=north, 100=south
         const districtLocations = {
-            1:  [42, 18],  // Whites Creek / North Nashville
-            2:  [35, 28],  // Bordeaux / North Nashville
-            3:  [28, 35],  // Buena Vista / West North Nashville
-            4:  [50, 25],  // Germantown / East Nashville border
-            5:  [58, 32],  // East Nashville / Cleveland Park
-            6:  [52, 40],  // Lockeland Springs / East Nashville
-            7:  [65, 28],  // Inglewood / East Nashville
-            8:  [72, 35],  // Madison / Eastland
-            9:  [60, 18],  // Madison / Neely's Bend
-            10: [80, 42],  // Donelson
-            11: [85, 28],  // Hermitage
-            12: [88, 18],  // Old Hickory
-            13: [48, 58],  // Woodbine / South Nashville
-            14: [62, 48],  // Rosebank / South East
-            15: [78, 52],  // Donelson / Airport area
-            16: [40, 52],  // Melrose / Berry Hill
-            17: [45, 42],  // Downtown Nashville
-            18: [38, 38],  // West End / Vanderbilt / Midtown
-            19: [50, 45],  // SoBro / Downtown South
-            20: [30, 45],  // Sylvan Park / The Nations
-            21: [40, 35],  // Fisk / TSU / Jefferson St
-            22: [18, 52],  // West Nashville / Charlotte Park
-            23: [12, 62],  // Bellevue
-            24: [25, 55],  // West Meade / Belle Meade
-            25: [35, 58],  // Green Hills
-            26: [42, 65],  // Crieve Hall / South Nashville
-            27: [28, 48],  // Hillwood / West Nashville
-            28: [55, 68],  // Radnor / Woodbine South
-            29: [62, 72],  // Glencliff / South Nashville
-            30: [50, 78],  // Lenox Village / Edge-O-Lake
-            31: [70, 78],  // Antioch
-            32: [78, 65],  // Southeast / Antioch North
-            33: [85, 75],  // Southeast / Priest Lake
-            34: [32, 68],  // Forest Hills / Oak Hill
-            35: [22, 62]   // Bellevue / West Nashville border
+            1:  [34, 23],  // Whites Creek / North Nashville
+            2:  [48, 45],  // Bordeaux / North Nashville
+            3:  [54, 30],  // Buena Vista / Salemtown
+            4:  [60, 86],  // South Nashville / Antioch border
+            5:  [56, 44],  // East Nashville / Cleveland Park
+            6:  [60, 50],  // Lockeland Springs / East Nashville
+            7:  [62, 42],  // Inglewood / East Nashville
+            8:  [87, 77],  // Southeast / Priest Lake
+            9:  [67, 34],  // Madison / Neely's Bend
+            10: [56, 13],  // Joelton / Whites Creek
+            11: [79, 38],  // Hermitage
+            12: [92, 67],  // Old Hickory / Hermitage
+            13: [73, 66],  // Rosebank / South Nashville
+            14: [80, 48],  // Donelson
+            15: [67, 53],  // Donelson / Airport area
+            16: [59, 65],  // Melrose / Berry Hill
+            17: [52, 62],  // Downtown Nashville
+            18: [47, 62],  // West End / Vanderbilt / Midtown
+            19: [50, 55],  // SoBro / Downtown South
+            20: [35, 58],  // Sylvan Park / The Nations
+            21: [44, 55],  // Fisk / TSU / Jefferson St
+            22: [19, 74],  // West Nashville / Charlotte Park
+            23: [32, 70],  // Bellevue
+            24: [41, 62],  // West Meade / Belle Meade
+            25: [47, 73],  // Green Hills
+            26: [55, 73],  // Crieve Hall / South Nashville
+            27: [64, 79],  // Radnor / South Nashville
+            28: [72, 75],  // Woodbine South
+            29: [83, 73],  // Glencliff / South Nashville
+            30: [64, 75],  // Lenox Village
+            31: [68, 87],  // Antioch
+            32: [77, 82],  // Southeast / Antioch North
+            33: [72, 87],  // Antioch South
+            34: [37, 74],  // Forest Hills / Oak Hill
+            35: [15, 73]   // Bellevue / West Nashville
         };
 
         // Generate a mini-map SVG showing district location in Davidson County
@@ -2092,32 +2092,17 @@
 
             const [xPct, yPct] = location;
 
-            // Davidson County outline path (simplified but recognizable shape)
-            // Based on actual county boundaries - wider E-W, with distinctive features:
-            // - Northwest protrusion (Joelton area)
-            // - Northeast extension (Old Hickory Lake)
-            // - Western indentation (Bellevue)
-            // - Southeast extension (Antioch)
-            const countyPath = `
-                M 28,4
-                L 45,2 L 62,4 L 78,8 L 88,14 L 94,22
-                L 96,32 L 94,45 L 92,58 L 88,70 L 82,80 L 72,88
-                L 58,92 L 45,90 L 35,85 L 28,78
-                L 22,70 L 18,60 L 12,52 L 8,45 L 6,38
-                L 8,30 L 14,22 L 20,12 L 28,4
-                Z
-            `;
+            // Davidson County outline path - traced from actual GeoJSON boundaries
+            // Captures the distinctive shape: wider E-W, NW protrusion, SE extension
+            const countyPath = 'M 6,1 L 29,1 L 47,4 L 66,10 L 84,17 L 94,29 L 99,47 L 99,65 L 95,81 L 88,97 L 81,99 L 62,97 L 38,90 L 25,88 L 6,84 L 1,70 L 3,52 L 6,33 L 10,20 L 6,6 Z';
 
-            // Calculate marker position within the SVG viewBox (100x100)
-            const markerX = xPct;
-            const markerY = yPct;
-            const markerSize = size === 'lg' ? 12 : 10;
+            const markerSize = size === 'lg' ? 10 : 8;
 
             return `<svg class="district-location-map${size === 'lg' ? '-lg' : ''}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                 <title>District ${districtNum} location in Davidson County</title>
                 <path d="${countyPath}" fill="#e5e7eb" stroke="#9ca3af" stroke-width="1.5"/>
-                <circle cx="${markerX}" cy="${markerY}" r="${markerSize}" fill="#4f46e5" stroke="#3730a3" stroke-width="1.5"/>
-                <circle cx="${markerX}" cy="${markerY}" r="${markerSize * 0.4}" fill="white" opacity="0.6"/>
+                <circle cx="${xPct}" cy="${yPct}" r="${markerSize}" fill="#4f46e5" stroke="#3730a3" stroke-width="1.5"/>
+                <circle cx="${xPct}" cy="${yPct}" r="${markerSize * 0.4}" fill="white" opacity="0.6"/>
             </svg>`;
         }
 
