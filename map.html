@@ -615,12 +615,22 @@
 
     <script>
         // =============================================
-        // SECRET ACCESS SEQUENCE (ESC x3 + modal with "wilson")
+        // SECRET ACCESS SEQUENCE (ESC x3 + modal with hashed code)
         // =============================================
         (function() {
             let escapeCount = 0;
             let escapeTimeout = null;
-            const ACCESS_CODE = 'wilson';
+            // SHA-256 hash of the access code
+            const ACCESS_CODE_HASH = '919e680ee460849a74a82614de062bfbbac76bc98a2f692952b5fcb6364e598b';
+
+            // Hash function using Web Crypto API
+            async function hashCode(text) {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(text.toLowerCase().trim());
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            }
 
             function resetEscapeCount() {
                 escapeCount = 0;
@@ -663,12 +673,12 @@
                 resetEscapeCount();
             };
 
-            window.verifyAccessCode = function() {
+            window.verifyAccessCode = async function() {
                 const input = document.getElementById('accessCodeInput');
                 const error = document.getElementById('accessError');
-                const code = input.value.toLowerCase().trim();
+                const inputHash = await hashCode(input.value);
 
-                if (code === ACCESS_CODE) {
+                if (inputHash === ACCESS_CODE_HASH) {
                     hideAccessModal();
                     revealMap();
                 } else {
