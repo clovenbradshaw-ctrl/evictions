@@ -106,6 +106,47 @@
             font-size: 12px;
         }
 
+        .source-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+            border: 1px solid #c4b5fd;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+
+        .source-btn:hover {
+            background: linear-gradient(135deg, #ddd6fe 0%, #c4b5fd 100%);
+            transform: scale(1.1);
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.2);
+        }
+
+        /* General th-clickable styles for benchmark table headers */
+        th.th-clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        th.th-clickable:hover {
+            color: #7c3aed;
+            background: #ede9fe;
+        }
+
+        th.th-clickable .th-info {
+            font-size: 10px;
+            opacity: 0.6;
+            margin-left: 2px;
+        }
+
+        th.th-clickable:hover .th-info {
+            opacity: 1;
+        }
+
         .county-stat.clickable {
             cursor: pointer;
             transition: all 0.2s ease;
@@ -1935,26 +1976,29 @@
 
                     <!-- Nashville Summary Card -->
                     <div class="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-5 mb-6 border border-purple-200">
-                        <div class="text-sm font-bold text-purple-800 uppercase tracking-wide mb-3">Nashville At A Glance (2024)</div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="text-sm font-bold text-purple-800 uppercase tracking-wide">Nashville At A Glance (2024)</div>
+                            <button onclick="showBenchmarkSource('nashville')" class="text-xs text-purple-600 hover:text-purple-800 underline" title="View Nashville data sources">View Sources</button>
+                        </div>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div class="text-center">
+                            <div class="text-center cursor-pointer hover:bg-purple-100 rounded-lg p-2 transition-colors" onclick="showBenchmarkMetricSource('filing_rate')" title="Click for source info">
                                 <div class="text-2xl font-bold text-purple-900" id="nashFilingRate">9.8%</div>
-                                <div class="text-xs text-purple-600">Filing Rate</div>
+                                <div class="text-xs text-purple-600">Filing Rate <span class="opacity-60">ℹ️</span></div>
                                 <div class="text-xs text-gray-500">+26% above national avg</div>
                             </div>
-                            <div class="text-center">
+                            <div class="text-center cursor-pointer hover:bg-purple-100 rounded-lg p-2 transition-colors" onclick="showBenchmarkMetricSource('judgment_rate')" title="Click for source info">
                                 <div class="text-2xl font-bold text-purple-900" id="nashJudgmentRate">67%</div>
-                                <div class="text-xs text-purple-600">Judgment Rate</div>
+                                <div class="text-xs text-purple-600">Judgment Rate <span class="opacity-60">ℹ️</span></div>
                                 <div class="text-xs text-gray-500">cases → eviction order</div>
                             </div>
-                            <div class="text-center">
+                            <div class="text-center cursor-pointer hover:bg-purple-100 rounded-lg p-2 transition-colors" onclick="showBenchmarkMetricSource('eviction_rate')" title="Click for source info">
                                 <div class="text-2xl font-bold text-purple-900" id="nashEvictionRate">6.5%</div>
-                                <div class="text-xs text-purple-600">Eviction Rate</div>
+                                <div class="text-xs text-purple-600">Eviction Rate <span class="opacity-60">ℹ️</span></div>
                                 <div class="text-xs text-gray-500">2.6x national avg</div>
                             </div>
-                            <div class="text-center">
+                            <div class="text-center cursor-pointer hover:bg-purple-100 rounded-lg p-2 transition-colors" onclick="showBenchmarkSource('nashville')" title="Click for source info">
                                 <div class="text-2xl font-bold text-purple-900" id="nashTotalFilings">14,346</div>
-                                <div class="text-xs text-purple-600">Total Filings</div>
+                                <div class="text-xs text-purple-600">Total Filings <span class="opacity-60">ℹ️</span></div>
                                 <div class="text-xs text-gray-500">25% above pre-pandemic</div>
                             </div>
                         </div>
@@ -1983,10 +2027,11 @@
                             <thead>
                                 <tr class="bg-gray-50">
                                     <th class="px-4 py-2 text-left font-semibold text-gray-700">Metro Area</th>
-                                    <th class="px-4 py-2 text-right font-semibold text-gray-700">Filing Rate</th>
-                                    <th class="px-4 py-2 text-right font-semibold text-gray-700">Judgment Rate</th>
-                                    <th class="px-4 py-2 text-right font-semibold text-gray-700">Eviction Rate</th>
-                                    <th class="px-4 py-2 text-right font-semibold text-gray-700">vs Pre-Pandemic</th>
+                                    <th class="px-4 py-2 text-right font-semibold text-gray-700 th-clickable" onclick="showBenchmarkMetricSource('filing_rate')" title="Click for source info">Filing Rate <span class="th-info">ℹ️</span></th>
+                                    <th class="px-4 py-2 text-right font-semibold text-gray-700 th-clickable" onclick="showBenchmarkMetricSource('judgment_rate')" title="Click for source info">Judgment Rate <span class="th-info">ℹ️</span></th>
+                                    <th class="px-4 py-2 text-right font-semibold text-gray-700 th-clickable" onclick="showBenchmarkMetricSource('eviction_rate')" title="Click for source info">Eviction Rate <span class="th-info">ℹ️</span></th>
+                                    <th class="px-4 py-2 text-right font-semibold text-gray-700 th-clickable" onclick="showBenchmarkMetricSource('vs_prepandemic')" title="Click for source info">vs Pre-Pandemic <span class="th-info">ℹ️</span></th>
+                                    <th class="px-4 py-2 text-center font-semibold text-gray-700">Source</th>
                                 </tr>
                             </thead>
                             <tbody id="benchmarkTableBody">
@@ -3594,6 +3639,207 @@
             `;
 
             // Add modal to body
+            const modalWrapper = document.createElement('div');
+            modalWrapper.id = 'metricSourceModal';
+            modalWrapper.innerHTML = modalHtml;
+            document.body.appendChild(modalWrapper);
+        }
+
+        // Benchmark Metro Area Source Modal
+        function showBenchmarkSource(metroKey) {
+            const sourceInfo = {
+                nashville: {
+                    title: 'Nashville, TN',
+                    description: 'Davidson County eviction data covering 146,940 renter households.',
+                    source: 'Davidson County Sessions Court + Eviction Lab ETS',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    dataCollector: 'Legal Services Corporation (LSC)',
+                    methodology: 'Court records from Davidson County Sessions Court public filing system. Filing rate calculated as filings ÷ renter households (Census ACS). Judgment rate based on 2019 court outcome data (67% of filings result in eviction orders).',
+                    notes: 'Nashville excluded from some ETS demographic analyses due to defendant name data quality issues. 2024 judgment rate estimated using 2019 rate.'
+                },
+                austin: {
+                    title: 'Austin, TX',
+                    description: 'Travis County eviction data covering approximately 302,000 renter households.',
+                    source: 'BASTA Austin / January Advisors',
+                    sourceUrl: 'https://evictionlab.org/eviction-tracking/austin-tx/',
+                    dataCollector: 'BASTA Austin / January Advisors',
+                    methodology: 'Court records collected through partnership with BASTA Austin and January Advisors. Travis County has one of the lower eviction filing rates among tracked Texas metros.',
+                    notes: 'Judgment outcome data not consistently reported for Austin. Median judgment amount increased from $1,423 (2019) to $2,984 (2024).'
+                },
+                san_antonio: {
+                    title: 'San Antonio, TX',
+                    description: 'Bexar County eviction data covering approximately 300,000 renter households.',
+                    source: 'Texas Housers (Public Information Act)',
+                    sourceUrl: 'https://texashousers.org/',
+                    dataCollector: 'Texas Housers',
+                    methodology: 'Data obtained through Public Information Act requests. NOT tracked by Eviction Lab ETS - Texas Housers is the only comprehensive public source for San Antonio eviction data.',
+                    notes: '76% landlord win rate in 2022. 59% of all filings result in eviction. More than half of top evicting properties owned by out-of-state investors.'
+                },
+                jacksonville: {
+                    title: 'Jacksonville, FL',
+                    description: 'Duval County eviction data - designated "eviction filing capital of Florida".',
+                    source: 'January Advisors / Eviction Lab ETS',
+                    sourceUrl: 'https://evictionlab.org/eviction-tracking/jacksonville-fl/',
+                    dataCollector: 'January Advisors',
+                    methodology: 'Court records collected through Eviction Tracking System. Jacksonville has highest monthly eviction rate per 1,000 renters among Florida metros (7.08 vs Miami-Dade 3.70).',
+                    notes: '34% of filings come from top 100 buildings. 72% of these buildings are investment-firm owned. 19% above pre-pandemic baseline.'
+                },
+                memphis: {
+                    title: 'Memphis, TN',
+                    description: 'Shelby County eviction data covering 156,500 renter households (54% renter rate).',
+                    source: 'Legal Services Corporation / Eviction Lab',
+                    sourceUrl: 'https://evictionlab.org/eviction-tracking/memphis-tn/',
+                    dataCollector: 'Legal Services Corporation (LSC)',
+                    methodology: 'Court records from Shelby County. Filing rate of 17.7% is twice the national average. 1 in 5 renters face eviction filing annually.',
+                    notes: 'EXTREME outlier: 98% landlord win rate. 81.7% of hearings last under 1 minute. Only 2% tenant win rate in 2019.'
+                },
+                indianapolis: {
+                    title: 'Indianapolis, IN',
+                    description: 'Marion County eviction data covering 177,000 renter households.',
+                    source: 'Legal Services Corporation / Eviction Lab ETS',
+                    sourceUrl: 'https://evictionlab.org/eviction-tracking/indianapolis-in/',
+                    dataCollector: 'Legal Services Corporation (LSC)',
+                    methodology: 'Court records from Marion County. Filing rate of 16% is double the ETS average of 7.8%. 49% of renters are rent-burdened; 26% severely rent-burdened.',
+                    notes: 'State law prohibits local tenant protections since 2020. Black renters face 1.79x higher filing rate than white renters. Top 50 evictors account for 55% of filings.'
+                },
+                columbus: {
+                    title: 'Columbus, OH',
+                    description: 'Franklin County eviction data covering 212,650 renter households.',
+                    source: 'Eviction Lab ETS / Court Records',
+                    sourceUrl: 'https://evictionlab.org/eviction-tracking/columbus-oh/',
+                    dataCollector: 'Eviction Lab',
+                    methodology: 'Court records from Franklin County. 2024 set all-time high with 25,320 filings - 30% above pre-pandemic levels.',
+                    notes: 'Willis Law Firm filed ~14,000 cases in 2024 (50% of all filings). White renters are 53% of population but only 36% of defendants.'
+                },
+                charlotte: {
+                    title: 'Charlotte, NC',
+                    description: 'Mecklenburg County eviction data covering ~190,000 renter households.',
+                    source: 'NC Judicial Branch / County Housing Dashboard',
+                    sourceUrl: 'https://www.nccourts.gov/',
+                    dataCollector: 'NC Judicial Branch',
+                    methodology: 'NOT tracked by Eviction Lab ETS. Uses fiscal year data (July-June). FY2024: 46,026 filings with 65% judgment rate (29,716 eviction orders).',
+                    notes: '84% tenant no-show rate. 82% landlord representation. 97% of cases are failure to pay rent. Median amount owed: $850.'
+                },
+                national: {
+                    title: 'National Average',
+                    description: 'Aggregate eviction statistics across the United States.',
+                    source: 'Eviction Lab / Collinson et al. QJE 2024',
+                    sourceUrl: 'https://evictionlab.org/',
+                    dataCollector: 'Princeton Eviction Lab',
+                    methodology: 'Filing rate: 7.8% (ETS cities 2024). Judgment rate: ~50% nationally per Collinson et al. Eviction rate: 2.5% (1 in 40 renter households). ~3.6M filings and 900K evictions annually.',
+                    notes: 'ETS covers approximately 1/3 of US renters. Judgment rates vary significantly by jurisdiction (NYC ~35%, Cook County ~65%, San Antonio ~76%).'
+                }
+            };
+
+            const info = sourceInfo[metroKey];
+            if (!info) return;
+
+            const modalHtml = `
+                <div class="modal-overlay" onclick="closeMetricSourceModal(event)">
+                    <div class="modal-container" style="max-width: 550px;" onclick="event.stopPropagation()">
+                        <button class="modal-close" onclick="closeMetricSourceModal()">&times;</button>
+                        <h2 style="font-size: 1.5rem; font-weight: 700; color: #7c3aed; margin-bottom: 1rem;">${info.title}</h2>
+                        <div style="margin-bottom: 1rem;">
+                            <p style="color: #374151; margin-bottom: 0.5rem;">${info.description}</p>
+                        </div>
+                        <div style="background: #f5f3ff; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #7c3aed; text-transform: uppercase; margin-bottom: 0.5rem;">Data Collector</div>
+                            <p style="color: #374151; font-size: 0.875rem;">${info.dataCollector}</p>
+                        </div>
+                        <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 0.5rem;">Methodology</div>
+                            <p style="color: #374151; font-size: 0.875rem;">${info.methodology}</p>
+                        </div>
+                        ${info.notes ? `
+                        <div style="background: #fffbeb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; border: 1px solid #fcd34d;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #92400e; text-transform: uppercase; margin-bottom: 0.5rem;">Important Notes</div>
+                            <p style="color: #78350f; font-size: 0.875rem;">${info.notes}</p>
+                        </div>
+                        ` : ''}
+                        <div class="modal-source">
+                            Source: <a href="${info.sourceUrl}" target="_blank">${info.source}</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const modalWrapper = document.createElement('div');
+            modalWrapper.id = 'metricSourceModal';
+            modalWrapper.innerHTML = modalHtml;
+            document.body.appendChild(modalWrapper);
+        }
+
+        // Benchmark Metric Source Modal (for table header info icons)
+        function showBenchmarkMetricSource(metricType) {
+            const sourceInfo = {
+                filing_rate: {
+                    title: 'Filing Rate',
+                    description: 'Percentage of renter households facing an eviction filing in a given period.',
+                    formula: '(eviction_filings ÷ renter_households) × 100',
+                    source: 'Eviction Lab ETS / Census ACS',
+                    sourceUrl: 'https://evictionlab.org/eviction-tracking',
+                    methodology: 'Measures the threat of eviction. Includes serial filings (same household filed multiple times). National average is 7.8% (2024 ETS cities). Higher rates indicate greater housing instability.',
+                    interpretation: 'A 10% filing rate means 10 of every 100 renter households faced an eviction case that year.'
+                },
+                judgment_rate: {
+                    title: 'Judgment Rate',
+                    description: 'Percentage of filed cases that result in an eviction judgment/order.',
+                    formula: '(eviction_judgments ÷ eviction_filings) × 100',
+                    source: 'Collinson et al. QJE 2024 / Court Records',
+                    sourceUrl: 'https://evictionlab.org/',
+                    methodology: 'Measures court outcome rates. National average is ~50% (Collinson et al.). Varies significantly by jurisdiction: NYC ~35% (strong tenant protections), Memphis 98% (minimal protections).',
+                    interpretation: 'Lower judgment rates may indicate better tenant protections, higher representation rates, or more cases dismissed/settled.'
+                },
+                eviction_rate: {
+                    title: 'Eviction Rate',
+                    description: 'Percentage of renter households receiving an eviction judgment in a given period.',
+                    formula: '(eviction_judgments ÷ renter_households) × 100',
+                    source: 'Eviction Lab / Calculated',
+                    sourceUrl: 'https://evictionlab.org/',
+                    methodology: 'The "true" eviction rate measuring actual displacement. Calculated as: Filing Rate × Judgment Rate. National average is ~2.5% (1 in 40 renter households). Approximately 900,000 households evicted annually in the US.',
+                    interpretation: 'Nashville\'s 6.5% eviction rate means 6.5 of every 100 renter households received an eviction order in 2024.'
+                },
+                vs_prepandemic: {
+                    title: 'vs Pre-Pandemic',
+                    description: 'Comparison of current filing rates to pre-pandemic baseline (typically 2016-2019 average).',
+                    formula: '((current_rate ÷ baseline_rate) - 1) × 100',
+                    source: 'Eviction Lab ETS / Historical Records',
+                    sourceUrl: 'https://evictionlab.org/eviction-tracking',
+                    methodology: 'Measures recovery/growth from COVID-era lows. Most cities saw 40-60% drops during eviction moratoriums (2020-2021). Positive values indicate rates exceeding pre-pandemic levels.',
+                    interpretation: '+25% means current filings are 25% higher than the 2016-2019 baseline.'
+                }
+            };
+
+            const info = sourceInfo[metricType];
+            if (!info) return;
+
+            const modalHtml = `
+                <div class="modal-overlay" onclick="closeMetricSourceModal(event)">
+                    <div class="modal-container" style="max-width: 550px;" onclick="event.stopPropagation()">
+                        <button class="modal-close" onclick="closeMetricSourceModal()">&times;</button>
+                        <h2 style="font-size: 1.5rem; font-weight: 700; color: #7c3aed; margin-bottom: 1rem;">${info.title}</h2>
+                        <div style="margin-bottom: 1rem;">
+                            <p style="color: #374151; margin-bottom: 0.5rem;">${info.description}</p>
+                        </div>
+                        <div style="background: #ede9fe; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; font-family: monospace;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #7c3aed; text-transform: uppercase; margin-bottom: 0.5rem;">Formula</div>
+                            <p style="color: #5b21b6; font-size: 0.875rem;">${info.formula}</p>
+                        </div>
+                        <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 0.5rem;">Methodology</div>
+                            <p style="color: #374151; font-size: 0.875rem;">${info.methodology}</p>
+                        </div>
+                        <div style="background: #ecfdf5; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #059669; text-transform: uppercase; margin-bottom: 0.5rem;">Interpretation</div>
+                            <p style="color: #065f46; font-size: 0.875rem;">${info.interpretation}</p>
+                        </div>
+                        <div class="modal-source">
+                            Source: <a href="${info.sourceUrl}" target="_blank">${info.source}</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+
             const modalWrapper = document.createElement('div');
             modalWrapper.id = 'metricSourceModal';
             modalWrapper.innerHTML = modalHtml;
@@ -5371,14 +5617,14 @@
             if (!tbody || !benchmarkData) return;
 
             const metros = [
-                { name: 'Nashville', data: benchmarkData.nashville, isNashville: true },
-                { name: 'Austin', data: benchmarkData.comparable_cities.austin },
-                { name: 'San Antonio', data: benchmarkData.comparable_cities.san_antonio },
-                { name: 'Jacksonville', data: benchmarkData.comparable_cities.jacksonville },
-                { name: 'Memphis', data: benchmarkData.comparable_cities.memphis },
-                { name: 'Indianapolis', data: benchmarkData.comparable_cities.indianapolis },
-                { name: 'Columbus', data: benchmarkData.comparable_cities.columbus },
-                { name: 'Charlotte', data: benchmarkData.comparable_cities.charlotte }
+                { name: 'Nashville', key: 'nashville', data: benchmarkData.nashville, isNashville: true },
+                { name: 'Austin', key: 'austin', data: benchmarkData.comparable_cities.austin },
+                { name: 'San Antonio', key: 'san_antonio', data: benchmarkData.comparable_cities.san_antonio },
+                { name: 'Jacksonville', key: 'jacksonville', data: benchmarkData.comparable_cities.jacksonville },
+                { name: 'Memphis', key: 'memphis', data: benchmarkData.comparable_cities.memphis },
+                { name: 'Indianapolis', key: 'indianapolis', data: benchmarkData.comparable_cities.indianapolis },
+                { name: 'Columbus', key: 'columbus', data: benchmarkData.comparable_cities.columbus },
+                { name: 'Charlotte', key: 'charlotte', data: benchmarkData.comparable_cities.charlotte }
             ];
 
             const nationalAvg = benchmarkData.national_benchmarks;
@@ -5412,6 +5658,11 @@
                         <td class="px-4 py-2 text-right">${typeof judgmentRate === 'number' ? judgmentRate + '%' : judgmentRate}</td>
                         <td class="px-4 py-2 text-right">${typeof evictionRate === 'number' ? evictionRate.toFixed(1) + '%' : evictionRate}</td>
                         <td class="px-4 py-2 text-right">${prePandemic}</td>
+                        <td class="px-4 py-2 text-center">
+                            <button onclick="showBenchmarkSource('${metro.key}')" class="source-btn" title="View data source for ${metro.name}">
+                                📊
+                            </button>
+                        </td>
                     </tr>
                 `;
             }).join('');
@@ -5424,6 +5675,11 @@
                     <td class="px-4 py-2 text-right font-semibold">${nationalAvg.judgment_rates_pct_of_filings.national_avg}%</td>
                     <td class="px-4 py-2 text-right font-semibold">${nationalAvg.eviction_rates_pct_of_renters.current_estimated}%</td>
                     <td class="px-4 py-2 text-right">baseline</td>
+                    <td class="px-4 py-2 text-center">
+                        <button onclick="showBenchmarkSource('national')" class="source-btn" title="View data source for National Average">
+                            📊
+                        </button>
+                    </td>
                 </tr>
             `;
 
