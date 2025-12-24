@@ -343,9 +343,52 @@
         .leaflet-tooltip.district-label::before {
             display: none;
         }
+
+        /* Secret access overlay */
+        .secret-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #f9fafb;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .secret-overlay.hidden {
+            display: none;
+        }
+
+        .secret-overlay .placeholder-content {
+            text-align: center;
+            color: #9ca3af;
+        }
+
+        .secret-overlay .placeholder-content h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #6b7280;
+        }
+
+        .secret-overlay .placeholder-content p {
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
+    <!-- Secret access overlay - hidden by escape x3 + "map" -->
+    <div class="secret-overlay" id="secretOverlay">
+        <div class="placeholder-content">
+            <h2>Page Not Available</h2>
+            <p>This content is currently unavailable.</p>
+        </div>
+    </div>
+
     <div class="notice-banner" id="noticeBanner">
         <span>Using placeholder district shapes. For accurate boundaries, download the GeoJSON from
             <a href="https://www.arcgis.com/home/item.html?id=76563eb036964dbab90ba7449ebba8c9" target="_blank">Nashville ArcGIS</a>
@@ -453,6 +496,72 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
+        // =============================================
+        // SECRET ACCESS SEQUENCE (ESC x3 + "map")
+        // =============================================
+        (function() {
+            let escapeCount = 0;
+            let escapeTimeout = null;
+            let inputBuffer = '';
+            let inputTimeout = null;
+            const SECRET_WORD = 'map';
+
+            function resetSequence() {
+                escapeCount = 0;
+                inputBuffer = '';
+                if (escapeTimeout) clearTimeout(escapeTimeout);
+                if (inputTimeout) clearTimeout(inputTimeout);
+            }
+
+            function revealMap() {
+                const overlay = document.getElementById('secretOverlay');
+                if (overlay) {
+                    overlay.classList.add('hidden');
+                }
+            }
+
+            document.addEventListener('keydown', function(e) {
+                // Handle Escape key
+                if (e.key === 'Escape') {
+                    escapeCount++;
+                    inputBuffer = ''; // Reset input buffer on escape
+
+                    // Reset escape count after 2 seconds of no escape presses
+                    if (escapeTimeout) clearTimeout(escapeTimeout);
+                    escapeTimeout = setTimeout(() => {
+                        escapeCount = 0;
+                    }, 2000);
+
+                    return;
+                }
+
+                // Only track letter input after 3 escapes
+                if (escapeCount >= 3) {
+                    // Add letter to buffer (lowercase)
+                    if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+                        inputBuffer += e.key.toLowerCase();
+
+                        // Reset input buffer after 3 seconds of no input
+                        if (inputTimeout) clearTimeout(inputTimeout);
+                        inputTimeout = setTimeout(() => {
+                            inputBuffer = '';
+                        }, 3000);
+
+                        // Check if the secret word was typed
+                        if (inputBuffer.includes(SECRET_WORD)) {
+                            revealMap();
+                            resetSequence();
+                        }
+
+                        // Keep buffer from growing too large
+                        if (inputBuffer.length > 20) {
+                            inputBuffer = inputBuffer.slice(-10);
+                        }
+                    }
+                }
+            });
+        })();
+
         // =============================================
         // CONFIGURATION
         // =============================================
