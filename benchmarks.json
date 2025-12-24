@@ -1,0 +1,545 @@
+{
+  "metadata": {
+    "dataset_name": "Nashville Eviction Benchmark Dataset",
+    "version": "1.1",
+    "created_date": "2024-12-24",
+    "last_updated": "2024-12-24",
+    "purpose": "Enable comparison of Nashville eviction data against similar US cities and national averages",
+    "primary_sources": [
+      "Princeton Eviction Lab (evictionlab.org)",
+      "Eviction Tracking System (ETS) 2024 Report",
+      "U.S. Census Bureau American Community Survey 2019-2023",
+      "Census Bureau American Housing Survey",
+      "State and local court records",
+      "Collinson et al. 'Eviction and Poverty in American Cities' (QJE 2024)"
+    ],
+    "metric_definitions": {
+      "filing_rate": {
+        "formula": "(eviction_filings / renter_households) × 100",
+        "description": "Percentage of renter households facing an eviction filing in a given period",
+        "interpretation": "Measures threat of eviction; includes serial filings to same household"
+      },
+      "judgment_rate_pct_of_filings": {
+        "formula": "(eviction_judgments / eviction_filings) × 100",
+        "description": "Percentage of filed cases that result in an eviction judgment/order",
+        "interpretation": "Measures court outcome rates; varies by jurisdiction and tenant representation",
+        "national_benchmark": "Approximately 50% nationally per Collinson et al."
+      },
+      "eviction_rate_pct_of_renters": {
+        "formula": "(eviction_judgments / renter_households) × 100",
+        "description": "Percentage of renter households receiving an eviction judgment in a given period",
+        "interpretation": "Measures actual displacement rate; the 'true' eviction rate",
+        "national_benchmark": "2.3-3.13% nationally (2000-2016 range)"
+      },
+      "relationship": "eviction_rate = filing_rate × judgment_rate_pct_of_filings"
+    }
+  },
+
+  "nashville": {
+    "geography": {
+      "city": "Nashville",
+      "county": "Davidson",
+      "state": "Tennessee",
+      "metro_population": 788380,
+      "ets_tracked": true,
+      "data_collector": "Legal Services Corporation (LSC)"
+    },
+    "renter_demographics": {
+      "renter_households": 146940,
+      "renter_percentage": 46.6,
+      "median_gross_rent_2023": 1472
+    },
+    "eviction_filings": {
+      "2024": 14346,
+      "2025_ytd_december": 13768,
+      "2023_estimate": 13000,
+      "2019": 11471,
+      "2018": 10543,
+      "2017": 9358
+    },
+    "filing_rates": {
+      "2024_calculated": 9.8,
+      "2024_eviction_lab": 8.9,
+      "2019_calculated": 7.8,
+      "2017_calculated": 6.4,
+      "pre_pandemic_baseline_avg": 7.5,
+      "rate_note": "Eviction Lab figure (8.9%) uses different renter household denominator; 9.8% uses Census ACS 146,940 estimate"
+    },
+    "judgment_rates_pct_of_filings": {
+      "2019": 67,
+      "2020_q4_pandemic": 42,
+      "estimated_judgments_2024": 9612,
+      "calculation_note": "14,346 filings × 67% = ~9,612 estimated judgments (using 2019 judgment rate)"
+    },
+    "eviction_rates_pct_of_renters": {
+      "2024_estimated": 6.5,
+      "2019_calculated": 5.2,
+      "calculation_note": "9,612 judgments / 146,940 renter households = 6.5%",
+      "vs_national_avg": "2.6x the national average of 2.5%"
+    },
+    "year_over_year": {
+      "2024_vs_2019_pct": 125,
+      "2024_vs_pre_pandemic_pct": 125,
+      "trend": "25% above pre-pandemic levels"
+    },
+    "concentration_metrics": {
+      "census_tracts_tracked": 161,
+      "top_10_plaintiffs_share": 33,
+      "unique_plaintiffs_2017_2019": 4000
+    },
+    "data_caveats": [
+      "Nashville excluded from some ETS demographic analyses due to defendant name data quality issues",
+      "Informal evictions (landlord threats, utility shutoffs) not captured in court data",
+      "2024 judgment rate estimated using 2019 rate; actual rate may differ"
+    ]
+  },
+
+  "comparable_cities": {
+    "austin": {
+      "geography": {
+        "city": "Austin",
+        "county": "Travis",
+        "state": "Texas",
+        "metro_population": 2295303,
+        "ets_tracked": true,
+        "data_collector": "BASTA Austin / January Advisors"
+      },
+      "renter_demographics": {
+        "renter_households": 302000
+      },
+      "eviction_filings": {
+        "2024": 13209,
+        "2025_january": 1404,
+        "2025_q1": 10545,
+        "2023": 10524,
+        "2021_pandemic_low": 1716
+      },
+      "filing_rates": {
+        "2024_estimated": 4.4,
+        "classification": "low",
+        "eviction_lab_rating": "Low eviction filing rate compared to other ETS cities"
+      },
+      "judgment_rates_pct_of_filings": {
+        "data_available": false,
+        "note": "Judgment outcome data not consistently reported"
+      },
+      "eviction_rates_pct_of_renters": {
+        "data_available": false
+      },
+      "judgment_metrics": {
+        "median_judgment_amount_2024": 2984,
+        "median_judgment_amount_2019": 1423,
+        "median_case_duration_days": 20
+      },
+      "year_over_year_change": {
+        "2024_vs_2023_percent": 126
+      }
+    },
+
+    "san_antonio": {
+      "geography": {
+        "city": "San Antonio",
+        "county": "Bexar",
+        "state": "Texas",
+        "metro_population": 2558143,
+        "ets_tracked": false,
+        "data_collector": "Texas Housers (via Public Information Act requests)"
+      },
+      "renter_demographics": {
+        "renter_households": 300000
+      },
+      "eviction_filings": {
+        "2024_county": 27012,
+        "2024_city_only": 21852,
+        "2023": 24533,
+        "2022": 17900,
+        "2019_judgments": 13189
+      },
+      "filing_rates": {
+        "2024": 9.0,
+        "2023": 8.0,
+        "2022_vs_pre_pandemic_percent": 108
+      },
+      "judgment_rates_pct_of_filings": {
+        "2022": 76,
+        "filings_resulting_in_eviction_2022": 59,
+        "note": "76% landlord win rate; 59% of all filings result in eviction"
+      },
+      "eviction_rates_pct_of_renters": {
+        "2022_estimated": 5.3,
+        "calculation_note": "Filing rate 9% × 59% eviction = ~5.3%"
+      },
+      "concentration_metrics": {
+        "top_30_properties_share": 12,
+        "out_of_state_owners_in_top_evictors": "more than half"
+      },
+      "data_note": "NOT tracked by Eviction Lab - Texas Housers is only comprehensive public source"
+    },
+
+    "jacksonville": {
+      "geography": {
+        "city": "Jacksonville",
+        "county": "Duval",
+        "state": "Florida",
+        "metro_population": 1645707,
+        "ets_tracked": true,
+        "data_collector": "January Advisors"
+      },
+      "eviction_filings": {
+        "2024_twelve_month": 14137,
+        "monthly_average": 1100
+      },
+      "filing_rates": {
+        "2024_per_100": 8.2,
+        "2023_per_100": 9.2,
+        "vs_pre_pandemic_percent": 119,
+        "pre_pandemic_baseline_years": "2012-2016"
+      },
+      "judgment_rates_pct_of_filings": {
+        "data_available": false
+      },
+      "eviction_rates_pct_of_renters": {
+        "data_available": false
+      },
+      "florida_comparison": {
+        "jacksonville_monthly_per_1000": 7.08,
+        "miami_dade": 3.70,
+        "orange_orlando": 5.84,
+        "hillsborough_tampa": 4.77,
+        "pinellas": 3.50,
+        "note": "Jacksonville designated 'eviction filing capital of Florida'"
+      },
+      "concentration_metrics": {
+        "census_tracts_tracked": 219,
+        "top_100_buildings_share": 34,
+        "investment_firm_ownership_percent": 72
+      }
+    },
+
+    "memphis": {
+      "geography": {
+        "city": "Memphis",
+        "county": "Shelby",
+        "state": "Tennessee",
+        "metro_population": 1337779,
+        "ets_tracked": true,
+        "data_collector": "Legal Services Corporation (LSC)"
+      },
+      "renter_demographics": {
+        "renter_households": 156500,
+        "renter_percentage": 54
+      },
+      "eviction_filings": {
+        "2016_2019_total": 110834,
+        "annual_average_2016_2019": 27700,
+        "2019": 26000,
+        "2020_2022_total": 60000
+      },
+      "filing_rates": {
+        "pre_pandemic_2016_2019": 17.7,
+        "classification": "very_high",
+        "national_comparison": "Twice the national average",
+        "annual_renter_impact": "1 in 5 renters face eviction filing annually"
+      },
+      "judgment_rates_pct_of_filings": {
+        "2019_tenant_win_rate": 2,
+        "2019_landlord_win_rate": 98,
+        "hearing_under_1_minute_percent": 81.7,
+        "note": "98% of cases ruled for landlord; 81.7% of hearings under 1 minute"
+      },
+      "eviction_rates_pct_of_renters": {
+        "2019_estimated": 17.3,
+        "calculation_note": "17.7% filing rate × 98% judgment rate = ~17.3%",
+        "vs_national_avg": "6.9x the national average of 2.5%"
+      },
+      "concentration_metrics": {
+        "census_tracts_tracked": 248,
+        "top_5_zipcodes_share_2016_2019": 45.4
+      }
+    },
+
+    "indianapolis": {
+      "geography": {
+        "city": "Indianapolis",
+        "county": "Marion",
+        "state": "Indiana",
+        "county_population": 981628,
+        "ets_tracked": true,
+        "data_collector": "Legal Services Corporation (LSC)"
+      },
+      "renter_demographics": {
+        "renter_households": 177000,
+        "renter_percentage": 46,
+        "rent_burdened_percent": 49,
+        "severely_rent_burdened_percent": 26
+      },
+      "eviction_filings": {
+        "2024_trailing_12_month": 26630,
+        "pre_pandemic_annual_avg": 26400
+      },
+      "filing_rates": {
+        "2024": 16.0,
+        "ets_average_comparison": "Double the ETS average of 7.8%",
+        "vs_pre_pandemic_percent": 101,
+        "pre_pandemic_baseline_years": "2016-2019"
+      },
+      "judgment_rates_pct_of_filings": {
+        "data_available": false,
+        "note": "Judgment outcome data not consistently reported for Indianapolis"
+      },
+      "eviction_rates_pct_of_renters": {
+        "data_available": false
+      },
+      "demographic_disparities": {
+        "black_vs_white_filing_ratio": 1.79
+      },
+      "concentration_metrics": {
+        "top_50_evictors_share": 55
+      },
+      "policy_context": "State law prohibits local tenant protections since 2020"
+    },
+
+    "columbus": {
+      "geography": {
+        "city": "Columbus",
+        "county": "Franklin",
+        "state": "Ohio",
+        "county_population": 1350000,
+        "ets_tracked": true
+      },
+      "renter_demographics": {
+        "renter_households": 212650,
+        "renter_percentage": 47
+      },
+      "eviction_filings": {
+        "2024": 25320,
+        "2024_note": "All-time high",
+        "2025_march": 1934,
+        "pre_pandemic_monthly_avg": 1621,
+        "pre_pandemic_annual_avg": 19450,
+        "pre_pandemic_baseline_years": "2012, 2013, 2015"
+      },
+      "filing_rates": {
+        "2024_estimated": 11.9,
+        "vs_pre_pandemic_percent": 130,
+        "vs_2023_2024_baseline_percent": 109
+      },
+      "judgment_rates_pct_of_filings": {
+        "data_available": false
+      },
+      "eviction_rates_pct_of_renters": {
+        "data_available": false
+      },
+      "concentration_metrics": {
+        "willis_law_firm_2024_filings": 14000,
+        "top_filer_share": 50
+      },
+      "demographic_disparities": {
+        "white_renter_share": 53,
+        "white_defendant_share": 36
+      }
+    },
+
+    "charlotte": {
+      "geography": {
+        "city": "Charlotte",
+        "county": "Mecklenburg",
+        "state": "North Carolina",
+        "county_population": 1170000,
+        "ets_tracked": false,
+        "data_source": "NC Judicial Branch / County Housing Dashboard"
+      },
+      "renter_demographics": {
+        "renter_households_estimated": 190000,
+        "cost_burdened_households": 106965
+      },
+      "eviction_filings": {
+        "fy2024": 46026,
+        "fy2024_25": 52650,
+        "2020_pandemic": 23000,
+        "pre_pandemic_annual_avg": 35000
+      },
+      "filing_rates": {
+        "2016_eviction_lab": 5.83,
+        "2024_estimated": 24.2,
+        "vs_pre_pandemic_percent": 131
+      },
+      "judgment_rates_pct_of_filings": {
+        "fy2024": 65,
+        "fy2024_judgments_granted": 29716,
+        "fy2024_vs_fy2023_change_pct": 5
+      },
+      "eviction_rates_pct_of_renters": {
+        "fy2024_estimated": 15.6,
+        "calculation_note": "29,716 judgments / 190,000 renter households = 15.6%"
+      },
+      "court_statistics": {
+        "tenant_no_show_rate": 84,
+        "landlord_representation_rate": 82,
+        "failure_to_pay_rent_share": 97,
+        "median_amount_owed": 850
+      },
+      "data_note": "NOT tracked by Eviction Lab ETS - uses fiscal year (July-June)"
+    },
+
+    "cook_county_chicago": {
+      "geography": {
+        "city": "Chicago",
+        "county": "Cook",
+        "state": "Illinois",
+        "ets_tracked": false,
+        "data_source": "Collinson et al. QJE 2024"
+      },
+      "judgment_rates_pct_of_filings": {
+        "rate": 65,
+        "source": "Collinson et al.: 'Approximately 65 percent of eviction cases in Cook County end with an eviction order'"
+      },
+      "note": "Included as judgment rate benchmark from academic literature"
+    },
+
+    "new_york_city": {
+      "geography": {
+        "city": "New York",
+        "county": "Multiple",
+        "state": "New York",
+        "ets_tracked": true
+      },
+      "judgment_rates_pct_of_filings": {
+        "nonpayment_cases": 35,
+        "source": "Collinson et al.: 'about 35 percent of nonpayment cases end with an eviction order'"
+      },
+      "note": "Lower judgment rate due to stronger tenant protections and higher representation rates"
+    }
+  },
+
+  "national_benchmarks": {
+    "filing_rates_pct_of_renters": {
+      "2018_national": 7.8,
+      "2016_national": 6.12,
+      "2000_2018_range": {"low": 6.0, "high": 7.8},
+      "2024_ets_cities_avg": 7.8,
+      "2024_ets_with_states_avg": 7.3,
+      "expressed_as_ratio": "1 eviction filing per 13 renter households",
+      "source": "Eviction Lab National Estimates and ETS Report 2024"
+    },
+    "judgment_rates_pct_of_filings": {
+      "national_avg": 50,
+      "range": {"low": 35, "high": 76},
+      "source": "Collinson et al.: 'About half of proceedings end in a court order for eviction'",
+      "note": "Varies significantly by jurisdiction - NYC ~35%, Cook County ~65%, San Antonio ~76%"
+    },
+    "eviction_rates_pct_of_renters": {
+      "2000_2016_range": {"low": 2.3, "high": 3.13},
+      "2016": 2.34,
+      "2006_peak": 3.13,
+      "current_estimated": 2.5,
+      "expressed_as_ratio": "1 in 40 renter households",
+      "annual_households_affected": 900000,
+      "source": "Eviction Lab; calculated as filing_rate × judgment_rate"
+    },
+    "total_filings_annual": {
+      "2018": 3600000,
+      "2000_2018_avg": 3600000,
+      "2024_ets_sites_only": 1000000,
+      "ets_coverage_note": "ETS covers approximately 1/3 of US renters"
+    },
+    "highest_filing_rate_cities_2024": {
+      "richmond_va": 24.1,
+      "charleston_sc": 15.7,
+      "phoenix_az": 14.3,
+      "memphis_tn": 17.7,
+      "indianapolis_in": 16.0
+    }
+  },
+
+  "demographic_disparities": {
+    "racial_disparities": {
+      "national_2024_ets": {
+        "black_renter_share": 28,
+        "black_defendant_share": 36,
+        "overrepresentation_ratio": 1.29
+      },
+      "national_2012_2016": {
+        "black_renter_share": 19.9,
+        "black_defendant_share": 32.7,
+        "black_filing_rate": 6.2,
+        "white_filing_rate": 3.4,
+        "black_eviction_rate": 3.4,
+        "white_eviction_rate": 2.0,
+        "disparity_ratio": 1.7
+      },
+      "pnas_2023_census_linked": {
+        "black_renter_share": 18.6,
+        "black_filing_affected_share": 51.1,
+        "black_evicted_share": 43.4,
+        "black_annual_filing_rate": 20,
+        "black_annual_eviction_rate": 10,
+        "white_annual_filing_rate": 4.2,
+        "white_annual_eviction_rate": 2.5,
+        "disparity_ratio": 4.0
+      },
+      "source": "Eviction Lab; Graetz et al. PNAS 2023"
+    },
+    "gender_disparities": {
+      "female_defendant_share_2024": 58,
+      "female_renter_share": 53,
+      "overrepresentation_ratio": 1.09,
+      "female_defendant_share_2023": 60,
+      "annual_women_evicted_2012_2016": 341756,
+      "annual_men_evicted_2012_2016": 294908,
+      "black_women_evicted_annually": 113415,
+      "black_men_evicted_annually": 83182,
+      "black_gender_gap_percent": 36.3
+    },
+    "landlord_concentration": {
+      "top_100_filers_avg_share": 32.6,
+      "highest_concentration": {"city": "Greenville SC", "share": 58.2},
+      "lowest_concentration": {"city": "Houston", "share": 15.5},
+      "serial_filing_share_2014": 44.6,
+      "serial_filing_households_share": 30.4,
+      "dc_serial_filing_share_2014_2019": 64
+    },
+    "neighborhood_concentration": {
+      "black_majority_neighborhood_population_share": 10,
+      "black_majority_neighborhood_filing_share": 35.4,
+      "concentration_ratio": 3.39
+    }
+  },
+
+  "comparative_summary": {
+    "filing_rates_ranked": [
+      {"city": "Charlotte", "rate": 24.2, "note": "Fiscal year data"},
+      {"city": "Memphis", "rate": 17.7, "note": "Pre-pandemic baseline"},
+      {"city": "Indianapolis", "rate": 16.0, "note": "2024"},
+      {"city": "Columbus", "rate": 11.9, "note": "2024 all-time high"},
+      {"city": "Nashville", "rate": 9.8, "note": "2024 calculated"},
+      {"city": "San Antonio", "rate": 9.0, "note": "2024"},
+      {"city": "Jacksonville", "rate": 8.2, "note": "2024"},
+      {"city": "National Average", "rate": 7.8, "note": "ETS cities 2024"},
+      {"city": "Austin", "rate": 4.4, "note": "2024 - classified 'low'"}
+    ],
+    "judgment_rates_pct_of_filings_ranked": [
+      {"city": "Memphis", "rate": 98, "note": "2019 - 81.7% hearings under 1 min"},
+      {"city": "San Antonio", "rate": 76, "note": "2022 landlord win rate"},
+      {"city": "Nashville", "rate": 67, "note": "2019"},
+      {"city": "Charlotte", "rate": 65, "note": "FY2024"},
+      {"city": "Cook County", "rate": 65, "note": "Collinson et al."},
+      {"city": "National Average", "rate": 50, "note": "Collinson et al."},
+      {"city": "New York City", "rate": 35, "note": "Nonpayment cases only"}
+    ],
+    "eviction_rates_pct_of_renters_ranked": [
+      {"city": "Memphis", "rate": 17.3, "note": "Estimated - extreme outlier"},
+      {"city": "Charlotte", "rate": 15.6, "note": "FY2024 estimated"},
+      {"city": "Nashville", "rate": 6.5, "note": "2024 estimated"},
+      {"city": "San Antonio", "rate": 5.3, "note": "2022 estimated"},
+      {"city": "National Average", "rate": 2.5, "note": "2016 baseline"}
+    ],
+    "nashville_context": {
+      "filing_rate_vs_national": "+26% above national average (9.8% vs 7.8%)",
+      "eviction_rate_vs_national": "+160% above national average (6.5% vs 2.5%)",
+      "judgment_rate_vs_national": "+34% above national average (67% vs 50%)",
+      "peer_group": "Middle tier among Sunbelt metros; below Memphis/Indianapolis, above Austin/Jacksonville",
+      "trend": "25% above pre-pandemic levels, consistent year-over-year increases since 2021"
+    }
+  }
+}

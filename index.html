@@ -113,7 +113,33 @@
         .demographics-tab-btn.active {
             box-shadow: 0 0 0 3px rgba(45, 90, 135, 0.3);
         }
-        
+
+        .benchmark-metric-btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 2px solid #a855f7;
+            background: white;
+            color: #7c3aed;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .benchmark-metric-btn:hover {
+            background: #f3e8ff;
+        }
+
+        .benchmark-metric-btn.active {
+            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+            color: white;
+            border-color: transparent;
+        }
+
+        .benchmarks-overview {
+            padding: 0.5rem;
+        }
+
         .search-input {
             background: white;
             border: 2px solid #e5e7eb;
@@ -1520,6 +1546,7 @@
                     <button onclick="setSearchTab('filter')" class="tab-btn" id="filterTab">Advanced Filters</button>
                     <button onclick="setSearchTab('grouping')" class="tab-btn" id="groupingTab">Custom Grouping</button>
                     <button onclick="setSearchTab('demographics')" class="tab-btn demographics-tab-btn" id="demographicsTab">📊 District Demographics</button>
+                    <button onclick="setSearchTab('benchmarks')" class="tab-btn" id="benchmarksTab" style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: white; border-radius: 6px;">🏙️ Metro Benchmarks</button>
                 </div>
             </div>
 
@@ -1790,6 +1817,99 @@
                     <!-- Source -->
                     <div class="mt-4 text-xs text-gray-500 text-center">
                         Source: <a href="https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf" target="_blank" class="text-indigo-600 hover:underline">Metropolitan Social Services Know Your Community 2023</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metro Benchmarks Panel -->
+            <div id="benchmarksSearch" class="search-panel hidden">
+                <div class="benchmarks-overview">
+                    <!-- Header -->
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">Nashville vs. Comparable Metro Areas</h3>
+                            <p class="text-sm text-gray-600">How Nashville's eviction rates compare to similar Sunbelt metros and national averages</p>
+                        </div>
+                    </div>
+
+                    <!-- Nashville Summary Card -->
+                    <div class="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-5 mb-6 border border-purple-200">
+                        <div class="text-sm font-bold text-purple-800 uppercase tracking-wide mb-3">Nashville At A Glance (2024)</div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-purple-900" id="nashFilingRate">9.8%</div>
+                                <div class="text-xs text-purple-600">Filing Rate</div>
+                                <div class="text-xs text-gray-500">+26% above national avg</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-purple-900" id="nashJudgmentRate">67%</div>
+                                <div class="text-xs text-purple-600">Judgment Rate</div>
+                                <div class="text-xs text-gray-500">cases → eviction order</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-purple-900" id="nashEvictionRate">6.5%</div>
+                                <div class="text-xs text-purple-600">Eviction Rate</div>
+                                <div class="text-xs text-gray-500">2.6x national avg</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-purple-900" id="nashTotalFilings">14,346</div>
+                                <div class="text-xs text-purple-600">Total Filings</div>
+                                <div class="text-xs text-gray-500">25% above pre-pandemic</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Metric Selector -->
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <button onclick="setBenchmarkMetric('filing_rate')" class="benchmark-metric-btn active" id="metricFilingRate">Filing Rate</button>
+                        <button onclick="setBenchmarkMetric('judgment_rate')" class="benchmark-metric-btn" id="metricJudgmentRate">Judgment Rate</button>
+                        <button onclick="setBenchmarkMetric('eviction_rate')" class="benchmark-metric-btn" id="metricEvictionRate">Eviction Rate</button>
+                    </div>
+
+                    <!-- Metric Explanation -->
+                    <div id="metricExplanation" class="bg-gray-50 rounded-lg p-3 mb-4 text-sm">
+                        <strong>Filing Rate:</strong> Eviction cases filed ÷ renter households. Measures threat of eviction.
+                    </div>
+
+                    <!-- Comparison Chart Container -->
+                    <div class="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+                        <canvas id="metroBenchmarkChart" height="300"></canvas>
+                    </div>
+
+                    <!-- Metro Comparison Table -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm" id="benchmarkTable">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="px-4 py-2 text-left font-semibold text-gray-700">Metro Area</th>
+                                    <th class="px-4 py-2 text-right font-semibold text-gray-700">Filing Rate</th>
+                                    <th class="px-4 py-2 text-right font-semibold text-gray-700">Judgment Rate</th>
+                                    <th class="px-4 py-2 text-right font-semibold text-gray-700">Eviction Rate</th>
+                                    <th class="px-4 py-2 text-right font-semibold text-gray-700">vs Pre-Pandemic</th>
+                                </tr>
+                            </thead>
+                            <tbody id="benchmarkTableBody">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Methodology Note -->
+                    <div class="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div class="text-sm font-bold text-amber-800 mb-2">Understanding the Metrics</div>
+                        <div class="text-xs text-amber-700 space-y-1">
+                            <p><strong>Filing Rate</strong> = (eviction filings ÷ renter households) × 100. Counts all cases including serial filings.</p>
+                            <p><strong>Judgment Rate</strong> = (eviction judgments ÷ eviction filings) × 100. What % of cases result in eviction orders. National avg ~50%.</p>
+                            <p><strong>Eviction Rate</strong> = (eviction judgments ÷ renter households) × 100. Actual displacement rate. National avg ~2.5%.</p>
+                            <p class="italic mt-2">Note: These are formal court evictions only. Informal evictions (threats, lockouts) estimated 2-5.5x more common.</p>
+                        </div>
+                    </div>
+
+                    <!-- Sources -->
+                    <div class="mt-4 text-xs text-gray-500 text-center">
+                        Sources: <a href="https://evictionlab.org" target="_blank" class="text-indigo-600 hover:underline">Princeton Eviction Lab</a>,
+                        <a href="https://evictionlab.org/eviction-tracking" target="_blank" class="text-indigo-600 hover:underline">Eviction Tracking System 2024</a>,
+                        Collinson et al. QJE 2024
                     </div>
                 </div>
             </div>
@@ -4737,6 +4857,216 @@
             cardContainer.innerHTML = html;
         }
 
+        // ==========================================
+        // METRO BENCHMARKS FUNCTIONS
+        // ==========================================
+        let benchmarkData = null;
+        let metroBenchmarkChart = null;
+        let currentBenchmarkMetric = 'filing_rate';
+
+        async function loadAndRenderBenchmarks() {
+            if (!benchmarkData) {
+                try {
+                    const response = await fetch('benchmarks.json');
+                    if (response.ok) {
+                        benchmarkData = await response.json();
+                        console.log('Benchmark data loaded:', benchmarkData);
+                    } else {
+                        console.error('Failed to load benchmarks.json');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Error loading benchmarks:', error);
+                    return;
+                }
+            }
+            renderBenchmarkChart();
+            renderBenchmarkTable();
+        }
+
+        function setBenchmarkMetric(metric) {
+            currentBenchmarkMetric = metric;
+
+            // Update button states
+            document.querySelectorAll('.benchmark-metric-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('metric' + metric.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('')).classList.add('active');
+
+            // Update explanation
+            const explanations = {
+                'filing_rate': '<strong>Filing Rate:</strong> Eviction cases filed ÷ renter households. Measures threat of eviction.',
+                'judgment_rate': '<strong>Judgment Rate:</strong> Eviction judgments ÷ eviction filings. What % of cases result in eviction orders. National avg ~50%.',
+                'eviction_rate': '<strong>Eviction Rate:</strong> Eviction judgments ÷ renter households. Actual displacement rate. National avg ~2.5%.'
+            };
+            document.getElementById('metricExplanation').innerHTML = explanations[metric];
+
+            // Re-render chart and table
+            renderBenchmarkChart();
+            renderBenchmarkTable();
+        }
+
+        function getBenchmarkChartData() {
+            if (!benchmarkData) return { labels: [], data: [], colors: [] };
+
+            const summary = benchmarkData.comparative_summary;
+            let rankedData;
+
+            switch(currentBenchmarkMetric) {
+                case 'filing_rate':
+                    rankedData = summary.filing_rates_ranked;
+                    break;
+                case 'judgment_rate':
+                    rankedData = summary.judgment_rates_pct_of_filings_ranked;
+                    break;
+                case 'eviction_rate':
+                    rankedData = summary.eviction_rates_pct_of_renters_ranked;
+                    break;
+                default:
+                    rankedData = summary.filing_rates_ranked;
+            }
+
+            const labels = rankedData.map(d => d.city);
+            const data = rankedData.map(d => d.rate);
+            const colors = rankedData.map(d => {
+                if (d.city === 'Nashville') return '#7c3aed';
+                if (d.city === 'National Average') return '#10b981';
+                return '#94a3b8';
+            });
+
+            return { labels, data, colors };
+        }
+
+        function renderBenchmarkChart() {
+            const canvas = document.getElementById('metroBenchmarkChart');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const chartData = getBenchmarkChartData();
+
+            if (metroBenchmarkChart) {
+                metroBenchmarkChart.destroy();
+            }
+
+            const metricLabels = {
+                'filing_rate': 'Filing Rate (%)',
+                'judgment_rate': 'Judgment Rate (% of filings)',
+                'eviction_rate': 'Eviction Rate (% of renters)'
+            };
+
+            metroBenchmarkChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: metricLabels[currentBenchmarkMetric],
+                        data: chartData.data,
+                        backgroundColor: chartData.colors,
+                        borderColor: chartData.colors.map(c => c === '#7c3aed' ? '#5b21b6' : c === '#10b981' ? '#059669' : '#64748b'),
+                        borderWidth: 2,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.raw.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: metricLabels[currentBenchmarkMetric]
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                font: {
+                                    weight: function(context) {
+                                        return chartData.labels[context.index] === 'Nashville' ? 'bold' : 'normal';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderBenchmarkTable() {
+            const tbody = document.getElementById('benchmarkTableBody');
+            if (!tbody || !benchmarkData) return;
+
+            const metros = [
+                { name: 'Nashville', data: benchmarkData.nashville, isNashville: true },
+                { name: 'Austin', data: benchmarkData.comparable_cities.austin },
+                { name: 'San Antonio', data: benchmarkData.comparable_cities.san_antonio },
+                { name: 'Jacksonville', data: benchmarkData.comparable_cities.jacksonville },
+                { name: 'Memphis', data: benchmarkData.comparable_cities.memphis },
+                { name: 'Indianapolis', data: benchmarkData.comparable_cities.indianapolis },
+                { name: 'Columbus', data: benchmarkData.comparable_cities.columbus },
+                { name: 'Charlotte', data: benchmarkData.comparable_cities.charlotte }
+            ];
+
+            const nationalAvg = benchmarkData.national_benchmarks;
+
+            let html = metros.map(metro => {
+                const fr = metro.data.filing_rates;
+                const jr = metro.data.judgment_rates_pct_of_filings;
+                const er = metro.data.eviction_rates_pct_of_renters;
+
+                const filingRate = fr?.['2024_calculated'] || fr?.['2024_estimated'] || fr?.['2024'] || fr?.pre_pandemic_2016_2019 || '-';
+                const judgmentRate = jr?.['2019'] || jr?.['fy2024'] || jr?.['2022'] || jr?.rate || (jr?.data_available === false ? 'N/A' : '-');
+                const evictionRate = er?.['2024_estimated'] || er?.['2019_estimated'] || er?.['fy2024_estimated'] || (er?.data_available === false ? 'N/A' : '-');
+
+                // Get pre-pandemic comparison
+                let prePandemic = '-';
+                if (fr?.vs_pre_pandemic_percent) {
+                    const pct = fr.vs_pre_pandemic_percent;
+                    prePandemic = pct > 100 ? `+${pct - 100}%` : `${pct - 100}%`;
+                } else if (metro.data.year_over_year?.['2024_vs_pre_pandemic_pct']) {
+                    const pct = metro.data.year_over_year['2024_vs_pre_pandemic_pct'];
+                    prePandemic = pct > 100 ? `+${pct - 100}%` : `${pct - 100}%`;
+                }
+
+                const rowClass = metro.isNashville ? 'bg-purple-50 font-semibold' : '';
+                const highlight = metro.isNashville ? 'text-purple-700' : '';
+
+                return `
+                    <tr class="${rowClass}">
+                        <td class="px-4 py-2 ${highlight}">${metro.name}</td>
+                        <td class="px-4 py-2 text-right">${typeof filingRate === 'number' ? filingRate.toFixed(1) + '%' : filingRate}</td>
+                        <td class="px-4 py-2 text-right">${typeof judgmentRate === 'number' ? judgmentRate + '%' : judgmentRate}</td>
+                        <td class="px-4 py-2 text-right">${typeof evictionRate === 'number' ? evictionRate.toFixed(1) + '%' : evictionRate}</td>
+                        <td class="px-4 py-2 text-right">${prePandemic}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Add national average row
+            html += `
+                <tr class="bg-green-50 border-t-2 border-green-200">
+                    <td class="px-4 py-2 font-semibold text-green-700">National Average</td>
+                    <td class="px-4 py-2 text-right font-semibold">${nationalAvg.filing_rates_pct_of_renters['2024_ets_cities_avg']}%</td>
+                    <td class="px-4 py-2 text-right font-semibold">${nationalAvg.judgment_rates_pct_of_filings.national_avg}%</td>
+                    <td class="px-4 py-2 text-right font-semibold">${nationalAvg.eviction_rates_pct_of_renters.current_estimated}%</td>
+                    <td class="px-4 py-2 text-right">baseline</td>
+                </tr>
+            `;
+
+            tbody.innerHTML = html;
+        }
+
         function toggleDemographicsView() {
             const cardView = document.getElementById('demographicsCardView');
             const tableContainer = document.querySelector('.demographics-table-container');
@@ -4776,6 +5106,7 @@
             document.getElementById('filterSearch').classList.toggle('hidden', tab !== 'filter');
             document.getElementById('groupingSearch').classList.toggle('hidden', tab !== 'grouping');
             document.getElementById('demographicsSearch').classList.toggle('hidden', tab !== 'demographics');
+            document.getElementById('benchmarksSearch').classList.toggle('hidden', tab !== 'benchmarks');
 
             // Initialize filter builder when opening advanced filters tab
             if (tab === 'filter') {
@@ -4790,6 +5121,11 @@
             // Initialize demographics panel when opening demographics tab
             if (tab === 'demographics') {
                 renderDemographicsTable();
+            }
+
+            // Initialize benchmarks panel when opening benchmarks tab
+            if (tab === 'benchmarks') {
+                loadAndRenderBenchmarks();
             }
         }
 
