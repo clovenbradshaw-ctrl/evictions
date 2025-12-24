@@ -346,10 +346,9 @@
     </style>
 </head>
 <body>
-    <div class="notice-banner" id="noticeBanner">
-        <span>Using placeholder district shapes. For accurate boundaries, download the GeoJSON from
+    <div class="notice-banner hidden" id="noticeBanner">
+        <span>Using approximate district boundaries. For official boundaries, download from
             <a href="https://www.arcgis.com/home/item.html?id=76563eb036964dbab90ba7449ebba8c9" target="_blank">Nashville ArcGIS</a>
-            and save as <code>council-districts.geojson</code> in the project folder.
         </span>
         <button onclick="document.getElementById('noticeBanner').classList.add('hidden')" style="background: none; border: none; cursor: pointer; font-size: 18px;">&times;</button>
     </div>
@@ -722,6 +721,13 @@
                     // Create popup content
                     const popupContent = createPopupContent(district, count, demo, metricVal);
                     layer.bindPopup(popupContent);
+
+                    // Add district label
+                    layer.bindTooltip(`${district}`, {
+                        permanent: true,
+                        direction: 'center',
+                        className: 'district-label'
+                    });
 
                     // Hover effects
                     layer.on({

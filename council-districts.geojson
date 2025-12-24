@@ -1,0 +1,287 @@
+{
+  "type": "FeatureCollection",
+  "name": "Nashville_Council_Districts_Approximate",
+  "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "district": 1, "name": "District 1", "area": "Joelton/Whites Creek" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.87, 36.35], [-86.72, 36.35], [-86.72, 36.26], [-86.80, 36.24], [-86.87, 36.26], [-86.87, 36.35]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 2, "name": "District 2", "area": "Madison/Rivergate" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.72, 36.35], [-86.62, 36.35], [-86.62, 36.24], [-86.72, 36.24], [-86.72, 36.35]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 3, "name": "District 3", "area": "Hermitage/Old Hickory" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.62, 36.35], [-86.52, 36.35], [-86.52, 36.20], [-86.62, 36.20], [-86.62, 36.35]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 4, "name": "District 4", "area": "Donelson" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.70, 36.24], [-86.62, 36.24], [-86.62, 36.17], [-86.70, 36.17], [-86.70, 36.24]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 5, "name": "District 5", "area": "East Nashville Outer" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.66, 36.20], [-86.58, 36.20], [-86.56, 36.15], [-86.64, 36.15], [-86.66, 36.20]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 6, "name": "District 6", "area": "Donelson South" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.64, 36.17], [-86.56, 36.17], [-86.54, 36.11], [-86.62, 36.11], [-86.64, 36.17]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 7, "name": "District 7", "area": "Priest Lake/Southeast" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.66, 36.11], [-86.56, 36.11], [-86.54, 36.04], [-86.64, 36.04], [-86.66, 36.11]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 8, "name": "District 8", "area": "Bordeaux/North Nashville" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.87, 36.26], [-86.80, 36.26], [-86.80, 36.20], [-86.87, 36.20], [-86.87, 36.26]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 9, "name": "District 9", "area": "North Nashville" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.87, 36.22], [-86.80, 36.22], [-86.78, 36.18], [-86.85, 36.18], [-86.87, 36.22]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 10, "name": "District 10", "area": "Germantown/Salemtown" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.82, 36.20], [-86.78, 36.20], [-86.76, 36.16], [-86.80, 36.16], [-86.82, 36.20]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 11, "name": "District 11", "area": "East Nashville" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.78, 36.18], [-86.72, 36.18], [-86.72, 36.13], [-86.78, 36.13], [-86.78, 36.18]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 12, "name": "District 12", "area": "South Nashville" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.84, 36.14], [-86.78, 36.14], [-86.78, 36.09], [-86.84, 36.09], [-86.84, 36.14]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 13, "name": "District 13", "area": "Berry Hill/Woodbine" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.82, 36.10], [-86.76, 36.10], [-86.74, 36.05], [-86.80, 36.05], [-86.82, 36.10]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 14, "name": "District 14", "area": "Antioch Central" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.76, 36.08], [-86.68, 36.08], [-86.66, 36.02], [-86.74, 36.02], [-86.76, 36.08]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 15, "name": "District 15", "area": "Downtown Adjacent" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.80, 36.18], [-86.76, 36.18], [-86.74, 36.15], [-86.78, 36.15], [-86.80, 36.18]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 16, "name": "District 16", "area": "Downtown/Midtown" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.82, 36.17], [-86.78, 36.17], [-86.78, 36.14], [-86.82, 36.14], [-86.82, 36.17]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 17, "name": "District 17", "area": "West End/Hillsboro" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.86, 36.16], [-86.80, 36.16], [-86.80, 36.11], [-86.86, 36.11], [-86.86, 36.16]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 18, "name": "District 18", "area": "Green Hills" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.90, 36.12], [-86.84, 36.12], [-86.84, 36.07], [-86.90, 36.07], [-86.90, 36.12]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 19, "name": "District 19", "area": "Belle Meade/West" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.92, 36.16], [-86.86, 36.16], [-86.86, 36.11], [-86.92, 36.11], [-86.92, 36.16]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 20, "name": "District 20", "area": "West Nashville" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.95, 36.22], [-86.87, 36.22], [-86.87, 36.16], [-86.95, 36.16], [-86.95, 36.22]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 21, "name": "District 21", "area": "East Nashville/Inglewood" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.78, 36.18], [-86.74, 36.18], [-86.74, 36.14], [-86.78, 36.14], [-86.78, 36.18]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 22, "name": "District 22", "area": "Lockeland Springs" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.78, 36.15], [-86.74, 36.15], [-86.74, 36.11], [-86.78, 36.11], [-86.78, 36.15]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 23, "name": "District 23", "area": "Woodbine/Flatrock" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.78, 36.12], [-86.72, 36.12], [-86.72, 36.08], [-86.78, 36.08], [-86.78, 36.12]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 24, "name": "District 24", "area": "Lenox Village" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.86, 36.09], [-86.78, 36.09], [-86.78, 36.04], [-86.86, 36.04], [-86.86, 36.09]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 25, "name": "District 25", "area": "Lakewood/Briley" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.74, 36.24], [-86.66, 36.24], [-86.66, 36.19], [-86.74, 36.19], [-86.74, 36.24]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 26, "name": "District 26", "area": "Inglewood/Madison" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.76, 36.22], [-86.70, 36.22], [-86.70, 36.17], [-86.76, 36.17], [-86.76, 36.22]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 27, "name": "District 27", "area": "East Nashville Outer" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.72, 36.19], [-86.66, 36.19], [-86.66, 36.14], [-86.72, 36.14], [-86.72, 36.19]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 28, "name": "District 28", "area": "Donelson Inner" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.70, 36.17], [-86.64, 36.17], [-86.64, 36.12], [-86.70, 36.12], [-86.70, 36.17]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 29, "name": "District 29", "area": "Priest Lake" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.70, 36.13], [-86.62, 36.13], [-86.62, 36.08], [-86.70, 36.08], [-86.70, 36.13]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 30, "name": "District 30", "area": "Antioch West" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.72, 36.10], [-86.66, 36.10], [-86.66, 36.05], [-86.72, 36.05], [-86.72, 36.10]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 31, "name": "District 31", "area": "Oak Hill/Forest Hills" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.92, 36.07], [-86.84, 36.07], [-86.84, 36.00], [-86.92, 36.00], [-86.92, 36.07]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 32, "name": "District 32", "area": "Brentwood Adjacent" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.84, 36.04], [-86.76, 36.04], [-86.76, 35.98], [-86.84, 35.98], [-86.84, 36.04]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 33, "name": "District 33", "area": "Southeast Corner" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.76, 36.02], [-86.68, 36.02], [-86.68, 35.95], [-86.76, 35.95], [-86.76, 36.02]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 34, "name": "District 34", "area": "Antioch South" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.70, 36.05], [-86.62, 36.05], [-86.62, 35.98], [-86.70, 35.98], [-86.70, 36.05]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "district": 35, "name": "District 35", "area": "Percy Priest Lake" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-86.64, 36.08], [-86.54, 36.08], [-86.52, 36.00], [-86.62, 36.00], [-86.64, 36.08]]]
+      }
+    }
+  ]
+}
