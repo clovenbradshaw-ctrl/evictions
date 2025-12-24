@@ -5148,7 +5148,8 @@
             let csv = 'File Date,Docket Number,Plaintiff,Defendant,Attorney\n';
 
             filteredData.forEach(row => {
-                csv += `"${new Date(row.File_Date).toLocaleDateString()}","${row.Case_Number}","${row.Plaintiff}","${row.Defendant}","${row.Attorney}"\n`;
+                const defendantName = getDefendantDisplayName(row.Defendant);
+                csv += `"${new Date(row.File_Date).toLocaleDateString()}","${row.Case_Number}","${row.Plaintiff}","${defendantName}","${row.Attorney}"\n`;
             });
             
             const blob = new Blob([csv], { type: 'text/csv' });
