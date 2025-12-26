@@ -1083,6 +1083,7 @@
             <div class="summary-card">
                 <div class="value" id="totalEvictions">-</div>
                 <div class="label">Total Evictions</div>
+                <div class="sublabel" id="dateRangeLabel" style="font-size: 11px; color: #666; margin-top: 4px;">-</div>
             </div>
             <div class="summary-card">
                 <div class="value" id="districtsWithData">-</div>
@@ -1876,7 +1877,14 @@
                 });
                 console.groupEnd();
 
-                statusEl.textContent = `✓ Loaded ${Object.keys(councilMembers).length} council members and ${evictionData.length} eviction records (${recordsWithDistrict} with district data)`;
+                // Build status message with date range
+                let dateRangeStr = '';
+                if (globalDataRange.earliest && globalDataRange.latest) {
+                    const startDate = globalDataRange.earliest.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    const endDate = globalDataRange.latest.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                    dateRangeStr = ` from ${startDate} to ${endDate}`;
+                }
+                statusEl.textContent = `✓ Loaded ${Object.keys(councilMembers).length} council members and ${evictionData.length} eviction records${dateRangeStr} (${recordsWithDistrict} with district data)`;
                 statusEl.className = 'status-message status-success';
 
                 // Generate UI
@@ -2316,6 +2324,13 @@
             document.getElementById('totalEvictions').textContent = totalAllRecords.toLocaleString();
             document.getElementById('districtsWithData').textContent = `${districtsWithData.length}/35`;
             document.getElementById('medianPerDistrict').textContent = medianPerDistrict.toLocaleString();
+
+            // Show date range for total evictions
+            if (globalDataRange.earliest && globalDataRange.latest) {
+                const startDate = globalDataRange.earliest.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                const endDate = globalDataRange.latest.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                document.getElementById('dateRangeLabel').textContent = `${startDate} - ${endDate}`;
+            }
 
             // Find most recent filing from all data
             let mostRecent = null;
