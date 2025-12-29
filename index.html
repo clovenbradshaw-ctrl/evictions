@@ -1684,7 +1684,7 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 mb-1">NORMALIZE BY</label>
                         <div class="demo-viz-toggle">
-                            <button id="normPop" class="active" onclick="setNormalization('population')">Per 1k Residents</button>
+                            <button id="normPop" class="active" onclick="setNormalization('population')">Per 1k Renters</button>
                             <button id="normHousing" onclick="setNormalization('housing')">Per 100 Units</button>
                         </div>
                     </div>
@@ -2003,7 +2003,7 @@
                                 <tr>
                                     <th>District</th>
                                     <th class="th-clickable" onclick="showDemographicMetricSource('avgPerMonth')" title="Click for source: Average eviction filings per month">Avg/Mo <span class="th-info">ℹ️</span></th>
-                                    <th id="perCapitaHeader" class="th-clickable" onclick="showDemographicMetricSource('perCapita')" title="Click for source">Per 1K <span class="th-info">ℹ️</span></th>
+                                    <th id="perCapitaHeader" class="th-clickable" onclick="showDemographicMetricSource('perCapita')" title="Click for source: Evictions per 1,000 renter households">Per 1K Renters <span class="th-info">ℹ️</span></th>
                                     <th class="th-clickable" onclick="showDemographicMetricSource('population')" title="Click for source">Population <span class="th-info">ℹ️</span></th>
                                     <th class="th-clickable" onclick="showDemographicMetricSource('income')" title="Click for source">Med. Income <span class="th-info">ℹ️</span></th>
                                     <th class="th-clickable" onclick="showDemographicMetricSource('poverty')" title="Click for source">Poverty <span class="th-info">ℹ️</span></th>
@@ -3644,10 +3644,15 @@
                 },
                 perCapita: {
                     title: 'Evictions per 1,000 Renter Households',
-                    description: 'Normalized eviction rate per 1,000 renter households in each district. This metric enables fair comparison of eviction burden across districts with different renter populations.',
+                    description: 'Eviction rate normalized per 1,000 renter households in each district. This metric provides the most accurate measure of eviction burden by comparing filings only against the population at risk of eviction (renters), not the total population.',
                     source: 'Court records + American Community Survey',
                     sourceUrl: 'https://caselink.nashville.gov/',
-                    methodology: 'Calculated as (Total Evictions / Estimated Renter Households) × 1,000. Allows comparison across districts with varying renter populations.'
+                    methodology: `<strong>Formula:</strong><br>
+                        <div style="background: #e8f4f8; padding: 12px; border-radius: 6px; margin: 8px 0; font-family: monospace;">
+                            (Eviction Filings ÷ Renter Households) × 1,000
+                        </div>
+                        <strong>Renter Households</strong> are calculated from Census data as: Total Occupied Housing Units minus Owner-Occupied Units.<br><br>
+                        <strong>Why use renter households?</strong> Evictions only affect renters, so comparing against total population would undercount the true eviction rate in areas with more homeowners. This metric enables fair comparison across districts with different homeownership rates.`
                 },
                 population: {
                     title: 'District Population',
@@ -3740,11 +3745,32 @@
                     methodology: 'Population data from U.S. Census Bureau, aggregated by council district boundaries via Metropolitan Social Services.'
                 },
                 evictionRate: {
-                    title: 'Evictions per 1,000 (Annualized)',
-                    description: 'Annualized eviction rate normalized per 1,000 population for comparison across districts.',
+                    title: 'Evictions per 1,000 Renter Households (Annualized)',
+                    description: 'Annualized eviction rate normalized per 1,000 renter households for comparison across districts.',
                     source: 'Court records + American Community Survey',
                     sourceUrl: 'https://caselink.nashville.gov/',
-                    methodology: 'Calculated as (Total Evictions × 365 / Days of Data / District Population) × 1,000. Annualization adjusts partial-year data to project a full year rate.'
+                    methodology: `<strong>Formula:</strong><br>
+                        <div style="background: #e8f4f8; padding: 12px; border-radius: 6px; margin: 8px 0; font-family: monospace;">
+                            (Eviction Filings × (365 ÷ Days of Data) ÷ Renter Households) × 1,000
+                        </div>
+                        <strong>Renter Households</strong> are calculated from Census data as: Total Occupied Housing Units minus Owner-Occupied Units.<br><br>
+                        <strong>Why annualize?</strong> When data covers less than a full year, we project to annual rates for consistent comparison.`
+                },
+                evictionRatePerRenters: {
+                    title: 'Evictions per 1,000 Renter Households',
+                    description: 'Eviction rate normalized per 1,000 renter households in this district. This metric provides the most accurate measure of eviction burden by comparing filings only against the population at risk of eviction (renters), not the total population.',
+                    source: 'Court records + American Community Survey',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    methodology: `<strong>Formula:</strong><br>
+                        <div style="background: #e8f4f8; padding: 12px; border-radius: 6px; margin: 8px 0; font-family: monospace;">
+                            (Eviction Filings ÷ Renter Households) × 1,000
+                        </div>
+                        <strong>If annualized (less than 1 year of data):</strong><br>
+                        <div style="background: #e8f4f8; padding: 12px; border-radius: 6px; margin: 8px 0; font-family: monospace;">
+                            (Eviction Filings × (365 ÷ Days of Data) ÷ Renter Households) × 1,000
+                        </div>
+                        <strong>Renter Households</strong> are calculated from Census data as: Total Occupied Housing Units minus Owner-Occupied Units.<br><br>
+                        <strong>Why use renter households?</strong> Evictions only affect renters, so comparing against total population would undercount the true eviction rate in areas with more homeowners. This metric enables fair comparison across districts with different homeownership rates.`
                 },
                 povertyRate: {
                     title: 'Poverty Rate',
@@ -5396,7 +5422,7 @@
                             <div class="label">Population</div>
                             <div class="value">${population.toLocaleString()}</div>
                         </div>
-                        <div class="demo-item">
+                        <div class="demo-item clickable" onclick="showDistrictStatSource('evictionRatePerRenters', event)" title="Click for calculation details">
                             <div class="label">Per 1,000 Renters${isProRated ? ' (ann.)' : ''}</div>
                             <div class="value highlight">${evictionRate}</div>
                         </div>
@@ -5776,7 +5802,7 @@
                             <span class="demo-card-stat-value ${d.evictionsPerMonth > avgEvictionsPerMonth ? 'highlight' : ''}">${d.evictionsPerMonth.toFixed(1)}</span>
                         </div>
                         <div class="demo-card-stat">
-                            <span class="demo-card-stat-label">Per 1,000</span>
+                            <span class="demo-card-stat-label">Per 1K Renters</span>
                             <span class="demo-card-stat-value">${d.evictionRate.toFixed(2)}</span>
                         </div>
                         <div class="demo-card-stat">
