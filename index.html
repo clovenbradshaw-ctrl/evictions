@@ -1932,7 +1932,7 @@
                             <select id="demographicsSortField" class="grouping-field-select text-sm" onchange="renderDemographicsTable()">
                                 <option value="district">District Number</option>
                                 <option value="evictionsPerMonth">Avg Evictions/Month</option>
-                                <option value="evictionRate">Evictions per 1,000</option>
+                                <option value="evictionRate">Evictions per 1,000 Renters</option>
                                 <option value="population">Population</option>
                                 <option value="medianIncome">Median Income</option>
                                 <option value="povertyRate">Poverty Rate</option>
@@ -3617,11 +3617,11 @@
                     methodology: 'Calculated by dividing total eviction filings by the number of months in the data range for each district.'
                 },
                 perCapita: {
-                    title: 'Evictions per 1,000 Residents',
-                    description: 'Normalized eviction rate per 1,000 population in each district.',
+                    title: 'Evictions per 1,000 Renter Households',
+                    description: 'Normalized eviction rate per 1,000 renter households in each district. This metric enables fair comparison of eviction burden across districts with different renter populations.',
                     source: 'Court records + American Community Survey',
                     sourceUrl: 'https://caselink.nashville.gov/',
-                    methodology: 'Calculated as (Total Evictions / District Population) × 1,000. Allows comparison across districts of different sizes.'
+                    methodology: 'Calculated as (Total Evictions / Estimated Renter Households) × 1,000. Allows comparison across districts with varying renter populations.'
                 },
                 population: {
                     title: 'District Population',
@@ -4069,9 +4069,10 @@
                 const evictionCount = districtCounts[districtNum] || 0;
                 const population = demo.population || 0;
                 const housingUnits = demo.housing?.total_housing_units || 0;
+                const estimatedRenters = demo.housing?.estimated_renters || 0;
 
-                // Calculate eviction rates
-                const evictionRatePer1k = population > 0 ? (evictionCount / population) * 1000 : 0;
+                // Calculate eviction rates - using estimated_renters for accurate per-renter rate
+                const evictionRatePer1k = estimatedRenters > 0 ? (evictionCount / estimatedRenters) * 1000 : 0;
                 const evictionRatePer100Units = housingUnits > 0 ? (evictionCount / housingUnits) * 100 : 0;
 
                 // Calculate housing units per 1,000 population (housing density)
@@ -4082,6 +4083,8 @@
                     evictionCount,
                     population,
                     housingUnits,
+                    estimatedRenters,
+                    pctRenters: demo.housing?.pct_renters || 0,
                     evictionRatePer1k,
                     evictionRatePer100Units,
                     unitsPerPopulation,
@@ -4276,7 +4279,7 @@
                         y: {
                             title: {
                                 display: true,
-                                text: 'Evictions per 1,000 Residents',
+                                text: 'Evictions per 1,000 Renter Households',
                                 font: { weight: 'bold' }
                             },
                             beginAtZero: true,
@@ -4337,7 +4340,7 @@
                         x: {
                             title: {
                                 display: true,
-                                text: 'Evictions per 1,000 Residents',
+                                text: 'Evictions per 1,000 Renter Households',
                                 font: { weight: 'bold' }
                             },
                             beginAtZero: true,
@@ -4372,7 +4375,7 @@
 
             const xAxisKey = document.getElementById('demoXAxis').value;
             const yAxisKey = normalizationMode === 'population' ? 'evictionRatePer1k' : 'evictionRatePer100Units';
-            const yAxisLabel = normalizationMode === 'population' ? 'Evictions per 1,000 Residents' : 'Evictions per 100 Housing Units';
+            const yAxisLabel = normalizationMode === 'population' ? 'Evictions per 1,000 Renter Households' : 'Evictions per 100 Housing Units';
 
             // Update Scatter Chart
             const scatterData = data.map(d => ({
@@ -5090,8 +5093,9 @@
 
             // Eviction Context Section
             const population = demo?.population || 0;
-            // Use annualized count for per capita calculation
-            const evictionRate = population > 0 ? ((annualizedCount / population) * 1000).toFixed(2) : 'N/A';
+            const estimatedRenters = demo?.housing?.estimated_renters || 0;
+            // Use annualized count for per-renter calculation
+            const evictionRate = estimatedRenters > 0 ? ((annualizedCount / estimatedRenters) * 1000).toFixed(2) : 'N/A';
             const povertyRate = demo?.poverty?.pct_total_poverty || 0;
             const medianIncome = demo?.income?.median_household_income || 0;
             const countyMedianIncome = county?.median_household_income || 65348;
@@ -5117,8 +5121,12 @@
                             <div class="value">${population.toLocaleString()}</div>
                         </div>
                         <div class="demo-item">
-                            <div class="label">Evictions per 1,000${isProRated ? ' (annualized)' : ''}</div>
+                            <div class="label">Per 1,000 Renters${isProRated ? ' (ann.)' : ''}</div>
                             <div class="value highlight">${evictionRate}</div>
+                        </div>
+                        <div class="demo-item">
+                            <div class="label">Renter Households</div>
+                            <div class="value">${estimatedRenters.toLocaleString()}</div>
                         </div>
                         <div class="demo-item">
                             <div class="label">Poverty Rate</div>
@@ -5366,9 +5374,11 @@
                 const evictionsPerMonth = monthsOfData > 0 ? evictionCount / monthsOfData : 0;
 
                 const population = demo.population || 0;
-                // Use per-month average annualized to yearly for per capita calculation
+                const estimatedRenters = demo.housing?.estimated_renters || 0;
+                // Use per-month average annualized to yearly for per-renter calculation
                 const annualizedCount = evictionsPerMonth * 12;
-                const evictionRate = population > 0 ? ((annualizedCount / population) * 1000) : 0;
+                // Calculate eviction rate per 1,000 renter households for accurate comparison
+                const evictionRate = estimatedRenters > 0 ? ((annualizedCount / estimatedRenters) * 1000) : 0;
                 const medianIncome = demo.income?.median_household_income || 0;
                 const povertyRate = demo.poverty?.pct_total_poverty || 0;
                 const renterCostBurden = demo.housing?.pct_renter_cost_burdened_35plus || 0;
@@ -5381,6 +5391,7 @@
                     monthsOfData: monthsOfData,
                     evictionRate: evictionRate,
                     population: population,
+                    estimatedRenters: estimatedRenters,
                     medianIncome: medianIncome,
                     povertyRate: povertyRate,
                     renterCostBurden: renterCostBurden,
@@ -5418,7 +5429,7 @@
             const perCapitaHeader = document.getElementById('perCapitaHeader');
             if (perCapitaHeader) {
                 perCapitaHeader.textContent = 'Per 1K';
-                perCapitaHeader.title = 'Annualized evictions per 1,000 population (based on monthly average)';
+                perCapitaHeader.title = 'Annualized evictions per 1,000 renter households (based on monthly average)';
             }
 
             // Show data range info - explain per-month averaging
