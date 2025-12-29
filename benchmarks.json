@@ -31,6 +31,13 @@
         "interpretation": "Measures actual displacement rate; the 'true' eviction rate",
         "national_benchmark": "2.3-3.13% nationally (2000-2016 range)"
       },
+      "eviction_rate_per_1k_renters": {
+        "formula": "(eviction_count / estimated_renters) × 1000",
+        "description": "Number of eviction filings per 1,000 renter households in a given period",
+        "interpretation": "Normalizes for varying renter population sizes across districts, enabling fair comparison of eviction burden",
+        "example": "District with 150 evictions and 4,730 renters: (150 / 4,730) × 1000 = 31.7 per 1,000 renter households",
+        "rationale": "Standard metric for comparing eviction burden across geographies with different renter populations"
+      },
       "relationship": "eviction_rate = filing_rate × judgment_rate_pct_of_filings"
     }
   },
@@ -46,8 +53,10 @@
     },
     "renter_demographics": {
       "renter_households": 146940,
-      "renter_percentage": 46.6,
-      "median_gross_rent_2023": 1472
+      "estimated_renters": 146473,
+      "renter_percentage": 46.3,
+      "median_gross_rent_2023": 1472,
+      "data_note": "estimated_renters (146,473) calculated from ACS 2021 5-year estimates closely matches Census renter_households (146,940)"
     },
     "eviction_filings": {
       "2024": 14346,

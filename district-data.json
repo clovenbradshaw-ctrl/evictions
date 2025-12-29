@@ -1,11 +1,57 @@
 {
   "metadata": {
-    "source": "Metropolitan Social Services, Know Your Community 2023",
+    "report_title": "2023 Know Your Community: Socioeconomic Profiles Metropolitan Council Districts",
+    "publisher": "Metropolitan Social Services, Strategic Planning & Research",
     "source_url": "https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf?ct=1706286236",
-    "data_source": "American Community Survey 2017-2021 5-Year Estimates",
+    "base_data_source": "American Community Survey 2021, 5-year estimates",
     "geography": "Nashville-Davidson County Metro Council Districts (35 districts, post-2021 redistricting)",
-    "citation": "Metropolitan Social Services Strategic Planning & Research, December 2023",
-    "notes": "District boundaries based on BL2021-1052 approved January 18, 2022"
+    "notes": "District boundaries based on BL2021-1052 approved January 18, 2022",
+    "field_sources": {
+      "population": {
+        "type": "PROVIDED",
+        "table": "S0101",
+        "description": "Age Categories",
+        "report_page": 10
+      },
+      "total_housing_units": {
+        "type": "PROVIDED",
+        "table": "B25002",
+        "description": "Housing Occupancy",
+        "report_page": 49
+      },
+      "percent_occupied": {
+        "type": "PROVIDED",
+        "table": "B25002",
+        "description": "Housing Occupancy",
+        "report_page": 49
+      },
+      "owner_occupied_units": {
+        "type": "PROVIDED",
+        "table": "B25075",
+        "description": "Owner Housing Values",
+        "report_page": 50
+      },
+      "total_occupied": {
+        "type": "CALCULATED",
+        "formula": "total_housing_units × (percent_occupied / 100)",
+        "notes": "Rounded to nearest integer"
+      },
+      "estimated_renters": {
+        "type": "CALCULATED",
+        "formula": "total_occupied - owner_occupied_units",
+        "validation": "Davidson County total of 146,473 closely matches 146,398 'Occupied units paying rent' from Table B25070 (page 56)"
+      },
+      "pct_renters": {
+        "type": "CALCULATED",
+        "formula": "(estimated_renters / total_occupied) × 100",
+        "notes": "Rounded to one decimal place"
+      }
+    },
+    "eviction_analysis": {
+      "recommended_formula": "(eviction_count / estimated_renters) × 1000",
+      "output_unit": "evictions per 1,000 renter households",
+      "rationale": "Normalizes for varying renter population sizes across districts, enabling fair comparison of eviction burden"
+    }
   },
   "county_totals": {
     "population": 708490,
@@ -21,6 +67,11 @@
     "pct_hispanic": 10.6,
     "pct_asian": 3.6,
     "total_housing_units": 343111,
+    "pct_occupied": 92.2,
+    "owner_occupied_units": 169875,
+    "total_occupied": 316348,
+    "estimated_renters": 146473,
+    "pct_renters": 46.3,
     "median_owner_housing_value": 350700,
     "median_monthly_rent": 1298
   },
@@ -64,6 +115,10 @@
       "housing": {
         "total_housing_units": 7894,
         "pct_occupied": 93.3,
+        "owner_occupied_units": 5696,
+        "total_occupied": 7367,
+        "estimated_renters": 1671,
+        "pct_renters": 22.7,
         "median_owner_value": 241400,
         "median_monthly_rent": 1032,
         "pct_owner_cost_burdened_35plus": 22.4,
@@ -109,6 +164,10 @@
       "housing": {
         "total_housing_units": 8957,
         "pct_occupied": 91.8,
+        "owner_occupied_units": 3493,
+        "total_occupied": 8223,
+        "estimated_renters": 4730,
+        "pct_renters": 57.5,
         "median_owner_value": 195300,
         "median_monthly_rent": 907,
         "pct_owner_cost_burdened_35plus": 25.3,
@@ -154,6 +213,10 @@
       "housing": {
         "total_housing_units": 8393,
         "pct_occupied": 93.4,
+        "owner_occupied_units": 5408,
+        "total_occupied": 7839,
+        "estimated_renters": 2431,
+        "pct_renters": 31.0,
         "median_owner_value": 237100,
         "median_monthly_rent": 1058,
         "pct_owner_cost_burdened_35plus": 23.1,
@@ -199,6 +262,10 @@
       "housing": {
         "total_housing_units": 9657,
         "pct_occupied": 94.4,
+        "owner_occupied_units": 6288,
+        "total_occupied": 9116,
+        "estimated_renters": 2828,
+        "pct_renters": 31.0,
         "median_owner_value": 391000,
         "median_monthly_rent": 1442,
         "pct_owner_cost_burdened_35plus": 22.2,
@@ -244,6 +311,10 @@
       "housing": {
         "total_housing_units": 8009,
         "pct_occupied": 87.1,
+        "owner_occupied_units": 3394,
+        "total_occupied": 6976,
+        "estimated_renters": 3582,
+        "pct_renters": 51.3,
         "median_owner_value": 300900,
         "median_monthly_rent": 1340,
         "pct_owner_cost_burdened_35plus": 19.3,
@@ -289,6 +360,10 @@
       "housing": {
         "total_housing_units": 9068,
         "pct_occupied": 90.7,
+        "owner_occupied_units": 4207,
+        "total_occupied": 8225,
+        "estimated_renters": 4018,
+        "pct_renters": 48.8,
         "median_owner_value": 440900,
         "median_monthly_rent": 1445,
         "pct_owner_cost_burdened_35plus": 15.8,
@@ -334,6 +409,10 @@
       "housing": {
         "total_housing_units": 10547,
         "pct_occupied": 91.5,
+        "owner_occupied_units": 6259,
+        "total_occupied": 9651,
+        "estimated_renters": 3392,
+        "pct_renters": 35.1,
         "median_owner_value": 321700,
         "median_monthly_rent": 1338,
         "pct_owner_cost_burdened_35plus": 20.8,
@@ -379,6 +458,10 @@
       "housing": {
         "total_housing_units": 8987,
         "pct_occupied": 91.4,
+        "owner_occupied_units": 4549,
+        "total_occupied": 8214,
+        "estimated_renters": 3665,
+        "pct_renters": 44.6,
         "median_owner_value": 231400,
         "median_monthly_rent": 1166,
         "pct_owner_cost_burdened_35plus": 20.5,
@@ -424,6 +507,10 @@
       "housing": {
         "total_housing_units": 8357,
         "pct_occupied": 93.6,
+        "owner_occupied_units": 3409,
+        "total_occupied": 7822,
+        "estimated_renters": 4413,
+        "pct_renters": 56.4,
         "median_owner_value": 204900,
         "median_monthly_rent": 987,
         "pct_owner_cost_burdened_35plus": 19.7,
@@ -469,6 +556,10 @@
       "housing": {
         "total_housing_units": 9005,
         "pct_occupied": 94.9,
+        "owner_occupied_units": 4113,
+        "total_occupied": 8546,
+        "estimated_renters": 4433,
+        "pct_renters": 51.9,
         "median_owner_value": 233900,
         "median_monthly_rent": 1176,
         "pct_owner_cost_burdened_35plus": 21.1,
@@ -514,6 +605,10 @@
       "housing": {
         "total_housing_units": 9007,
         "pct_occupied": 92.7,
+        "owner_occupied_units": 5890,
+        "total_occupied": 8349,
+        "estimated_renters": 2459,
+        "pct_renters": 29.5,
         "median_owner_value": 242400,
         "median_monthly_rent": 1164,
         "pct_owner_cost_burdened_35plus": 17.4,
@@ -559,6 +654,10 @@
       "housing": {
         "total_housing_units": 8396,
         "pct_occupied": 94.8,
+        "owner_occupied_units": 5408,
+        "total_occupied": 7959,
+        "estimated_renters": 2551,
+        "pct_renters": 32.1,
         "median_owner_value": 279900,
         "median_monthly_rent": 1190,
         "pct_owner_cost_burdened_35plus": 17.9,
@@ -604,6 +703,10 @@
       "housing": {
         "total_housing_units": 7777,
         "pct_occupied": 93.2,
+        "owner_occupied_units": 3323,
+        "total_occupied": 7248,
+        "estimated_renters": 3925,
+        "pct_renters": 54.2,
         "median_owner_value": 201300,
         "median_monthly_rent": 1137,
         "pct_owner_cost_burdened_35plus": 29.2,
@@ -649,6 +752,10 @@
       "housing": {
         "total_housing_units": 11001,
         "pct_occupied": 90.9,
+        "owner_occupied_units": 4235,
+        "total_occupied": 10000,
+        "estimated_renters": 5765,
+        "pct_renters": 57.7,
         "median_owner_value": 236600,
         "median_monthly_rent": 1237,
         "pct_owner_cost_burdened_35plus": 20.2,
@@ -694,6 +801,10 @@
       "housing": {
         "total_housing_units": 9093,
         "pct_occupied": 90.5,
+        "owner_occupied_units": 5265,
+        "total_occupied": 8229,
+        "estimated_renters": 2964,
+        "pct_renters": 36.0,
         "median_owner_value": 252200,
         "median_monthly_rent": 1193,
         "pct_owner_cost_burdened_35plus": 14.6,
@@ -739,6 +850,10 @@
       "housing": {
         "total_housing_units": 8196,
         "pct_occupied": 86.4,
+        "owner_occupied_units": 3195,
+        "total_occupied": 7081,
+        "estimated_renters": 3886,
+        "pct_renters": 54.9,
         "median_owner_value": 259300,
         "median_monthly_rent": 1069,
         "pct_owner_cost_burdened_35plus": 9.6,
@@ -784,6 +899,10 @@
       "housing": {
         "total_housing_units": 10844,
         "pct_occupied": 84.9,
+        "owner_occupied_units": 3302,
+        "total_occupied": 9207,
+        "estimated_renters": 5905,
+        "pct_renters": 64.1,
         "median_owner_value": 451200,
         "median_monthly_rent": 1328,
         "pct_owner_cost_burdened_35plus": 22.5,
@@ -829,6 +948,10 @@
       "housing": {
         "total_housing_units": 6253,
         "pct_occupied": 88.1,
+        "owner_occupied_units": 2438,
+        "total_occupied": 5509,
+        "estimated_renters": 3071,
+        "pct_renters": 55.7,
         "median_owner_value": 661900,
         "median_monthly_rent": 1393,
         "pct_owner_cost_burdened_35plus": 16.8,
@@ -874,6 +997,10 @@
       "housing": {
         "total_housing_units": 18103,
         "pct_occupied": 72.8,
+        "owner_occupied_units": 2789,
+        "total_occupied": 13179,
+        "estimated_renters": 10390,
+        "pct_renters": 78.8,
         "median_owner_value": 398700,
         "median_monthly_rent": 1611,
         "pct_owner_cost_burdened_35plus": 23.3,
@@ -919,6 +1046,10 @@
       "housing": {
         "total_housing_units": 8117,
         "pct_occupied": 91.2,
+        "owner_occupied_units": 3878,
+        "total_occupied": 7403,
+        "estimated_renters": 3525,
+        "pct_renters": 47.6,
         "median_owner_value": 349200,
         "median_monthly_rent": 1289,
         "pct_owner_cost_burdened_35plus": 19.0,
@@ -964,6 +1095,10 @@
       "housing": {
         "total_housing_units": 10827,
         "pct_occupied": 85.7,
+        "owner_occupied_units": 2198,
+        "total_occupied": 9278,
+        "estimated_renters": 7080,
+        "pct_renters": 76.3,
         "median_owner_value": 304400,
         "median_monthly_rent": 1257,
         "pct_owner_cost_burdened_35plus": 17.1,
@@ -1009,6 +1144,10 @@
       "housing": {
         "total_housing_units": 11531,
         "pct_occupied": 91.5,
+        "owner_occupied_units": 6512,
+        "total_occupied": 10551,
+        "estimated_renters": 4039,
+        "pct_renters": 38.3,
         "median_owner_value": 276300,
         "median_monthly_rent": 1362,
         "pct_owner_cost_burdened_35plus": 22.4,
@@ -1054,6 +1193,10 @@
       "housing": {
         "total_housing_units": 8846,
         "pct_occupied": 94.6,
+        "owner_occupied_units": 5360,
+        "total_occupied": 8368,
+        "estimated_renters": 3008,
+        "pct_renters": 35.9,
         "median_owner_value": 620500,
         "median_monthly_rent": 1635,
         "pct_owner_cost_burdened_35plus": 16.2,
@@ -1099,6 +1242,10 @@
       "housing": {
         "total_housing_units": 10560,
         "pct_occupied": 90.0,
+        "owner_occupied_units": 5066,
+        "total_occupied": 9504,
+        "estimated_renters": 4438,
+        "pct_renters": 46.7,
         "median_owner_value": 612200,
         "median_monthly_rent": 1608,
         "pct_owner_cost_burdened_35plus": 16.4,
@@ -1144,6 +1291,10 @@
       "housing": {
         "total_housing_units": 9367,
         "pct_occupied": 90.4,
+        "owner_occupied_units": 6062,
+        "total_occupied": 8468,
+        "estimated_renters": 2406,
+        "pct_renters": 28.4,
         "median_owner_value": 663500,
         "median_monthly_rent": 1792,
         "pct_owner_cost_burdened_35plus": 19.2,
@@ -1189,6 +1340,10 @@
       "housing": {
         "total_housing_units": 8209,
         "pct_occupied": 90.8,
+        "owner_occupied_units": 3760,
+        "total_occupied": 7454,
+        "estimated_renters": 3694,
+        "pct_renters": 49.6,
         "median_owner_value": 326500,
         "median_monthly_rent": 1087,
         "pct_owner_cost_burdened_35plus": 19.9,
@@ -1234,6 +1389,10 @@
       "housing": {
         "total_housing_units": 8337,
         "pct_occupied": 89.3,
+        "owner_occupied_units": 3044,
+        "total_occupied": 7445,
+        "estimated_renters": 4401,
+        "pct_renters": 59.1,
         "median_owner_value": 262400,
         "median_monthly_rent": 1215,
         "pct_owner_cost_burdened_35plus": 11.1,
@@ -1279,6 +1438,10 @@
       "housing": {
         "total_housing_units": 7418,
         "pct_occupied": 92.5,
+        "owner_occupied_units": 3748,
+        "total_occupied": 6862,
+        "estimated_renters": 3114,
+        "pct_renters": 45.4,
         "median_owner_value": 215800,
         "median_monthly_rent": 1152,
         "pct_owner_cost_burdened_35plus": 26.4,
@@ -1324,6 +1487,10 @@
       "housing": {
         "total_housing_units": 9085,
         "pct_occupied": 92.5,
+        "owner_occupied_units": 5212,
+        "total_occupied": 8404,
+        "estimated_renters": 3192,
+        "pct_renters": 38.0,
         "median_owner_value": 213600,
         "median_monthly_rent": 1193,
         "pct_owner_cost_burdened_35plus": 27.8,
@@ -1369,6 +1536,10 @@
       "housing": {
         "total_housing_units": 6415,
         "pct_occupied": 92.8,
+        "owner_occupied_units": 3045,
+        "total_occupied": 5953,
+        "estimated_renters": 2908,
+        "pct_renters": 48.9,
         "median_owner_value": 203000,
         "median_monthly_rent": 1105,
         "pct_owner_cost_burdened_35plus": 23.6,
@@ -1414,6 +1585,10 @@
       "housing": {
         "total_housing_units": 11584,
         "pct_occupied": 93.9,
+        "owner_occupied_units": 6803,
+        "total_occupied": 10877,
+        "estimated_renters": 4074,
+        "pct_renters": 37.5,
         "median_owner_value": 312400,
         "median_monthly_rent": 1526,
         "pct_owner_cost_burdened_35plus": 23.3,
@@ -1459,6 +1634,10 @@
       "housing": {
         "total_housing_units": 11400,
         "pct_occupied": 91.7,
+        "owner_occupied_units": 3233,
+        "total_occupied": 10454,
+        "estimated_renters": 7221,
+        "pct_renters": 69.1,
         "median_owner_value": 210800,
         "median_monthly_rent": 1198,
         "pct_owner_cost_burdened_35plus": 29.9,
@@ -1504,6 +1683,10 @@
       "housing": {
         "total_housing_units": 9367,
         "pct_occupied": 94.7,
+        "owner_occupied_units": 7087,
+        "total_occupied": 8871,
+        "estimated_renters": 1784,
+        "pct_renters": 20.1,
         "median_owner_value": 226600,
         "median_monthly_rent": 1334,
         "pct_owner_cost_burdened_35plus": 20.8,
@@ -1549,6 +1732,10 @@
       "housing": {
         "total_housing_units": 8619,
         "pct_occupied": 92.2,
+        "owner_occupied_units": 6304,
+        "total_occupied": 7947,
+        "estimated_renters": 1643,
+        "pct_renters": 20.7,
         "median_owner_value": 801900,
         "median_monthly_rent": 1967,
         "pct_owner_cost_burdened_35plus": 16.0,
@@ -1594,6 +1781,10 @@
       "housing": {
         "total_housing_units": 7501,
         "pct_occupied": 97.1,
+        "owner_occupied_units": 6469,
+        "total_occupied": 7284,
+        "estimated_renters": 815,
+        "pct_renters": 11.2,
         "median_owner_value": 360300,
         "median_monthly_rent": 1631,
         "pct_owner_cost_burdened_35plus": 15.5,
