@@ -1184,7 +1184,8 @@
 
                 <div class="sort-options">
                     <span style="font-size: 0.85rem; color: #6b7280; margin-right: 0.5rem;">Sort by:</span>
-                    <button class="filter-btn active" data-sort="filings" onclick="setSortOrder('filings')">Total Filings</button>
+                    <button class="filter-btn" data-sort="filings" onclick="setSortOrder('filings')">Total Filings</button>
+                    <button class="filter-btn active" data-sort="per1000renters" onclick="setSortOrder('per1000renters')">Per 1,000 Renters</button>
                     <button class="filter-btn" data-sort="percent" onclick="setSortOrder('percent')">% of Total</button>
                     <button class="filter-btn" data-sort="recent" onclick="setSortOrder('recent')">Most Recent</button>
                 </div>
@@ -1196,7 +1197,7 @@
                                 <th>Rank</th>
                                 <th>Representative</th>
                                 <th>Filings</th>
-                                <th>% of Total</th>
+                                <th id="rateColumnHeader">Per 1,000 Renters</th>
                                 <th>Activity</th>
                             </tr>
                         </thead>
@@ -1244,7 +1245,7 @@
         let evictionData = [];
         let districtStats = {};
         let selectedDistrict = null;
-        let currentSort = 'filings';
+        let currentSort = 'per1000renters';
         let districtsWithData = [];
         let districtDemographics = null;
 
@@ -2251,9 +2252,21 @@
             // Sort districts based on current sort order
             let sortedData = Object.values(districtStats);
 
+            // Helper function to calculate per 1,000 renters rate
+            const getPer1000RentersRate = (stats) => {
+                const demo = districtDemographics?.districts?.[stats.district];
+                const estimatedRenters = demo?.housing?.estimated_renters || 0;
+                if (estimatedRenters === 0) return 0;
+                const annualizedCount = Math.round(stats.total * globalDataRange.annualizationFactor);
+                return (annualizedCount / estimatedRenters) * 1000;
+            };
+
             switch (currentSort) {
                 case 'filings':
                     sortedData.sort((a, b) => b.total - a.total);
+                    break;
+                case 'per1000renters':
+                    sortedData.sort((a, b) => getPer1000RentersRate(b) - getPer1000RentersRate(a));
                     break;
                 case 'percent':
                     sortedData.sort((a, b) => b.total - a.total);
@@ -2269,20 +2282,43 @@
 
             const maxFilings = Math.max(...sortedData.map(d => d.total));
 
+            // Calculate max per 1,000 renters rate for bar scaling
+            const maxPer1000Rate = Math.max(...sortedData.map(d => getPer1000RentersRate(d)));
+
+            // Update column header based on sort
+            const headerEl = document.getElementById('rateColumnHeader');
+            if (headerEl) {
+                headerEl.textContent = currentSort === 'per1000renters' ? 'Per 1,000 Renters' : '% of Total';
+            }
+
             tbody.innerHTML = sortedData.map((stats, idx) => {
                 const rank = idx + 1;
                 const cm = councilMembers[stats.district];
                 const percent = totalFilings > 0 ? ((stats.total / totalFilings) * 100).toFixed(1) : 0;
-                const barWidth = (stats.total / maxFilings) * 100;
+                const per1000Rate = getPer1000RentersRate(stats);
+
+                // Use per 1,000 renters for bar when that sort is active
+                const barValue = currentSort === 'per1000renters' ? per1000Rate : stats.total;
+                const barMax = currentSort === 'per1000renters' ? maxPer1000Rate : maxFilings;
+                const barWidth = barMax > 0 ? (barValue / barMax) * 100 : 0;
 
                 let rankClass = 'rank-other';
                 if (rank === 1) rankClass = 'rank-1';
                 else if (rank === 2) rankClass = 'rank-2';
                 else if (rank === 3) rankClass = 'rank-3';
 
-                let percentClass = 'low';
-                if (percent > 10) percentClass = 'high';
-                else if (percent > 5) percentClass = 'medium';
+                // Display value - show per 1,000 renters or percent based on sort
+                const displayValue = currentSort === 'per1000renters' ? per1000Rate.toFixed(1) : percent;
+                const displaySuffix = currentSort === 'per1000renters' ? '' : '%';
+
+                let rateClass = 'low';
+                if (currentSort === 'per1000renters') {
+                    if (per1000Rate > 100) rateClass = 'high';
+                    else if (per1000Rate > 50) rateClass = 'medium';
+                } else {
+                    if (percent > 10) rateClass = 'high';
+                    else if (percent > 5) rateClass = 'medium';
+                }
 
                 let barClass = 'low';
                 if (barWidth > 75) barClass = 'high';
@@ -2300,7 +2336,7 @@
                             </div>
                         </td>
                         <td><strong>${stats.total.toLocaleString()}</strong></td>
-                        <td><span class="percent-badge ${percentClass}">${percent}%</span></td>
+                        <td><span class="percent-badge ${rateClass}">${displayValue}${displaySuffix}</span></td>
                         <td>
                             <div class="bar-container">
                                 <div class="bar-fill ${barClass}" style="width: ${barWidth}%"></div>
