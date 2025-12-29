@@ -3150,14 +3150,104 @@
             return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
         }
 
+        // Cache staleness threshold: 24 hours in milliseconds
+        const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+        // Helper to check if cache is fresh (less than 24 hours old)
+        function isCacheFresh() {
+            const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
+            if (!storedTimestamp) return false;
+            const cacheAge = Date.now() - parseInt(storedTimestamp);
+            return cacheAge < CACHE_MAX_AGE_MS;
+        }
+
+        // Helper to get cache age in hours
+        function getCacheAgeHours() {
+            const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
+            if (!storedTimestamp) return null;
+            return Math.round((Date.now() - parseInt(storedTimestamp)) / (1000 * 60 * 60));
+        }
+
+        // Helper to load cached data from localStorage or IndexedDB
+        async function loadCachedData() {
+            const storageType = localStorage.getItem('evictionDataStorage');
+            let cachedData = null;
+
+            // Try compressed localStorage first
+            const compressedData = localStorage.getItem('evictionDataCompressed');
+            if (compressedData) {
+                cachedData = decompressEvictionData(JSON.parse(compressedData));
+                console.log('📦 Loaded compressed data from localStorage');
+            }
+            // Try legacy uncompressed format
+            else {
+                const legacyData = localStorage.getItem('evictionData');
+                if (legacyData) {
+                    cachedData = JSON.parse(legacyData);
+                    console.log('📦 Loaded legacy data from localStorage');
+                }
+            }
+
+            // Try IndexedDB if localStorage didn't have data
+            if (!cachedData && storageType === 'indexedDB') {
+                const idbResult = await evictionDB.load();
+                if (idbResult?.data) {
+                    cachedData = decompressEvictionData(idbResult.data);
+                    console.log('📦 Loaded data from IndexedDB');
+                }
+            }
+
+            return cachedData;
+        }
+
         async function loadData() {
             const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainers';
 
             try {
-                updateStatus('Loading data from public records API...', 'loading');
-                console.group('🔄 API Data Loading');
-                console.log('API URL:', API_URL);
+                console.group('🔄 Data Loading');
                 console.log('Timestamp:', new Date().toISOString());
+
+                // Check if we have fresh cached data (less than 24 hours old)
+                const cacheAgeHours = getCacheAgeHours();
+                const cacheFresh = isCacheFresh();
+                console.log('📊 Cache status:', { ageHours: cacheAgeHours, fresh: cacheFresh });
+
+                if (cacheFresh) {
+                    // Use cached data - it's still fresh
+                    updateStatus('Loading cached data...', 'loading');
+                    const cachedData = await loadCachedData();
+
+                    if (cachedData && cachedData.length > 0) {
+                        allData = cachedData;
+                        filteredData = allData;
+                        calculateGlobalDataRange(allData);
+
+                        const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
+                        console.log('✅ Using fresh cached data:', allData.length, 'records, cached', cacheAgeHours, 'hours ago');
+                        console.groupEnd();
+
+                        updateStatus(`Loaded ${allData.length} cached records (synced ${cacheAgeHours} hours ago)`, 'success');
+                        updateMetrics();
+                        updateCharts();
+                        createDistrictMap();
+                        initDemographicsCharts();
+                        initGrid();
+                        document.getElementById('lastUpdate').textContent = storedTimestamp
+                            ? new Date(parseInt(storedTimestamp)).toLocaleString()
+                            : 'Cached data';
+
+                        // Re-apply persisted filters after data loads
+                        restorePersistedFilters();
+                        return;
+                    }
+                    console.log('⚠️ Cache appeared fresh but no data found, fetching from API...');
+                }
+
+                // Cache is stale or doesn't exist - fetch from API
+                updateStatus(cacheFresh === false && cacheAgeHours !== null
+                    ? `Cache is ${cacheAgeHours} hours old, refreshing from API...`
+                    : 'Loading data from public records API...', 'loading');
+                console.log('API URL:', API_URL);
 
                 let result = null;
                 let lastError = null;
@@ -3199,45 +3289,22 @@
 
                 // If direct API call failed, try cache fallback (localStorage or IndexedDB)
                 if (result === null) {
-                    console.log('API call failed, checking cache...');
-                    const storageType = localStorage.getItem('evictionDataStorage');
+                    console.log('API call failed, checking cache for fallback...');
+                    const cachedData = await loadCachedData();
                     const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
-                    let cachedData = null;
 
-                    // Try compressed localStorage first
-                    const compressedData = localStorage.getItem('evictionDataCompressed');
-                    if (compressedData) {
-                        cachedData = decompressEvictionData(JSON.parse(compressedData));
-                        console.log('📦 Loaded compressed data from localStorage');
-                    }
-                    // Try legacy uncompressed format
-                    else {
-                        const legacyData = localStorage.getItem('evictionData');
-                        if (legacyData) {
-                            cachedData = JSON.parse(legacyData);
-                            console.log('📦 Loaded legacy data from localStorage');
-                        }
-                    }
-
-                    // Try IndexedDB if localStorage didn't have data
-                    if (!cachedData && storageType === 'indexedDB') {
-                        const idbResult = await evictionDB.load();
-                        if (idbResult?.data) {
-                            cachedData = decompressEvictionData(idbResult.data);
-                            console.log('📦 Loaded data from IndexedDB');
-                        }
-                    }
-
-                    if (cachedData) {
+                    if (cachedData && cachedData.length > 0) {
                         allData = cachedData;
                         filteredData = allData;
                         calculateGlobalDataRange(allData);
 
-                        const cacheAge = storedTimestamp
-                            ? Math.round((Date.now() - parseInt(storedTimestamp)) / (1000 * 60 * 60))
-                            : 'unknown';
+                        const cacheAge = getCacheAgeHours();
+                        const ageText = cacheAge !== null ? `${cacheAge} hours` : 'unknown time';
 
-                        updateStatus(`Loaded ${allData.length} cached records (cached ${cacheAge} hours ago). Live API unavailable.`, 'success');
+                        console.log('⚠️ Using stale cache as fallback:', allData.length, 'records, cached', ageText, 'ago');
+                        console.groupEnd();
+
+                        updateStatus(`Loaded ${allData.length} cached records (cached ${ageText} ago). Live API unavailable.`, 'success');
                         updateMetrics();
                         updateCharts();
                         createDistrictMap();
@@ -3246,6 +3313,9 @@
                         document.getElementById('lastUpdate').textContent = storedTimestamp
                             ? new Date(parseInt(storedTimestamp)).toLocaleString() + ' (cached)'
                             : 'Cached data';
+
+                        // Re-apply persisted filters after data loads
+                        restorePersistedFilters();
                         return;
                     }
 
