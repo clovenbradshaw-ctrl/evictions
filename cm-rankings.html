@@ -1345,10 +1345,12 @@
             const eviction30DayAvg = stats?.avg30Day || 0;
             const dataRangeDays = stats?.dataRangeDays || 0;
             const population = demo?.population || 0;
+            const estimatedRenters = demo?.housing?.estimated_renters || 0;
             // Pro-rate to full year if we have partial year data
             const annualizedCount = Math.round(evictionCount * globalDataRange.annualizationFactor);
             const isProRated = globalDataRange.days > 0 && globalDataRange.days < 365;
-            const evictionRate = population > 0 ? ((annualizedCount / population) * 1000).toFixed(2) : 'N/A';
+            // Use renter households for accurate eviction rate (only renters can be evicted)
+            const evictionRate = estimatedRenters > 0 ? ((annualizedCount / estimatedRenters) * 1000).toFixed(2) : 'N/A';
             const povertyRate = demo?.poverty?.pct_total_poverty || 0;
             const medianIncome = demo?.income?.median_household_income || 0;
             const countyMedianIncome = county?.median_household_income || 65348;
@@ -1379,8 +1381,12 @@
                             <div class="value">${population.toLocaleString()}</div>
                         </div>
                         <div class="demo-item">
-                            <div class="label">Evictions per 1,000${isProRated ? ' (annualized)' : ''}</div>
+                            <div class="label">Per 1,000 Renters${isProRated ? ' (ann.)' : ''}</div>
                             <div class="value highlight">${evictionRate}</div>
+                        </div>
+                        <div class="demo-item">
+                            <div class="label">Renter Households</div>
+                            <div class="value">${estimatedRenters.toLocaleString()}</div>
                         </div>
                         <div class="demo-item">
                             <div class="label">Poverty Rate</div>
