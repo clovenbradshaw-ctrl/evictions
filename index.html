@@ -3230,6 +3230,7 @@
                         updateMetrics();
                         updateCharts();
                         createDistrictMap();
+                        await loadDistrictDemographics();
                         initDemographicsCharts();
                         initGrid();
                         document.getElementById('lastUpdate').textContent = storedTimestamp
@@ -3410,6 +3411,7 @@
                 updateMetrics();
                 updateCharts();
                 createDistrictMap();
+                await loadDistrictDemographics();
                 initDemographicsCharts();
                 initGrid();
 
@@ -5413,9 +5415,6 @@
             }
             console.groupEnd();
         }
-
-        // Load demographics on page load
-        loadDistrictDemographics();
 
         function openDistrictModal(districtNumber) {
             if (!districtNumber || districtNumber === 'Unknown') return;
