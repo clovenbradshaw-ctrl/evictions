@@ -1651,10 +1651,9 @@
 
                 sortedLandlords.slice(0, 50).forEach(landlord => {
                     const displayName = getDisplayName(landlord.name);
-                    const nameClass = isLoggedIn ? '' : 'name-hidden';
                     html += `
                         <tr>
-                            <td class="${nameClass}">${truncateLandlord(displayName, 40)}</td>
+                            <td>${truncateLandlord(displayName, 40)}</td>
                             <td><strong>${landlord.evictions.length}</strong></td>
                         </tr>
                     `;
@@ -1667,9 +1666,6 @@
                 `;
                 if (sortedLandlords.length > 50) {
                     html += `<p style="font-size: 0.8rem; color: #6b7280; text-align: center; margin-top: 0.5rem;">Showing top 50 of ${sortedLandlords.length} landlords</p>`;
-                }
-                if (!isLoggedIn) {
-                    html += `<p style="font-size: 0.8rem; color: #9ca3af; text-align: center; margin-top: 0.5rem; font-style: italic;"><a href="#" onclick="showLoginModal(); return false;" style="color: #4f46e5;">Login</a> to view landlord names</p>`;
                 }
             }
             html += `</div>`;
@@ -1703,12 +1699,11 @@
                     const caseNum = ev.Case_Number || ev.case_number || ev.CaseNumber || '-';
                     const plaintiff = ev.Plaintiff_Petitioner || ev.plaintiff_petitioner || ev.Plaintiff || '-';
                     const displayPlaintiff = getDisplayName(plaintiff);
-                    const nameClass = isLoggedIn ? '' : 'name-hidden';
                     html += `
                         <tr>
                             <td>${dateStr}</td>
                             <td>${caseNum}</td>
-                            <td class="${nameClass}">${truncateLandlord(displayPlaintiff, 35)}</td>
+                            <td>${truncateLandlord(displayPlaintiff, 35)}</td>
                         </tr>
                     `;
                 });
@@ -1719,9 +1714,6 @@
                 `;
                 if (districtEvictions.length > 100) {
                     html += `<p style="font-size: 0.8rem; color: #6b7280; text-align: center; margin-top: 0.5rem;">Showing 100 of ${districtEvictions.length} filings</p>`;
-                }
-                if (!isLoggedIn) {
-                    html += `<p style="font-size: 0.8rem; color: #9ca3af; text-align: center; margin-top: 0.5rem; font-style: italic;"><a href="#" onclick="showLoginModal(); return false;" style="color: #4f46e5;">Login</a> to view landlord names</p>`;
                 }
             }
             html += `</div>`;
@@ -2503,8 +2495,7 @@
         }
 
         function getDisplayName(name) {
-            if (isLoggedIn) return name;
-            return scrambleName(name);
+            return name;
         }
 
         // Sorting function for landlord table
