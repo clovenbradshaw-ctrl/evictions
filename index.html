@@ -985,6 +985,32 @@
             color: #059669;
         }
 
+        .demo-item.clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .demo-item.clickable:hover {
+            background: #e5e7eb;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .demo-item.clickable::after {
+            content: 'ℹ️';
+            position: absolute;
+            top: 4px;
+            right: 6px;
+            font-size: 0.65rem;
+            opacity: 0.5;
+            transition: opacity 0.2s ease;
+        }
+
+        .demo-item.clickable:hover::after {
+            opacity: 1;
+        }
+
         .modal-source {
             margin-top: 1.5rem;
             padding-top: 1rem;
@@ -3690,6 +3716,256 @@
             document.body.appendChild(modalWrapper);
         }
 
+        // District Profile Stat Source Modal (for community profile stats in district modal)
+        function showDistrictStatSource(statType, event) {
+            // Prevent the click from closing the district modal
+            if (event) {
+                event.stopPropagation();
+            }
+
+            const sourceInfo = {
+                // Eviction Context
+                evictionFilings: {
+                    title: 'Eviction Filings',
+                    description: 'Total number of eviction cases filed in this district during the data period.',
+                    source: 'Davidson County Sessions Court',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    methodology: 'Count of eviction filings from court records where the property address falls within this council district boundary.'
+                },
+                population: {
+                    title: 'Population',
+                    description: 'Total population count for this council district.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Population data from U.S. Census Bureau, aggregated by council district boundaries via Metropolitan Social Services.'
+                },
+                evictionRate: {
+                    title: 'Evictions per 1,000 (Annualized)',
+                    description: 'Annualized eviction rate normalized per 1,000 population for comparison across districts.',
+                    source: 'Court records + American Community Survey',
+                    sourceUrl: 'https://caselink.nashville.gov/',
+                    methodology: 'Calculated as (Total Evictions × 365 / Days of Data / District Population) × 1,000. Annualization adjusts partial-year data to project a full year rate.'
+                },
+                povertyRate: {
+                    title: 'Poverty Rate',
+                    description: 'Percentage of residents living below the federal poverty line.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Based on federal poverty thresholds which vary by family size and composition. A family of 4 is below poverty if income is under ~$27,750.'
+                },
+                medianIncome: {
+                    title: 'Median Household Income',
+                    description: 'Median annual household income for residents in this district.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Median income represents the midpoint of all household incomes in the district - half earn more, half earn less.'
+                },
+                renterCostBurden: {
+                    title: 'Renters Cost-Burdened (35%+)',
+                    description: 'Percentage of renters spending 35% or more of income on housing costs.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'HUD considers households severely cost-burdened at 35%+ of income. This metric shows the percentage of renter households meeting this threshold.'
+                },
+                // Housing
+                housingUnits: {
+                    title: 'Housing Units',
+                    description: 'Total number of housing units in this district.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Count of all housing units including occupied and vacant units, apartments, houses, and other residential structures.'
+                },
+                occupiedRate: {
+                    title: 'Occupied Housing Rate',
+                    description: 'Percentage of housing units that are occupied.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Calculated as occupied units divided by total housing units. Higher vacancy rates may indicate housing market issues.'
+                },
+                medianHomeValue: {
+                    title: 'Median Home Value',
+                    description: 'Median value of owner-occupied housing units.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Self-reported owner estimate of how much the property would sell for. Represents the midpoint value for owner-occupied homes.'
+                },
+                medianRent: {
+                    title: 'Median Rent',
+                    description: 'Median monthly rent for renter-occupied units.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Gross rent including contract rent plus utilities. Represents the midpoint monthly rent for all rental units.'
+                },
+                ownerCostBurden: {
+                    title: 'Owners Cost-Burdened',
+                    description: 'Percentage of homeowners spending 35% or more of income on housing costs.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Housing costs for owners include mortgage, insurance, taxes, and utilities. 35%+ is considered severely cost-burdened.'
+                },
+                renterCostBurdenHousing: {
+                    title: 'Renters Cost-Burdened',
+                    description: 'Percentage of renters spending 35% or more of income on housing costs.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Housing costs for renters include rent and utilities. 35%+ is considered severely cost-burdened by HUD standards.'
+                },
+                // Demographics
+                medianAge: {
+                    title: 'Median Age',
+                    description: 'Median age of residents in this district.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'The age that divides the population in half - 50% are older, 50% are younger.'
+                },
+                under18: {
+                    title: 'Under 18',
+                    description: 'Percentage of population under 18 years old.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Share of total population who are children and adolescents under 18 years of age.'
+                },
+                over65: {
+                    title: '65 and Over',
+                    description: 'Percentage of population aged 65 and older.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Share of total population who are seniors aged 65 and over.'
+                },
+                // Race & Ethnicity
+                white: {
+                    title: 'White',
+                    description: 'Percentage of population identifying as White alone.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Self-reported race from Census data. Includes those who identify as White alone, not Hispanic or Latino.'
+                },
+                black: {
+                    title: 'Black',
+                    description: 'Percentage of population identifying as Black or African American alone.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Self-reported race from Census data. Includes those who identify as Black or African American alone.'
+                },
+                hispanic: {
+                    title: 'Hispanic',
+                    description: 'Percentage of population identifying as Hispanic or Latino.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Self-reported ethnicity from Census data. Hispanic/Latino is an ethnicity and may include any race.'
+                },
+                asian: {
+                    title: 'Asian',
+                    description: 'Percentage of population identifying as Asian alone.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Self-reported race from Census data. Includes those who identify as Asian alone.'
+                },
+                twoOrMore: {
+                    title: 'Two or More Races',
+                    description: 'Percentage of population identifying with two or more races.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Self-reported race from Census data. Includes those who identify with multiple racial categories.'
+                },
+                // Poverty Status
+                totalPoverty: {
+                    title: 'Total Poverty Rate',
+                    description: 'Percentage of all residents living below the federal poverty line.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Based on federal poverty thresholds which vary by family size. Represents overall poverty rate for all ages.'
+                },
+                childPoverty: {
+                    title: 'Child Poverty',
+                    description: 'Percentage of children under 18 living below the federal poverty line.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Poverty rate specifically for population under 18 years old. Child poverty often exceeds overall poverty rates.'
+                },
+                seniorPoverty: {
+                    title: 'Senior Poverty',
+                    description: 'Percentage of adults 65+ living below the federal poverty line.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Poverty rate specifically for population aged 65 and over.'
+                },
+                // Employment
+                laborForce: {
+                    title: 'Labor Force Participation',
+                    description: 'Percentage of working-age population in the labor force.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Labor force includes employed and unemployed persons aged 16+ who are working or actively seeking work.'
+                },
+                unemployment: {
+                    title: 'Unemployment Rate',
+                    description: 'Percentage of labor force that is unemployed.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Unemployment rate for civilian labor force aged 16 and over who are actively seeking work but not employed.'
+                },
+                // Education
+                lessHS: {
+                    title: 'Less Than High School',
+                    description: 'Percentage of adults 25+ without a high school diploma.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Educational attainment for population 25 years and over who did not complete high school or equivalent.'
+                },
+                hsGraduate: {
+                    title: 'High School Graduate',
+                    description: 'Percentage of adults 25+ with high school diploma or equivalent.',
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: 'Includes high school diploma, GED, or equivalent credential as highest level of education.'
+                },
+                bachelors: {
+                    title: "Bachelor's Degree",
+                    description: "Percentage of adults 25+ with a bachelor's degree.",
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: "Educational attainment for population 25+ with a bachelor's degree as their highest credential."
+                },
+                graduate: {
+                    title: 'Graduate/Professional Degree',
+                    description: "Percentage of adults 25+ with a master's, doctoral, or professional degree.",
+                    source: 'American Community Survey 2017-2021 5-Year Estimates',
+                    sourceUrl: 'https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf',
+                    methodology: "Includes master's degrees, doctoral degrees (PhD), and professional degrees (MD, JD, etc.)."
+                }
+            };
+
+            const info = sourceInfo[statType];
+            if (!info) return;
+
+            // Create modal content
+            const modalHtml = `
+                <div class="modal-overlay" onclick="closeMetricSourceModal(event)">
+                    <div class="modal-container" style="max-width: 500px;" onclick="event.stopPropagation()">
+                        <button class="modal-close" onclick="closeMetricSourceModal()">&times;</button>
+                        <h2 style="font-size: 1.5rem; font-weight: 700; color: #1e3a5f; margin-bottom: 1rem;">${info.title}</h2>
+                        <div style="margin-bottom: 1rem;">
+                            <p style="color: #374151; margin-bottom: 0.5rem;">${info.description}</p>
+                        </div>
+                        <div style="background: #f9fafb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 0.5rem;">Methodology</div>
+                            <p style="color: #374151; font-size: 0.875rem;">${info.methodology}</p>
+                        </div>
+                        <div class="modal-source">
+                            Source: <a href="${info.sourceUrl}" target="_blank">${info.source}</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add modal to body
+            const modalWrapper = document.createElement('div');
+            modalWrapper.id = 'metricSourceModal';
+            modalWrapper.innerHTML = modalHtml;
+            document.body.appendChild(modalWrapper);
+        }
+
         // Benchmark Metro Area Source Modal
         function showBenchmarkSource(metroKey) {
             const sourceInfo = {
@@ -5112,11 +5388,11 @@
                     <div class="demo-section-title">Eviction Context</div>
                     ${dateRangeInfo ? `<div class="demo-section-subtitle" style="font-size: 11px; color: #666; margin-bottom: 8px;">Data: ${dateRangeInfo}</div>` : ''}
                     <div class="demo-grid">
-                        <div class="demo-item">
+                        <div class="demo-item clickable" onclick="showDistrictStatSource('evictionFilings', event)" title="Click for source">
                             <div class="label">Eviction Filings</div>
                             <div class="value highlight">${evictionCount.toLocaleString()}</div>
                         </div>
-                        <div class="demo-item">
+                        <div class="demo-item clickable" onclick="showDistrictStatSource('population', event)" title="Click for source">
                             <div class="label">Population</div>
                             <div class="value">${population.toLocaleString()}</div>
                         </div>
@@ -5137,7 +5413,7 @@
                                     : `<span class="arrow-down">${(countyPovertyRate - povertyRate).toFixed(1)}%</span> below county avg`}
                             </div>
                         </div>
-                        <div class="demo-item">
+                        <div class="demo-item clickable" onclick="showDistrictStatSource('medianIncome', event)" title="Click for source">
                             <div class="label">Median Household Income</div>
                             <div class="value ${medianIncome < countyMedianIncome ? 'highlight' : 'positive'}">$${medianIncome.toLocaleString()}</div>
                             <div class="compare-county">
@@ -5146,7 +5422,7 @@
                                     : `<span class="arrow-down">$${(medianIncome - countyMedianIncome).toLocaleString()}</span> above county avg`}
                             </div>
                         </div>
-                        <div class="demo-item">
+                        <div class="demo-item clickable" onclick="showDistrictStatSource('renterCostBurden', event)" title="Click for source">
                             <div class="label">Renters Cost-Burdened (35%+)</div>
                             <div class="value ${renterCostBurden > 35 ? 'highlight' : ''}">${renterCostBurden}%</div>
                         </div>
@@ -5160,27 +5436,27 @@
                     <div class="demo-section">
                         <div class="demo-section-title">Housing</div>
                         <div class="demo-grid">
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('housingUnits', event)" title="Click for source">
                                 <div class="label">Housing Units</div>
                                 <div class="value">${demo.housing?.total_housing_units?.toLocaleString() || '-'}</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('occupiedRate', event)" title="Click for source">
                                 <div class="label">Occupied</div>
                                 <div class="value">${demo.housing?.pct_occupied || '-'}%</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('medianHomeValue', event)" title="Click for source">
                                 <div class="label">Median Home Value</div>
                                 <div class="value">$${demo.housing?.median_owner_value?.toLocaleString() || '-'}</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('medianRent', event)" title="Click for source">
                                 <div class="label">Median Rent</div>
                                 <div class="value">$${demo.housing?.median_monthly_rent?.toLocaleString() || '-'}</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('ownerCostBurden', event)" title="Click for source">
                                 <div class="label">Owners Cost-Burdened</div>
                                 <div class="value">${demo.housing?.pct_owner_cost_burdened_35plus || '-'}%</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('renterCostBurdenHousing', event)" title="Click for source">
                                 <div class="label">Renters Cost-Burdened</div>
                                 <div class="value ${(demo.housing?.pct_renter_cost_burdened_35plus || 0) > 35 ? 'highlight' : ''}">${demo.housing?.pct_renter_cost_burdened_35plus || '-'}%</div>
                             </div>
@@ -5193,15 +5469,15 @@
                     <div class="demo-section">
                         <div class="demo-section-title">Demographics</div>
                         <div class="demo-grid">
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('medianAge', event)" title="Click for source">
                                 <div class="label">Median Age</div>
                                 <div class="value">${demo.median_age || '-'}</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('under18', event)" title="Click for source">
                                 <div class="label">Under 18</div>
                                 <div class="value">${demo.age?.pct_under_18 || '-'}%</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('over65', event)" title="Click for source">
                                 <div class="label">65 and Over</div>
                                 <div class="value">${demo.age?.pct_65_and_over || '-'}%</div>
                             </div>
@@ -5214,23 +5490,23 @@
                     <div class="demo-section">
                         <div class="demo-section-title">Race & Ethnicity</div>
                         <div class="demo-grid">
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('white', event)" title="Click for source">
                                 <div class="label">White</div>
                                 <div class="value">${demo.race_ethnicity?.pct_white || '-'}%</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('black', event)" title="Click for source">
                                 <div class="label">Black</div>
                                 <div class="value">${demo.race_ethnicity?.pct_black || '-'}%</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('hispanic', event)" title="Click for source">
                                 <div class="label">Hispanic</div>
                                 <div class="value">${demo.race_ethnicity?.pct_hispanic || '-'}%</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('asian', event)" title="Click for source">
                                 <div class="label">Asian</div>
                                 <div class="value">${demo.race_ethnicity?.pct_asian || '-'}%</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('twoOrMore', event)" title="Click for source">
                                 <div class="label">Two or More</div>
                                 <div class="value">${demo.race_ethnicity?.pct_two_or_more || '-'}%</div>
                             </div>
@@ -5243,15 +5519,15 @@
                     <div class="demo-section">
                         <div class="demo-section-title">Poverty Status</div>
                         <div class="demo-grid">
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('totalPoverty', event)" title="Click for source">
                                 <div class="label">Total Poverty Rate</div>
                                 <div class="value ${(demo.poverty?.pct_total_poverty || 0) > countyPovertyRate ? 'highlight' : ''}">${demo.poverty?.pct_total_poverty || '-'}%</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('childPoverty', event)" title="Click for source">
                                 <div class="label">Child Poverty</div>
                                 <div class="value ${(demo.poverty?.pct_child_poverty || 0) > 20 ? 'highlight' : ''}">${demo.poverty?.pct_child_poverty || '-'}%</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('seniorPoverty', event)" title="Click for source">
                                 <div class="label">Senior Poverty</div>
                                 <div class="value">${demo.poverty?.pct_senior_poverty || '-'}%</div>
                             </div>
@@ -5264,11 +5540,11 @@
                     <div class="demo-section">
                         <div class="demo-section-title">Employment</div>
                         <div class="demo-grid">
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('laborForce', event)" title="Click for source">
                                 <div class="label">Labor Force Participation</div>
                                 <div class="value">${demo.employment?.labor_force_participation_rate || '-'}%</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('unemployment', event)" title="Click for source">
                                 <div class="label">Unemployment Rate</div>
                                 <div class="value ${(demo.employment?.unemployment_rate || 0) > 6 ? 'highlight' : ''}">${demo.employment?.unemployment_rate || '-'}%</div>
                             </div>
@@ -5281,19 +5557,19 @@
                     <div class="demo-section">
                         <div class="demo-section-title">Educational Attainment (25+)</div>
                         <div class="demo-grid">
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('lessHS', event)" title="Click for source">
                                 <div class="label">Less Than High School</div>
                                 <div class="value">${demo.education?.pct_less_than_hs || '-'}%</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('hsGraduate', event)" title="Click for source">
                                 <div class="label">High School Graduate</div>
                                 <div class="value">${demo.education?.pct_hs_graduate || '-'}%</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('bachelors', event)" title="Click for source">
                                 <div class="label">Bachelor's Degree</div>
                                 <div class="value">${demo.education?.pct_bachelors || '-'}%</div>
                             </div>
-                            <div class="demo-item">
+                            <div class="demo-item clickable" onclick="showDistrictStatSource('graduate', event)" title="Click for source">
                                 <div class="label">Graduate/Professional</div>
                                 <div class="value">${demo.education?.pct_graduate_professional || '-'}%</div>
                             </div>
