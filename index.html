@@ -559,15 +559,97 @@
 
         .upload-status-item {
             display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 8px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .upload-status-item:last-child {
+            border-bottom: none;
+        }
+
+        .upload-status-item .status-main {
+            display: flex;
             align-items: center;
             gap: 8px;
-            padding: 6px 0;
-            font-size: 13px;
+        }
+
+        .upload-status-item .status-icon {
+            flex-shrink: 0;
+            width: 18px;
+            text-align: center;
+        }
+
+        .upload-status-item .status-record {
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .upload-status-item .status-message {
+            color: inherit;
         }
 
         .upload-status-item.success { color: #059669; }
         .upload-status-item.error { color: #dc2626; }
         .upload-status-item.pending { color: #6b7280; }
+        .upload-status-item.warning { color: #d97706; }
+
+        .upload-status-item .error-details {
+            margin-left: 26px;
+            padding: 8px 12px;
+            background: #fef2f2;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #991b1b;
+            border-left: 3px solid #dc2626;
+        }
+
+        .upload-status-item .error-details-toggle {
+            margin-left: 26px;
+            background: none;
+            border: none;
+            color: #6b7280;
+            font-size: 11px;
+            cursor: pointer;
+            padding: 2px 0;
+            text-decoration: underline;
+        }
+
+        .upload-status-item .error-details-toggle:hover {
+            color: #374151;
+        }
+
+        .upload-status-item .error-details code {
+            display: block;
+            margin-top: 4px;
+            padding: 6px 8px;
+            background: #fee2e2;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .upload-status-item .error-type {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .upload-status-item.success .error-type {
+            background: #d1fae5;
+            color: #065f46;
+        }
 
         .drop-zone {
             border: 3px dashed #d1d5db;
@@ -7705,7 +7787,12 @@
                 // Validate that Docket_Number is present (required for upsert)
                 if (!record.Docket_Number) {
                     failed++;
-                    addUploadStatusItem(statusLog, `Row ${i + 1}: Failed - Docket_Number is required`, 'error');
+                    addUploadStatusItem(statusLog, 'Missing required field', 'error', {
+                        recordId: `Row ${i + 1}`,
+                        errorType: 'VALIDATION',
+                        details: 'Docket_Number is required for all records. Please ensure this field is mapped correctly.',
+                        errorMessage: 'The Docket_Number field must be present and non-empty for each record.'
+                    });
                     progressBar.style.width = `${progress}%`;
                     progressText.textContent = `${progress}% (${i + 1}/${total})`;
                     statusLog.scrollTop = statusLog.scrollHeight;
@@ -7723,15 +7810,46 @@
 
                     if (response.ok) {
                         success++;
-                        addUploadStatusItem(statusLog, `Row ${i + 1}: Success`, 'success');
+                        const resultData = await response.json().catch(() => ({}));
+                        addUploadStatusItem(statusLog, 'Uploaded successfully', 'success', {
+                            recordId: record.Docket_Number || `Row ${i + 1}`
+                        });
                     } else {
                         failed++;
                         const errorText = await response.text();
-                        addUploadStatusItem(statusLog, `Row ${i + 1}: Failed - ${response.status}`, 'error');
+                        const parsedError = parseApiError(errorText, response.status);
+
+                        addUploadStatusItem(statusLog, parsedError.message, 'error', {
+                            recordId: record.Docket_Number || `Row ${i + 1}`,
+                            errorType: parsedError.type,
+                            statusCode: response.status,
+                            errorMessage: parsedError.message,
+                            details: parsedError.details
+                        });
                     }
                 } catch (error) {
                     failed++;
-                    addUploadStatusItem(statusLog, `Row ${i + 1}: Error - ${error.message}`, 'error');
+                    // Categorize network/fetch errors
+                    let errorType = 'NETWORK';
+                    let errorMessage = error.message;
+
+                    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                        errorType = 'NETWORK';
+                        errorMessage = 'Network error - check your connection';
+                    } else if (error.name === 'AbortError') {
+                        errorType = 'TIMEOUT';
+                        errorMessage = 'Request timed out';
+                    } else if (error.message.includes('JSON')) {
+                        errorType = 'PARSE_ERROR';
+                        errorMessage = 'Invalid response from server';
+                    }
+
+                    addUploadStatusItem(statusLog, errorMessage, 'error', {
+                        recordId: record.Docket_Number || `Row ${i + 1}`,
+                        errorType: errorType,
+                        details: `${error.name}: ${error.message}\n\nThis may be a temporary issue. Try uploading this record again.`,
+                        errorMessage: error.message
+                    });
                 }
 
                 // Update progress
@@ -7742,13 +7860,26 @@
                 statusLog.scrollTop = statusLog.scrollHeight;
             }
 
-            // Final status
-            const finalMessage = `Upload complete: ${success} succeeded, ${failed} failed`;
-            addUploadStatusItem(statusLog, finalMessage, failed > 0 ? 'error' : 'success');
+            // Final status summary
+            const successRate = total > 0 ? Math.round((success / total) * 100) : 0;
+            let finalStatus = 'success';
+            let finalMessage = `Upload complete: ${success}/${total} records uploaded successfully`;
+
+            if (failed > 0 && success === 0) {
+                finalStatus = 'error';
+                finalMessage = `Upload failed: All ${failed} records encountered errors`;
+            } else if (failed > 0) {
+                finalStatus = 'warning';
+                finalMessage = `Upload complete with errors: ${success} succeeded, ${failed} failed (${successRate}% success rate)`;
+            }
+
+            addUploadStatusItem(statusLog, finalMessage, finalStatus, {
+                errorType: finalStatus === 'success' ? 'COMPLETE' : finalStatus === 'warning' ? 'PARTIAL' : 'FAILED'
+            });
 
             // Re-enable button
             submitBtn.disabled = false;
-            submitBtn.textContent = 'Upload Complete';
+            submitBtn.textContent = failed === 0 ? 'Upload Complete' : 'Upload Complete (with errors)';
 
             // Refresh data if any succeeded
             if (success > 0) {
@@ -7758,14 +7889,137 @@
             }
         }
 
-        function addUploadStatusItem(container, message, status) {
+        function addUploadStatusItem(container, message, status, options = {}) {
             const item = document.createElement('div');
             item.className = `upload-status-item ${status}`;
-            item.innerHTML = `
-                <span>${status === 'success' ? '✓' : status === 'error' ? '✗' : '○'}</span>
-                <span>${escapeHtml(message)}</span>
-            `;
+
+            const icon = status === 'success' ? '✓' : status === 'error' ? '✗' : status === 'warning' ? '⚠' : '○';
+
+            // Build the main status line
+            let mainHtml = `<div class="status-main">
+                <span class="status-icon">${icon}</span>`;
+
+            // Add record identifier if provided
+            if (options.recordId) {
+                mainHtml += `<span class="status-record">[${escapeHtml(options.recordId)}]</span>`;
+            }
+
+            // Add error type badge if provided
+            if (options.errorType) {
+                mainHtml += `<span class="error-type">${escapeHtml(options.errorType)}</span>`;
+            }
+
+            mainHtml += `<span class="status-message">${escapeHtml(message)}</span>
+            </div>`;
+
+            item.innerHTML = mainHtml;
+
+            // Add expandable error details if provided
+            if (options.details) {
+                const detailsId = 'error-details-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+                const toggleBtn = document.createElement('button');
+                toggleBtn.className = 'error-details-toggle';
+                toggleBtn.textContent = 'Show details';
+                toggleBtn.onclick = function() {
+                    const detailsDiv = document.getElementById(detailsId);
+                    if (detailsDiv.style.display === 'none') {
+                        detailsDiv.style.display = 'block';
+                        toggleBtn.textContent = 'Hide details';
+                    } else {
+                        detailsDiv.style.display = 'none';
+                        toggleBtn.textContent = 'Show details';
+                    }
+                };
+
+                const detailsDiv = document.createElement('div');
+                detailsDiv.id = detailsId;
+                detailsDiv.className = 'error-details';
+                detailsDiv.style.display = 'none';
+
+                // Format the details content
+                let detailsContent = '';
+                if (options.statusCode) {
+                    detailsContent += `<strong>HTTP Status:</strong> ${options.statusCode}\n`;
+                }
+                if (options.errorMessage) {
+                    detailsContent += `<strong>Error:</strong> ${escapeHtml(options.errorMessage)}\n`;
+                }
+                if (options.details) {
+                    detailsContent += `<code>${escapeHtml(typeof options.details === 'object' ? JSON.stringify(options.details, null, 2) : options.details)}</code>`;
+                }
+
+                detailsDiv.innerHTML = detailsContent;
+
+                item.appendChild(toggleBtn);
+                item.appendChild(detailsDiv);
+            }
+
             container.appendChild(item);
+        }
+
+        function parseApiError(responseText, statusCode) {
+            // Parse the API error response and return a user-friendly error object
+            const result = {
+                type: 'API_ERROR',
+                message: 'Request failed',
+                details: responseText
+            };
+
+            try {
+                const parsed = JSON.parse(responseText);
+
+                // Handle Xano-style error responses
+                if (parsed.message) {
+                    result.message = parsed.message;
+                }
+                if (parsed.code) {
+                    result.type = parsed.code;
+                }
+                if (parsed.payload) {
+                    result.details = parsed.payload;
+                }
+
+                // Handle validation errors
+                if (parsed.errors && Array.isArray(parsed.errors)) {
+                    result.type = 'VALIDATION';
+                    result.message = parsed.errors.map(e => e.message || e).join(', ');
+                    result.details = parsed.errors;
+                }
+
+                // Handle field-specific errors
+                if (parsed.field) {
+                    result.type = 'FIELD_ERROR';
+                    result.message = `Field "${parsed.field}": ${parsed.message || 'Invalid value'}`;
+                }
+
+            } catch (e) {
+                // Not JSON, use status code to determine error type
+                if (statusCode === 400) {
+                    result.type = 'BAD_REQUEST';
+                    result.message = 'Invalid request data';
+                } else if (statusCode === 401) {
+                    result.type = 'UNAUTHORIZED';
+                    result.message = 'Authentication required';
+                } else if (statusCode === 403) {
+                    result.type = 'FORBIDDEN';
+                    result.message = 'Access denied';
+                } else if (statusCode === 404) {
+                    result.type = 'NOT_FOUND';
+                    result.message = 'Endpoint not found';
+                } else if (statusCode === 409) {
+                    result.type = 'CONFLICT';
+                    result.message = 'Record conflict (duplicate?)';
+                } else if (statusCode === 422) {
+                    result.type = 'VALIDATION';
+                    result.message = 'Validation failed';
+                } else if (statusCode >= 500) {
+                    result.type = 'SERVER_ERROR';
+                    result.message = 'Server error - please try again';
+                }
+            }
+
+            return result;
         }
 
         // ============================================
