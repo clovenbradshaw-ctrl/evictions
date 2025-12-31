@@ -487,7 +487,230 @@
             font-weight: 600;
         }
 
-        /* Responsive adjustments */
+        /* =============================================
+           COMPREHENSIVE MOBILE RESPONSIVE STYLES
+           ============================================= */
+
+        /* Extra small phones (320px) */
+        @media (max-width: 360px) {
+            .district-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 4px;
+            }
+
+            .district-btn {
+                font-size: 0.75rem;
+            }
+
+            .summary-cards {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+
+            .summary-card .value {
+                font-size: 1.5rem;
+            }
+
+            h1 {
+                font-size: 1.1rem;
+            }
+
+            .subtitle {
+                font-size: 0.75rem;
+            }
+
+            .cm-card .name {
+                font-size: 1.25rem;
+            }
+
+            .stat-card .value {
+                font-size: 1.4rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+        }
+
+        /* Small phones */
+        @media (max-width: 480px) {
+            .district-grid {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 4px;
+            }
+
+            .district-btn {
+                font-size: 0.8rem;
+                border-width: 1.5px;
+            }
+
+            .summary-cards {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.75rem;
+            }
+
+            .summary-card {
+                padding: 0.75rem;
+            }
+
+            .summary-card .value {
+                font-size: 1.5rem;
+            }
+
+            .summary-card .label {
+                font-size: 0.65rem;
+            }
+
+            h1 {
+                font-size: 1.2rem;
+            }
+
+            .subtitle {
+                font-size: 0.8rem;
+            }
+
+            .nav-links {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .nav-links a {
+                font-size: 0.8rem;
+            }
+
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .sort-options {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .sort-options > span {
+                margin-bottom: 0.25rem;
+            }
+
+            .filter-btn {
+                width: 100%;
+                text-align: center;
+            }
+
+            .cm-card {
+                padding: 1rem;
+            }
+
+            .cm-card .name {
+                font-size: 1.3rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+
+            .stat-card {
+                padding: 0.75rem;
+            }
+
+            .stat-card .value {
+                font-size: 1.5rem;
+            }
+
+            .stat-card .label {
+                font-size: 0.7rem;
+            }
+
+            .rankings-table th,
+            .rankings-table td {
+                padding: 0.5rem 0.6rem;
+                font-size: 0.8rem;
+            }
+
+            .rank-badge {
+                width: 24px;
+                height: 24px;
+                font-size: 0.75rem;
+            }
+
+            .cm-name-cell .name {
+                font-size: 0.85rem;
+            }
+
+            .cm-name-cell .district {
+                font-size: 0.7rem;
+            }
+
+            .table-scroll {
+                max-height: 450px;
+            }
+
+            .modal {
+                max-width: 100%;
+                margin: 0;
+                border-radius: 0;
+                max-height: 100vh;
+            }
+
+            .modal-header {
+                border-radius: 0;
+                padding: 1rem;
+            }
+
+            .modal-header h2 {
+                font-size: 1.1rem;
+            }
+
+            .modal-body {
+                padding: 1rem;
+            }
+
+            .demo-grid {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+
+            .demo-item {
+                padding: 0.6rem;
+            }
+
+            .demo-item .label {
+                font-size: 0.65rem;
+            }
+
+            .demo-item .value {
+                font-size: 0.95rem;
+            }
+
+            .disclaimer {
+                font-size: 0.75rem;
+                padding: 0.75rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .data-card {
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+
+            .landlord-item {
+                font-size: 0.8rem;
+                padding: 0.4rem 0.6rem;
+            }
+
+            .demo-btn {
+                width: 100%;
+                justify-content: center;
+                padding: 0.75rem 1rem;
+            }
+        }
+
+        /* Standard mobile (up to 640px) */
         @media (max-width: 640px) {
             .district-grid {
                 grid-template-columns: repeat(5, 1fr);
@@ -495,6 +718,126 @@
 
             .stats-grid {
                 grid-template-columns: 1fr;
+            }
+
+            /* Make table horizontally scrollable */
+            .table-scroll {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .rankings-table {
+                min-width: 500px;
+            }
+        }
+
+        /* Tablet portrait */
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-cards {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .modal {
+                max-width: calc(100% - 2rem);
+                margin: 1rem;
+            }
+
+            .modal-tabs {
+                flex-wrap: wrap;
+            }
+
+            .modal-tab {
+                padding: 0.6rem 1rem;
+                font-size: 0.85rem;
+            }
+
+            .evictions-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .evictions-controls label {
+                margin-bottom: 0.25rem;
+            }
+
+            .view-toggle-btns {
+                width: 100%;
+            }
+
+            .view-toggle-btns button {
+                flex: 1;
+            }
+        }
+
+        /* Tablet landscape and small desktop */
+        @media (max-width: 1024px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .district-grid {
+                grid-template-columns: repeat(7, 1fr);
+            }
+        }
+
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .district-btn {
+                min-height: 44px;
+            }
+
+            .filter-btn {
+                min-height: 44px;
+                padding: 0.75rem 1rem;
+            }
+
+            .header-login-btn {
+                min-height: 44px;
+                padding: 0.75rem 1rem;
+            }
+
+            .modal-close {
+                width: 40px;
+                height: 40px;
+            }
+
+            .modal-tab {
+                min-height: 44px;
+            }
+
+            .demo-btn {
+                min-height: 44px;
+            }
+
+            .nav-links a {
+                padding: 0.5rem 0;
+            }
+        }
+
+        /* Landscape phone */
+        @media (max-width: 900px) and (orientation: landscape) {
+            .modal {
+                max-height: 100vh;
+            }
+
+            .modal-body {
+                max-height: calc(100vh - 80px);
+                overflow-y: auto;
+            }
+
+            .demo-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* High DPI / Retina adjustments */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .district-btn {
+                border-width: 1px;
             }
         }
 

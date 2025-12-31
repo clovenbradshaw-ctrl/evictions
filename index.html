@@ -1549,6 +1549,503 @@
         .location-grid-cell.county-shape {
             fill: #f3f4f6;
         }
+
+        /* =============================================
+           COMPREHENSIVE MOBILE RESPONSIVE STYLES
+           ============================================= */
+
+        /* Mobile hamburger menu */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            padding: 8px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #374151;
+        }
+
+        /* Extra small phones (320px) */
+        @media (max-width: 360px) {
+            .metric-value {
+                font-size: 22px !important;
+            }
+
+            .data-card {
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+
+            .tab-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            .btn {
+                padding: 8px 14px;
+                font-size: 12px;
+            }
+
+            .search-input {
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+
+            .district-cell {
+                font-size: 11px;
+            }
+
+            .view-toggle, .pivot-option {
+                padding: 4px 10px;
+                font-size: 11px;
+            }
+
+            .benchmark-metric-btn {
+                padding: 6px 12px;
+                font-size: 11px;
+            }
+
+            h1, .text-2xl {
+                font-size: 1.25rem !important;
+            }
+        }
+
+        /* Small phones (up to 480px) */
+        @media (max-width: 480px) {
+            /* Header mobile adjustments */
+            header .flex {
+                flex-direction: column;
+                align-items: flex-start !important;
+                gap: 12px;
+            }
+
+            header .flex.items-center.gap-4 {
+                width: 100%;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            header h1, header .text-2xl {
+                font-size: 1.3rem !important;
+            }
+
+            header .text-sm {
+                font-size: 0.75rem;
+            }
+
+            header .btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            /* Main container */
+            .p-6 {
+                padding: 12px !important;
+            }
+
+            /* Metric cards */
+            .metric-value {
+                font-size: 24px !important;
+            }
+
+            .data-card {
+                padding: 14px;
+                border-radius: 10px;
+            }
+
+            /* Tab buttons */
+            .tab-btn {
+                padding: 8px 14px;
+                font-size: 13px;
+            }
+
+            /* District grid */
+            .district-cell {
+                font-size: 12px;
+                border-radius: 3px;
+            }
+
+            /* Data grid container */
+            #dataGrid {
+                height: 500px !important;
+            }
+
+            /* Charts */
+            .chart-container {
+                height: 250px;
+            }
+
+            /* Buttons */
+            .btn {
+                padding: 10px 16px;
+            }
+
+            .btn-primary, .btn-secondary {
+                width: 100%;
+                text-align: center;
+            }
+
+            /* View toggles */
+            .view-toggle, .pivot-option {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+
+            /* Filter builder */
+            .filter-condition {
+                grid-template-columns: 1fr;
+                gap: 6px;
+            }
+
+            .filter-condition select,
+            .filter-condition input {
+                width: 100%;
+            }
+
+            /* Custom grouping */
+            .custom-grouping-config {
+                grid-template-columns: 1fr;
+            }
+
+            /* Benchmark buttons */
+            .benchmark-metric-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+                flex: 1;
+                min-width: 0;
+            }
+
+            /* Modal adjustments */
+            .modal-container,
+            .district-modal {
+                margin: 10px;
+                padding: 16px;
+                max-width: calc(100% - 20px);
+                border-radius: 12px;
+            }
+
+            .modal-overlay,
+            .district-modal-overlay {
+                padding: 10px;
+            }
+
+            .district-modal-header {
+                padding: 1rem;
+                border-radius: 12px 12px 0 0;
+            }
+
+            .district-modal-header h2 {
+                font-size: 1.1rem;
+            }
+
+            .district-modal-body {
+                padding: 1rem;
+            }
+
+            .demo-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            .demo-section-title {
+                font-size: 0.8rem;
+            }
+
+            .demo-item {
+                padding: 0.6rem;
+            }
+
+            .demo-item .value {
+                font-size: 0.95rem;
+            }
+
+            .demo-item .label {
+                font-size: 0.65rem;
+            }
+
+            /* Bulk upload */
+            .bulk-results-table {
+                min-width: 600px;
+            }
+
+            .mapping-row {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .mapping-arrow {
+                transform: rotate(90deg);
+                justify-self: center;
+            }
+
+            .drop-zone {
+                padding: 24px;
+            }
+
+            .paste-area {
+                min-height: 150px;
+            }
+
+            /* Demographics cards */
+            .demographics-card-grid {
+                grid-template-columns: 1fr;
+            }
+
+            /* County summary */
+            .county-summary-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 0.75rem;
+            }
+
+            .county-stat-value {
+                font-size: 1.25rem;
+            }
+
+            .county-stat-label {
+                font-size: 0.65rem;
+            }
+
+            /* Aggregation options */
+            .aggregation-options {
+                flex-direction: column;
+            }
+
+            .aggregation-option {
+                width: 100%;
+                text-align: center;
+            }
+
+            /* Demo viz */
+            .demo-viz-controls {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .demo-viz-select {
+                width: 100%;
+                min-width: unset;
+            }
+
+            .demo-viz-toggle {
+                width: 100%;
+            }
+
+            .demo-viz-toggle button {
+                flex: 1;
+            }
+
+            .scatter-chart-container {
+                height: 300px;
+            }
+
+            .bar-chart-container {
+                height: 500px;
+            }
+
+            /* Correlation badge */
+            .correlation-badge {
+                font-size: 11px;
+                padding: 3px 8px;
+            }
+        }
+
+        /* Standard mobile (up to 640px) */
+        @media (max-width: 640px) {
+            /* Header layout */
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            header .flex.items-center.gap-4 {
+                flex-wrap: wrap;
+            }
+
+            /* Grid layouts become single column */
+            .grid.grid-cols-2,
+            .grid.grid-cols-3,
+            .grid.grid-cols-4 {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* Make district heatmap grid smaller */
+            [style*="grid-template-columns: repeat(7"] {
+                grid-template-columns: repeat(5, 1fr) !important;
+            }
+
+            /* Data grid */
+            #dataGrid {
+                height: 450px !important;
+            }
+
+            /* Benchmarks table scroll */
+            .bulk-results-table-wrapper {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* Demographics table scroll */
+            .demographics-table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .demographics-table {
+                min-width: 600px;
+            }
+        }
+
+        /* Tablet (up to 768px) */
+        @media (max-width: 768px) {
+            /* Two column grids become single */
+            .grid.md\\:grid-cols-2 {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* Header stacking */
+            header > div > div.flex {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            header .flex.items-center.gap-4 {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            /* Tab row scrolling */
+            .flex.border-b {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 2px;
+            }
+
+            .tab-btn {
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+
+            /* District modal */
+            .district-modal {
+                max-width: calc(100% - 2rem);
+                margin: 1rem;
+            }
+
+            /* Demo viz container */
+            .demo-viz-container {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        /* Tablet landscape (up to 1024px) */
+        @media (max-width: 1024px) {
+            /* Four column grids become two */
+            .grid.lg\\:grid-cols-4 {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+
+            /* Three column grids become two */
+            .grid.lg\\:grid-cols-3 {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+
+            /* Data grid height */
+            #dataGrid {
+                height: 600px !important;
+            }
+        }
+
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .btn {
+                min-height: 44px;
+            }
+
+            .tab-btn {
+                min-height: 44px;
+                padding: 12px 16px;
+            }
+
+            .district-cell {
+                min-height: 40px;
+            }
+
+            .search-input {
+                min-height: 44px;
+            }
+
+            .filter-select,
+            .target-field-select,
+            .grouping-field-select {
+                min-height: 44px;
+            }
+
+            .benchmark-metric-btn {
+                min-height: 40px;
+            }
+
+            .view-toggle,
+            .pivot-option,
+            .aggregation-option {
+                min-height: 40px;
+            }
+
+            .modal-close,
+            .district-modal-close {
+                width: 40px;
+                height: 40px;
+                font-size: 1.5rem;
+            }
+
+            .source-btn {
+                width: 36px;
+                height: 36px;
+            }
+        }
+
+        /* Landscape phone */
+        @media (max-width: 900px) and (orientation: landscape) {
+            .district-modal,
+            .modal-container {
+                max-height: 100vh;
+            }
+
+            .district-modal-body,
+            .modal-body {
+                max-height: calc(100vh - 80px);
+                overflow-y: auto;
+            }
+
+            #dataGrid {
+                height: 350px !important;
+            }
+
+            .chart-container {
+                height: 200px;
+            }
+        }
+
+        /* Print adjustments */
+        @media print {
+            header .btn,
+            #loginBtn,
+            #logoutBtn {
+                display: none !important;
+            }
+
+            .tab-btn:not(.active) {
+                display: none;
+            }
+
+            #dataGrid {
+                height: auto !important;
+            }
+        }
+
+        /* High DPI screens */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .district-cell {
+                border-width: 0.5px;
+            }
+        }
     </style>
 </head>
 <body>

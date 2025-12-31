@@ -461,6 +461,272 @@
             font-size: 14px;
         }
 
+        /* =============================================
+           MOBILE RESPONSIVE STYLES
+           ============================================= */
+
+        /* Mobile hamburger menu button */
+        .mobile-menu-toggle {
+            display: none;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        /* Mobile sidebar overlay backdrop */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        /* Mobile close button for sidebar */
+        .sidebar-close {
+            display: none;
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: #f3f4f6;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            color: #374151;
+            z-index: 10;
+        }
+
+        .sidebar-close:hover {
+            background: #e5e7eb;
+        }
+
+        /* Small phone styles (up to 480px) */
+        @media (max-width: 480px) {
+            .header {
+                padding: 12px 16px;
+            }
+
+            .header h1 {
+                font-size: 16px;
+            }
+
+            .logo {
+                height: 32px;
+            }
+
+            .header-left {
+                gap: 10px;
+            }
+
+            .header-right .btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            .notice-banner {
+                padding: 10px 12px;
+                font-size: 12px;
+                flex-direction: column;
+                gap: 8px;
+                text-align: left;
+            }
+
+            .notice-banner code {
+                font-size: 11px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .stat-value {
+                font-size: 20px;
+            }
+
+            .stat-label {
+                font-size: 11px;
+            }
+
+            .section-title {
+                font-size: 12px;
+            }
+
+            .legend-item {
+                font-size: 12px;
+                padding: 4px 0;
+            }
+
+            .legend-color {
+                width: 16px;
+                height: 16px;
+            }
+
+            .date-range {
+                flex-direction: column;
+            }
+
+            .date-range input {
+                width: 100%;
+            }
+
+            .modal-container {
+                padding: 20px;
+                margin: 10px;
+                width: calc(100% - 20px);
+            }
+
+            .access-modal {
+                padding: 24px 20px;
+                margin: 10px;
+            }
+        }
+
+        /* Tablet and smaller (up to 768px) */
+        @media (max-width: 768px) {
+            .mobile-menu-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .sidebar-close {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .main-container {
+                flex-direction: column;
+                height: auto;
+                min-height: calc(100vh - 73px);
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 320px;
+                max-width: 85vw;
+                height: 100vh;
+                z-index: 1000;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                padding-top: 60px;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .map-container {
+                height: calc(100vh - 73px);
+                min-height: 400px;
+            }
+
+            .header {
+                padding: 12px 16px;
+            }
+
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .header-right {
+                gap: 8px;
+            }
+
+            .notice-banner {
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+
+            .district-list {
+                max-height: 300px;
+            }
+
+            .filters {
+                margin-bottom: 20px;
+            }
+
+            .legend {
+                margin-bottom: 20px;
+            }
+
+            .info-popup {
+                min-width: 180px;
+            }
+
+            .info-popup h3 {
+                font-size: 14px;
+            }
+
+            .info-popup .stat-row {
+                font-size: 12px;
+            }
+        }
+
+        /* Medium devices (up to 1024px) */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .sidebar {
+                width: 300px;
+            }
+
+            .stat-value {
+                font-size: 20px;
+            }
+        }
+
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .btn {
+                min-height: 44px;
+                min-width: 44px;
+            }
+
+            .district-item {
+                padding: 14px 12px;
+            }
+
+            .filter-select {
+                min-height: 44px;
+            }
+
+            .date-range input {
+                min-height: 44px;
+            }
+        }
+
+        /* Landscape phone */
+        @media (max-width: 900px) and (orientation: landscape) {
+            .map-container {
+                height: calc(100vh - 60px);
+            }
+
+            .sidebar {
+                max-height: 100vh;
+            }
+
+            .district-list {
+                max-height: 150px;
+            }
+        }
+
         /* Access modal styles */
         .access-modal-overlay {
             position: fixed;
@@ -599,6 +865,9 @@
 
     <header class="header">
         <div class="header-left">
+            <button class="mobile-menu-toggle" onclick="toggleMobileSidebar()" aria-label="Open filters menu">
+                ☰
+            </button>
             <img src="https://storage.googleapis.com/intelechia-content/im/eviction%20prevention%20logo.png" alt="Logo" class="logo">
             <h1>Eviction Hotspots Map</h1>
         </div>
@@ -607,8 +876,12 @@
         </div>
     </header>
 
+    <!-- Mobile sidebar overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
     <div class="main-container">
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
+            <button class="sidebar-close" onclick="closeMobileSidebar()" aria-label="Close filters menu">×</button>
             <div class="section-title">Overview</div>
             <div class="stats-grid">
                 <div class="stat-card clickable" onclick="showMapMetricSource('totalEvictions')" title="Click for source">
@@ -1245,7 +1518,7 @@
             listEl.innerHTML = sorted.map(([district, count]) => {
                 const heatLevel = getHeatLevel(count, maxCount);
                 return `
-                    <div class="district-item" data-district="${district}" onclick="focusDistrict(${district})">
+                    <div class="district-item" data-district="${district}" onclick="focusDistrict(${district}); if(window.innerWidth <= 768) closeMobileSidebar();">
                         <span class="district-name">
                             <span class="legend-color heat-${heatLevel}" style="display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: middle;"></span>
                             District ${district}
@@ -1412,6 +1685,33 @@
                 marker.addTo(map);
                 circleMarkers.push(marker);
             });
+        }
+
+        // =============================================
+        // MOBILE SIDEBAR FUNCTIONS
+        // =============================================
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+            document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+        }
+
+        function closeMobileSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close sidebar when clicking a district (on mobile)
+        function focusDistrictMobile(district) {
+            focusDistrict(district);
+            if (window.innerWidth <= 768) {
+                closeMobileSidebar();
+            }
         }
 
         // =============================================
