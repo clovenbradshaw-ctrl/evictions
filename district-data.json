@@ -2,10 +2,35 @@
   "metadata": {
     "report_title": "2023 Know Your Community: Socioeconomic Profiles Metropolitan Council Districts",
     "publisher": "Metropolitan Social Services, Strategic Planning & Research",
-    "source_url": "https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf?ct=1706286236",
+    "source_url": "https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf",
     "base_data_source": "American Community Survey 2021, 5-year estimates",
     "geography": "Nashville-Davidson County Metro Council Districts (35 districts, post-2021 redistricting)",
     "notes": "District boundaries based on BL2021-1052 approved January 18, 2022",
+    "last_updated": "2024-12-31",
+    "additional_sources": {
+      "county_population": {
+        "source": "Know Your Community December 2023",
+        "url": "https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf",
+        "value_used": 703953
+      },
+      "poverty_rate": {
+        "source": "FRED - ACS 5-year estimates (Table S1701)",
+        "url": "https://fred.stlouisfed.org/series/S1701ACS047037",
+        "period": "2017-2021",
+        "value_used": 14.3
+      },
+      "educational_attainment": {
+        "source": "U.S. Census Bureau QuickFacts",
+        "url": "https://www.census.gov/quickfacts/fact/table/nashvilledavidsonmetropolitangovernmentbalancetennessee/PST045224",
+        "period": "2019-2023",
+        "value_used": 46.9
+      },
+      "district_10_renter_households": {
+        "source": "Know Your Community December 2023 - Renter Housing Units table",
+        "note": "Updated to use reported 'occupied units paying rent' value rather than calculated estimate",
+        "value_used": 4617
+      }
+    },
     "field_sources": {
       "population": {
         "type": "PROVIDED",
@@ -54,14 +79,14 @@
     }
   },
   "county_totals": {
-    "population": 708490,
+    "population": 703953,
     "median_age": 35.0,
     "median_household_income": 65348,
     "median_family_income": 83222,
     "per_capita_income": 40733,
-    "poverty_rate_percent": 15.0,
+    "poverty_rate_percent": 14.3,
     "unemployment_rate_percent": 4.2,
-    "pct_bachelors_or_higher": 44.4,
+    "pct_bachelors_or_higher": 46.9,
     "pct_white": 56.4,
     "pct_black": 25.3,
     "pct_hispanic": 10.6,
@@ -558,8 +583,8 @@
         "pct_occupied": 94.9,
         "owner_occupied_units": 4113,
         "total_occupied": 8546,
-        "estimated_renters": 4433,
-        "pct_renters": 51.9,
+        "estimated_renters": 4617,
+        "pct_renters": 54.0,
         "median_owner_value": 233900,
         "median_monthly_rent": 1176,
         "pct_owner_cost_burdened_35plus": 21.1,
