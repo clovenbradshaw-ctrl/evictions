@@ -7201,18 +7201,22 @@
             { key: 'id', label: 'ID', type: 'integer' },
             { key: 'Office', label: 'Office', type: 'text' },
             { key: 'Docket_Number', label: 'Docket Number', type: 'text' },
+            { key: 'Status', label: 'Status', type: 'text' },
             { key: 'File_Date', label: 'File Date', type: 'text' },
             { key: 'Description', label: 'Description', type: 'text' },
             { key: 'Plaintiff_Petitioner', label: 'Plaintiff/Petitioner', type: 'text' },
             { key: 'Defendant_Respondent', label: 'Defendant/Respondent', type: 'text' },
             { key: 'Attorney', label: 'Attorney', type: 'text' },
             { key: 'address_formatted', label: 'Address (Formatted)', type: 'text' },
+            { key: 'Address_1', label: 'Address Line 1', type: 'text' },
+            { key: 'Address_2', label: 'Address Line 2', type: 'text' },
+            { key: 'city_state_zip', label: 'City, State, ZIP', type: 'text' },
             { key: 'council_member', label: 'Council Member', type: 'text' },
             { key: 'longitude', label: 'Longitude', type: 'text' },
             { key: 'latitude', label: 'Latitude', type: 'text' },
             { key: 'council_district', label: 'Council District', type: 'text' },
             { key: 'council_district_number', label: 'Council District Number', type: 'integer' },
-            { key: 'updated', label: 'Updated', type: 'text' }
+            { key: 'individual_ll', label: 'Individual Landlord', type: 'text' }
         ];
 
         // Auto-mapping rules (CSV header -> target field)
@@ -7223,6 +7227,8 @@
             'docket': 'Docket_Number',
             'case_number': 'Docket_Number',
             'case': 'Docket_Number',
+            'status': 'Status',
+            'case_status': 'Status',
             'file_date': 'File_Date',
             'filedate': 'File_Date',
             'date': 'File_Date',
@@ -7241,6 +7247,17 @@
             'address_formatted': 'address_formatted',
             'address': 'address_formatted',
             'property_address': 'address_formatted',
+            'address_1': 'Address_1',
+            'address1': 'Address_1',
+            'street_address': 'Address_1',
+            'street': 'Address_1',
+            'address_2': 'Address_2',
+            'address2': 'Address_2',
+            'apt': 'Address_2',
+            'unit': 'Address_2',
+            'city_state_zip': 'city_state_zip',
+            'citystatezip': 'city_state_zip',
+            'city_state': 'city_state_zip',
             'council_member': 'council_member',
             'councilmember': 'council_member',
             'council': 'council_member',
@@ -7255,12 +7272,7 @@
             'district_number': 'council_district_number',
             'individual_ll': 'individual_ll',
             'individual_landlord': 'individual_ll',
-            'individual': 'individual_ll',
-            'updated': 'updated',
-            'updated_at': 'updated',
-            'last_updated': 'updated',
-            'modified': 'updated',
-            'modified_at': 'updated'
+            'individual': 'individual_ll'
         };
 
         // Secret key combo detection
@@ -7674,8 +7686,7 @@
 
                     transformed[targetField] = value;
                 });
-                // Set the updated timestamp to current time for all uploaded records
-                transformed['updated'] = new Date().toISOString();
+                // Note: 'updated' timestamp is automatically set by the API on upsert
                 return transformed;
             });
 
@@ -7683,17 +7694,27 @@
             let success = 0;
             let failed = 0;
 
-            // Upload endpoint
-            const apiUrl = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/nashville_detainer_cases';
+            // Upload endpoint (upsert by Docket_Number)
+            const apiUrl = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/upsert_case';
 
             // Upload each record
             for (let i = 0; i < transformedData.length; i++) {
                 const record = transformedData[i];
                 const progress = Math.round(((i + 1) / total) * 100);
 
+                // Validate that Docket_Number is present (required for upsert)
+                if (!record.Docket_Number) {
+                    failed++;
+                    addUploadStatusItem(statusLog, `Row ${i + 1}: Failed - Docket_Number is required`, 'error');
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `${progress}% (${i + 1}/${total})`;
+                    statusLog.scrollTop = statusLog.scrollHeight;
+                    continue;
+                }
+
                 try {
                     const response = await fetch(apiUrl, {
-                        method: 'PUT',
+                        method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
