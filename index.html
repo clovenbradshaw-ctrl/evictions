@@ -1008,6 +1008,222 @@
             padding: 1.5rem;
         }
 
+        /* Attorney Modal Styles */
+        .attorney-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 2rem 1rem;
+        }
+
+        .attorney-modal-overlay.active {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .attorney-modal {
+            background: white;
+            border-radius: 16px;
+            max-width: 900px;
+            width: 100%;
+            max-height: calc(100vh - 4rem);
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .attorney-modal-header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 16px 16px 0 0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .attorney-modal-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .attorney-modal-header .subtitle {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            color: white;
+        }
+
+        .attorney-modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            transition: background 0.15s;
+        }
+
+        .attorney-modal-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .attorney-modal-body {
+            padding: 1.5rem;
+        }
+
+        .attorney-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .attorney-table th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            background: #f9fafb;
+            border-bottom: 2px solid #e5e7eb;
+            font-weight: 600;
+            color: #374151;
+            white-space: nowrap;
+        }
+
+        .attorney-table th.sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .attorney-table th.sortable:hover {
+            background: #f3f4f6;
+        }
+
+        .attorney-table th .sort-indicator {
+            margin-left: 4px;
+            opacity: 0.4;
+        }
+
+        .attorney-table th.sorted .sort-indicator {
+            opacity: 1;
+        }
+
+        .attorney-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            color: #4b5563;
+        }
+
+        .attorney-table tr:hover td {
+            background: #f9fafb;
+        }
+
+        .attorney-table .attorney-name {
+            font-weight: 500;
+            color: #4f46e5;
+            cursor: pointer;
+        }
+
+        .attorney-table .attorney-name:hover {
+            text-decoration: underline;
+        }
+
+        .attorney-table .num-col {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .attorney-table .pct-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .attorney-table .pct-bar-fill {
+            height: 6px;
+            background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 3px;
+            min-width: 2px;
+        }
+
+        .attorney-modal-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 12px;
+        }
+
+        .attorney-modal-stat {
+            text-align: center;
+        }
+
+        .attorney-modal-stat .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #4f46e5;
+        }
+
+        .attorney-modal-stat .label {
+            font-size: 0.75rem;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .attorney-search {
+            margin-bottom: 1rem;
+        }
+
+        .attorney-search input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+
+        .attorney-search input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            .attorney-modal {
+                max-width: 100%;
+                margin: 0;
+                border-radius: 12px;
+            }
+
+            .attorney-modal-summary {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .attorney-table {
+                font-size: 0.8rem;
+            }
+
+            .attorney-table th,
+            .attorney-table td {
+                padding: 0.5rem;
+            }
+        }
+
         .demo-section {
             margin-bottom: 1.5rem;
         }
@@ -2733,8 +2949,12 @@
                         <span class="text-xs font-semibold tracking-wide text-gray-500 uppercase">Group by</span>
                         <button class="pivot-option active" data-pivot-dimension="plaintiff" onclick="setPivotDimension('plaintiff')">Landlord</button>
                         <button class="pivot-option" data-pivot-dimension="defendant" onclick="setPivotDimension('defendant')">Tenant</button>
-                        <button class="pivot-option" data-pivot-dimension="attorney" onclick="setPivotDimension('attorney')">Attorney</button>
+                        <button class="pivot-option" data-pivot-dimension="attorney" onclick="setPivotDimension('attorney')">Landlord Attorney</button>
+                        <button class="pivot-option" data-pivot-dimension="defenseAttorney" onclick="setPivotDimension('defenseAttorney')">Defense Attorney</button>
                         <button class="pivot-option" data-pivot-dimension="district" onclick="setPivotDimension('district')">Council District</button>
+                        <button id="attorneyModalBtn" onclick="openAttorneyModal()" class="ml-2 px-3 py-1 text-xs font-semibold bg-purple-100 text-purple-700 rounded-full border border-purple-200 hover:bg-purple-200 transition-colors" title="View attorney breakdown">
+                            View All Attorneys
+                        </button>
                     </div>
                     <div>
                         <button onclick="exportCSV()" class="btn btn-primary">
@@ -2824,6 +3044,54 @@
             </div>
             <div class="district-modal-body" id="districtModalBody">
                 <!-- Populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Attorney Rollup Modal -->
+    <div class="attorney-modal-overlay" id="attorneyModal" onclick="closeAttorneyModal(event)">
+        <div class="attorney-modal" onclick="event.stopPropagation()">
+            <div class="attorney-modal-header">
+                <button class="attorney-modal-close" onclick="closeAttorneyModal()">&times;</button>
+                <div>
+                    <h2 id="attorneyModalTitle">Attorney Summary</h2>
+                    <p class="subtitle" id="attorneyModalSubtitle">Eviction filing representation breakdown</p>
+                </div>
+            </div>
+            <div class="attorney-modal-body">
+                <div class="attorney-modal-summary" id="attorneyModalSummary">
+                    <!-- Populated by JavaScript -->
+                </div>
+
+                <!-- Tabs for Plaintiff vs Defense Attorneys -->
+                <div style="display: flex; gap: 8px; margin-bottom: 1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0;">
+                    <button id="plaintiffAttorneyTab" class="attorney-tab active" onclick="setAttorneyTab('plaintiff')" style="padding: 8px 16px; font-size: 0.875rem; font-weight: 600; border: none; background: none; cursor: pointer; border-bottom: 2px solid #4f46e5; margin-bottom: -2px; color: #4f46e5;">
+                        Landlord Attorneys
+                    </button>
+                    <button id="defenseAttorneyTab" class="attorney-tab" onclick="setAttorneyTab('defense')" style="padding: 8px 16px; font-size: 0.875rem; font-weight: 600; border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; color: #6b7280;">
+                        Tenant Defense Attorneys
+                    </button>
+                </div>
+
+                <div class="attorney-search">
+                    <input type="text" id="attorneySearchInput" placeholder="Search attorneys..." oninput="filterAttorneyTable(this.value)">
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="attorney-table" id="attorneyTable">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="name" onclick="sortAttorneyTable('name')">Attorney <span class="sort-indicator">↕</span></th>
+                                <th class="sortable sorted num-col" data-sort="filings" onclick="sortAttorneyTable('filings')">Cases <span class="sort-indicator">↓</span></th>
+                                <th class="sortable num-col" data-sort="percent" onclick="sortAttorneyTable('percent')">% of Total <span class="sort-indicator">↕</span></th>
+                                <th class="sortable" data-sort="lastFiled" onclick="sortAttorneyTable('lastFiled')">Last Filing <span class="sort-indicator">↕</span></th>
+                                <th class="sortable num-col" data-sort="properties" onclick="sortAttorneyTable('properties')">Properties <span class="sort-indicator">↕</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="attorneyTableBody">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -3490,13 +3758,15 @@
             plaintiff: 'Plaintiff',
             defendant: 'Defendant',
             attorney: 'Attorney',
+            defenseAttorney: 'Defense_Attorney',
             district: 'District'
         };
 
         const pivotDimensionLabels = {
             plaintiff: 'Landlord',
             defendant: 'Tenant',
-            attorney: 'Attorney',
+            attorney: 'Landlord Attorney',
+            defenseAttorney: 'Defense Attorney',
             district: 'Council District'
         };
 
@@ -3541,15 +3811,27 @@
                   }
               }
             },
-            { field: 'Attorney', headerName: 'Attorney', width: 200,
+            { field: 'Attorney', headerName: 'Landlord Attorney', width: 200,
               cellRenderer: params => {
-                  if (!params.value) return '';
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
                   return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${params.value}</span>`;
               },
               onCellClicked: params => {
                   if (params.value && params.event) {
                       params.event.stopPropagation();
                       filterByName(params.value, 'attorney');
+                  }
+              }
+            },
+            { field: 'Defense_Attorney', headerName: 'Defense Attorney', width: 200,
+              cellRenderer: params => {
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
+                  return `<span class="text-purple-600 hover:text-purple-800 hover:underline cursor-pointer">${params.value}</span>`;
+              },
+              onCellClicked: params => {
+                  if (params.value && params.event) {
+                      params.event.stopPropagation();
+                      filterByName(params.value, 'defenseAttorney');
                   }
               }
             },
@@ -4053,6 +4335,12 @@
                 }
             }
 
+            // Parse attorney field - split by semicolon to get plaintiff and defense attorneys
+            const rawAttorney = record.Attorney || record.attorney || '';
+            const attorneyParts = String(rawAttorney).split(/[;]/).map(a => a.trim());
+            const plaintiffAttorney = cleanAttorney(attorneyParts[0]) || '';
+            const defenseAttorney = attorneyParts.length > 1 ? cleanAttorney(attorneyParts[1]) : '';
+
             const normalized = {
                 ...record,
                 File_Date: parseDate(record.File_Date || record.file_date),
@@ -4061,7 +4349,8 @@
                 Address: record.address_formatted || record.formatted_address || record.address || '',
                 District: district,
                 Case_Number: record.Docket_Number || record.Case_Number || record.case_number || record.id || '',
-                Attorney: cleanAttorney(record.Attorney || record.attorney || ''),
+                Attorney: plaintiffAttorney,
+                Defense_Attorney: defenseAttorney,
                 CouncilMember: record.council_member || '',
                 individual_ll: record.individual_ll === "1" || record.individual_ll === true || record.individual_ll === 'true'
             };
@@ -5480,12 +5769,14 @@
             const fieldMap = {
                 plaintiff: 'Plaintiff',
                 defendant: 'Defendant',
-                attorney: 'Attorney'
+                attorney: 'Attorney',
+                defenseAttorney: 'Defense_Attorney'
             };
             const labelMap = {
                 plaintiff: 'Landlord',
                 defendant: 'Tenant',
-                attorney: 'Attorney'
+                attorney: 'Attorney',
+                defenseAttorney: 'Defense Attorney'
             };
 
             const field = fieldMap[type] || 'Plaintiff';
@@ -5579,7 +5870,8 @@
             const typeMap = {
                 plaintiff: 'plaintiff',
                 defendant: 'defendant',
-                attorney: 'attorney'
+                attorney: 'attorney',
+                defenseAttorney: 'defenseAttorney'
             };
 
             const filterType = typeMap[pivotDimension] || 'plaintiff';
@@ -6278,6 +6570,378 @@
             document.body.style.overflow = '';
         }
 
+        // Attorney Modal Functions
+        let attorneyModalData = [];
+        let attorneyModalSort = { field: 'filings', direction: 'desc' };
+        let attorneyModalFilter = '';
+        let currentAttorneyTab = 'plaintiff'; // 'plaintiff' or 'defense'
+
+        function openAttorneyModal() {
+            const modal = document.getElementById('attorneyModal');
+
+            // Build attorney data from current filtered data
+            attorneyModalData = buildAttorneyRollupData();
+            attorneyModalSort = { field: 'filings', direction: 'desc' };
+            attorneyModalFilter = '';
+            currentAttorneyTab = 'plaintiff';
+
+            // Clear search input
+            const searchInput = document.getElementById('attorneySearchInput');
+            if (searchInput) searchInput.value = '';
+
+            // Reset tabs
+            setAttorneyTab('plaintiff');
+
+            // Populate summary stats
+            populateAttorneySummary();
+
+            // Populate table
+            renderAttorneyTable();
+
+            // Show modal
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function setAttorneyTab(tab) {
+            currentAttorneyTab = tab;
+            attorneyModalFilter = '';
+
+            // Clear search input
+            const searchInput = document.getElementById('attorneySearchInput');
+            if (searchInput) searchInput.value = '';
+
+            // Update tab styles
+            const plaintiffTab = document.getElementById('plaintiffAttorneyTab');
+            const defenseTab = document.getElementById('defenseAttorneyTab');
+
+            if (tab === 'plaintiff') {
+                plaintiffTab.style.borderBottomColor = '#4f46e5';
+                plaintiffTab.style.color = '#4f46e5';
+                defenseTab.style.borderBottomColor = 'transparent';
+                defenseTab.style.color = '#6b7280';
+            } else {
+                plaintiffTab.style.borderBottomColor = 'transparent';
+                plaintiffTab.style.color = '#6b7280';
+                defenseTab.style.borderBottomColor = '#4f46e5';
+                defenseTab.style.color = '#4f46e5';
+            }
+
+            // Reset sort for new tab
+            attorneyModalSort = { field: 'filings', direction: 'desc' };
+
+            // Re-render table
+            renderAttorneyTable();
+        }
+
+        function closeAttorneyModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            const modal = document.getElementById('attorneyModal');
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        function buildAttorneyRollupData() {
+            const plaintiffSummaries = new Map();
+            const defenseSummaries = new Map();
+            const dataSource = filteredData.length > 0 ? filteredData : allData;
+            const totalRecords = dataSource.length;
+
+            // Pro Se tokens to filter out
+            const proSeTokens = new Set([
+                'PRO SE', 'PRO-SE', 'PROSE', 'PRO SE LITIGANT', 'PRS'
+            ]);
+
+            function cleanAttorneyName(att) {
+                if (!att) return null;
+                // Remove leading/trailing punctuation and whitespace
+                att = att.replace(/^[^A-Za-z0-9'&.-]+/, '').replace(/[^A-Za-z0-9'&.-]+$/, '').trim();
+                if (!att) return null;
+
+                // Check if it's a Pro Se representation
+                const upperAtt = att.replace(/\./g, '').toUpperCase();
+                if (proSeTokens.has(upperAtt)) {
+                    return 'Pro Se';
+                }
+                return att;
+            }
+
+            dataSource.forEach(record => {
+                const rawAttorney = record.Attorney || '';
+
+                // Split by semicolon - first is plaintiff's attorney, second (if exists) is defendant's attorney
+                const attorneyParts = String(rawAttorney)
+                    .split(/[;]/)
+                    .map(a => a.trim());
+
+                // First attorney is plaintiff's attorney (landlord's lawyer)
+                const plaintiffAttorney = cleanAttorneyName(attorneyParts[0]) || 'Pro Se';
+
+                // Second attorney (if present) is defendant's attorney (tenant's lawyer)
+                const defenseAttorney = attorneyParts.length > 1 ? cleanAttorneyName(attorneyParts[1]) : null;
+
+                const fileDate = record.File_Date ? new Date(record.File_Date) : null;
+                const validFileDate = fileDate && !isNaN(fileDate) ? fileDate : null;
+
+                // Process plaintiff's attorney
+                if (!plaintiffSummaries.has(plaintiffAttorney)) {
+                    plaintiffSummaries.set(plaintiffAttorney, {
+                        name: plaintiffAttorney,
+                        filings: 0,
+                        lastFiled: null,
+                        properties: new Set(),
+                        plaintiffs: new Set(),
+                        type: 'plaintiff'
+                    });
+                }
+
+                const pSummary = plaintiffSummaries.get(plaintiffAttorney);
+                pSummary.filings += 1;
+
+                if (validFileDate && (!pSummary.lastFiled || validFileDate > pSummary.lastFiled)) {
+                    pSummary.lastFiled = validFileDate;
+                }
+
+                if (record.Address) {
+                    pSummary.properties.add(String(record.Address).trim().toLowerCase());
+                }
+
+                if (record.Plaintiff) {
+                    pSummary.plaintiffs.add(String(record.Plaintiff).trim());
+                }
+
+                // Process defendant's attorney if present
+                if (defenseAttorney) {
+                    if (!defenseSummaries.has(defenseAttorney)) {
+                        defenseSummaries.set(defenseAttorney, {
+                            name: defenseAttorney,
+                            filings: 0,
+                            lastFiled: null,
+                            properties: new Set(),
+                            defendants: new Set(),
+                            type: 'defense'
+                        });
+                    }
+
+                    const dSummary = defenseSummaries.get(defenseAttorney);
+                    dSummary.filings += 1;
+
+                    if (validFileDate && (!dSummary.lastFiled || validFileDate > dSummary.lastFiled)) {
+                        dSummary.lastFiled = validFileDate;
+                    }
+
+                    if (record.Address) {
+                        dSummary.properties.add(String(record.Address).trim().toLowerCase());
+                    }
+                }
+            });
+
+            // Store defense data for separate display
+            attorneyDefenseData = Array.from(defenseSummaries.values())
+                .map(summary => ({
+                    name: summary.name,
+                    filings: summary.filings,
+                    percent: totalRecords > 0 ? (summary.filings / totalRecords) * 100 : 0,
+                    lastFiled: summary.lastFiled,
+                    properties: summary.properties.size,
+                    type: 'defense'
+                }))
+                .sort((a, b) => b.filings - a.filings);
+
+            // Return plaintiff attorney data (primary view)
+            return Array.from(plaintiffSummaries.values())
+                .map(summary => ({
+                    name: summary.name,
+                    filings: summary.filings,
+                    percent: totalRecords > 0 ? (summary.filings / totalRecords) * 100 : 0,
+                    lastFiled: summary.lastFiled,
+                    properties: summary.properties.size,
+                    plaintiffs: summary.plaintiffs.size,
+                    topPlaintiffs: Array.from(summary.plaintiffs).slice(0, 3),
+                    type: 'plaintiff'
+                }))
+                .sort((a, b) => b.filings - a.filings);
+        }
+
+        // Store defense attorney data separately
+        let attorneyDefenseData = [];
+
+        function populateAttorneySummary() {
+            const container = document.getElementById('attorneyModalSummary');
+            if (!container) return;
+
+            const dataSource = filteredData.length > 0 ? filteredData : allData;
+            const totalCases = dataSource.length;
+
+            // Plaintiff attorney stats
+            const totalPlaintiffAttorneys = attorneyModalData.length;
+            const plaintiffProSeCount = attorneyModalData.find(a => a.name === 'Pro Se')?.filings || 0;
+            const plaintiffRepresentedPercent = totalCases > 0 ? (((totalCases - plaintiffProSeCount) / totalCases) * 100).toFixed(1) : 0;
+
+            // Defense attorney stats
+            const totalDefenseAttorneys = attorneyDefenseData.length;
+            const casesWithDefense = attorneyDefenseData.reduce((sum, a) => sum + a.filings, 0);
+            const defenseRepPercent = totalCases > 0 ? ((casesWithDefense / totalCases) * 100).toFixed(1) : 0;
+
+            // Top attorneys
+            const topPlaintiff = attorneyModalData.find(a => a.name !== 'Pro Se');
+            const topDefense = attorneyDefenseData.find(a => a.name !== 'Pro Se');
+
+            container.innerHTML = `
+                <div class="attorney-modal-stat">
+                    <div class="value">${totalCases.toLocaleString()}</div>
+                    <div class="label">Total Cases</div>
+                </div>
+                <div class="attorney-modal-stat">
+                    <div class="value">${totalPlaintiffAttorneys.toLocaleString()}</div>
+                    <div class="label">Landlord Attorneys</div>
+                </div>
+                <div class="attorney-modal-stat">
+                    <div class="value">${plaintiffRepresentedPercent}%</div>
+                    <div class="label">Landlords w/ Attorney</div>
+                </div>
+                <div class="attorney-modal-stat">
+                    <div class="value">${totalDefenseAttorneys.toLocaleString()}</div>
+                    <div class="label">Defense Attorneys</div>
+                </div>
+                <div class="attorney-modal-stat">
+                    <div class="value">${defenseRepPercent}%</div>
+                    <div class="label">Tenants w/ Attorney</div>
+                </div>
+            `;
+        }
+
+        function renderAttorneyTable() {
+            const tbody = document.getElementById('attorneyTableBody');
+            if (!tbody) return;
+
+            // Select data source based on current tab
+            const sourceData = currentAttorneyTab === 'plaintiff' ? attorneyModalData : attorneyDefenseData;
+
+            // Filter data
+            let displayData = sourceData;
+            if (attorneyModalFilter) {
+                const searchLower = attorneyModalFilter.toLowerCase();
+                displayData = sourceData.filter(a =>
+                    a.name.toLowerCase().includes(searchLower)
+                );
+            }
+
+            // Sort data
+            displayData = [...displayData].sort((a, b) => {
+                let valA, valB;
+                switch (attorneyModalSort.field) {
+                    case 'name':
+                        valA = a.name.toLowerCase();
+                        valB = b.name.toLowerCase();
+                        break;
+                    case 'filings':
+                        valA = a.filings;
+                        valB = b.filings;
+                        break;
+                    case 'percent':
+                        valA = a.percent;
+                        valB = b.percent;
+                        break;
+                    case 'lastFiled':
+                        valA = a.lastFiled ? a.lastFiled.getTime() : 0;
+                        valB = b.lastFiled ? b.lastFiled.getTime() : 0;
+                        break;
+                    case 'properties':
+                        valA = a.properties;
+                        valB = b.properties;
+                        break;
+                    default:
+                        valA = a.filings;
+                        valB = b.filings;
+                }
+
+                if (typeof valA === 'string') {
+                    return attorneyModalSort.direction === 'asc'
+                        ? valA.localeCompare(valB)
+                        : valB.localeCompare(valA);
+                }
+                return attorneyModalSort.direction === 'asc' ? valA - valB : valB - valA;
+            });
+
+            // Show message if no data
+            if (displayData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 2rem; color: #6b7280;">
+                            ${attorneyModalFilter ? 'No attorneys match your search.' : (currentAttorneyTab === 'defense' ? 'No defense attorneys found in the current data.' : 'No attorneys found.')}
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = displayData.map(attorney => `
+                <tr>
+                    <td>
+                        <span class="attorney-name" onclick="drillDownToAttorney('${escapeHtml(attorney.name)}', '${currentAttorneyTab}')">${escapeHtml(attorney.name)}</span>
+                    </td>
+                    <td class="num-col">${attorney.filings.toLocaleString()}</td>
+                    <td class="num-col">
+                        <div class="pct-bar">
+                            <div class="pct-bar-fill" style="width: ${Math.min(attorney.percent * 2, 100)}px"></div>
+                            <span>${attorney.percent.toFixed(1)}%</span>
+                        </div>
+                    </td>
+                    <td>${attorney.lastFiled ? attorney.lastFiled.toLocaleDateString() : '—'}</td>
+                    <td class="num-col">${attorney.properties.toLocaleString()}</td>
+                </tr>
+            `).join('');
+
+            // Update sort indicators
+            updateAttorneySortIndicators();
+        }
+
+        function sortAttorneyTable(field) {
+            if (attorneyModalSort.field === field) {
+                attorneyModalSort.direction = attorneyModalSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                attorneyModalSort.field = field;
+                attorneyModalSort.direction = field === 'name' ? 'asc' : 'desc';
+            }
+            renderAttorneyTable();
+        }
+
+        function updateAttorneySortIndicators() {
+            const headers = document.querySelectorAll('#attorneyTable th.sortable');
+            headers.forEach(th => {
+                const field = th.dataset.sort;
+                const indicator = th.querySelector('.sort-indicator');
+                if (field === attorneyModalSort.field) {
+                    th.classList.add('sorted');
+                    indicator.textContent = attorneyModalSort.direction === 'asc' ? '↑' : '↓';
+                } else {
+                    th.classList.remove('sorted');
+                    indicator.textContent = '↕';
+                }
+            });
+        }
+
+        function filterAttorneyTable(searchTerm) {
+            attorneyModalFilter = searchTerm;
+            renderAttorneyTable();
+        }
+
+        function drillDownToAttorney(attorneyName, attorneyType) {
+            closeAttorneyModal();
+            if (attorneyType === 'defense') {
+                filterByName(attorneyName, 'defenseAttorney');
+            } else {
+                filterByName(attorneyName, 'attorney');
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         // Demographics Table Functions
         function getDistrictData() {
             if (!districtDemographics?.districts) return [];
@@ -6716,6 +7380,10 @@
                 const districtModal = document.getElementById('districtModal');
                 if (districtModal && districtModal.classList.contains('active')) {
                     closeDistrictModal();
+                }
+                const attorneyModal = document.getElementById('attorneyModal');
+                if (attorneyModal && attorneyModal.classList.contains('active')) {
+                    closeAttorneyModal();
                 }
             }
         });
