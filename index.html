@@ -3786,13 +3786,8 @@
             { field: 'Plaintiff', headerName: 'Plaintiff/Landlord', width: 250,
               cellRenderer: params => {
                   if (!params.value) return '';
-                  return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${params.value}</span>`;
-              },
-              onCellClicked: params => {
-                  if (params.value && params.event) {
-                      params.event.stopPropagation();
-                      filterByName(params.value, 'plaintiff');
-                  }
+                  const escapedValue = String(params.value).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                  return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer" onclick="event.stopPropagation(); filterByName('${escapedValue}', 'plaintiff');">${params.value}</span>`;
               }
             },
             { field: 'Defendant', headerName: 'Defendant/Tenant', width: 250,
@@ -3814,42 +3809,26 @@
             { field: 'Attorney', headerName: 'Landlord Attorney', width: 200,
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
-                  return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">${params.value}</span>`;
-              },
-              onCellClicked: params => {
-                  if (params.value && params.event) {
-                      params.event.stopPropagation();
-                      filterByName(params.value, 'attorney');
-                  }
+                  const escapedValue = String(params.value).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                  return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer" onclick="event.stopPropagation(); filterByName('${escapedValue}', 'attorney');">${params.value}</span>`;
               }
             },
             { field: 'Defense_Attorney', headerName: 'Defense Attorney', width: 200,
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
-                  return `<span class="text-purple-600 hover:text-purple-800 hover:underline cursor-pointer">${params.value}</span>`;
-              },
-              onCellClicked: params => {
-                  if (params.value && params.event) {
-                      params.event.stopPropagation();
-                      filterByName(params.value, 'defenseAttorney');
-                  }
+                  const escapedValue = String(params.value).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                  return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer" onclick="event.stopPropagation(); filterByName('${escapedValue}', 'defenseAttorney');">${params.value}</span>`;
               }
             },
             { field: 'District', headerName: 'Council District', width: 140,
               cellRenderer: params => {
                   if (!params.value || params.value === 'Unknown') return '<span class="text-gray-400">—</span>';
-                  return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer">District ${params.value}</span>`;
+                  return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer" onclick="event.stopPropagation(); filterByDistrict('${params.value}');">District ${params.value}</span>`;
               },
               comparator: (valueA, valueB) => {
                   const numA = valueA && valueA !== 'Unknown' ? parseInt(valueA, 10) : Infinity;
                   const numB = valueB && valueB !== 'Unknown' ? parseInt(valueB, 10) : Infinity;
                   return numA - numB;
-              },
-              onCellClicked: params => {
-                  if (params.value && params.value !== 'Unknown' && params.event) {
-                      params.event.stopPropagation();
-                      filterByDistrict(params.value);
-                  }
               }
             }
         ];
