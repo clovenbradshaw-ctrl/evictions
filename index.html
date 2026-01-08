@@ -2587,11 +2587,19 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">
-                                Paste Names (one per line or comma-separated)
+                                Paste Search Terms (one per line or comma-separated)
                             </label>
                             <textarea id="bulkNames" rows="6"
-                                      placeholder="John Smith&#10;Jane Doe&#10;ABC Properties LLC"
+                                      placeholder="ABC Properties LLC&#10;123 Main Street&#10;John Smith"
                                       class="search-input w-full font-mono text-sm"></textarea>
+                            <div class="mt-3 flex items-center gap-4">
+                                <label class="text-sm text-gray-600">Search In:</label>
+                                <select id="bulkSearchField" class="search-input text-sm" style="width: auto; padding: 4px 8px;">
+                                    <option value="landlord">Landlord</option>
+                                    <option value="address">Address</option>
+                                    <option value="both">Both</option>
+                                </select>
+                            </div>
                             <div class="mt-3 flex items-center gap-4">
                                 <label class="text-sm text-gray-600">Match Threshold:</label>
                                 <input type="range" id="fuzzyThreshold" min="0.5" max="1" step="0.05" value="0.8"
@@ -3241,7 +3249,17 @@
 
         // Login state for defendant privacy protection
         let isLoggedIn = false;
-        const LOGIN_PASSWORD = 'HIAHR';
+        // SHA-256 hash of the password (hashed in lowercase)
+        const LOGIN_PASSWORD_HASH = 'fac97e07e2a67586b26047d8862db7306133ca2e1d033013fea044177d584404';
+
+        // Hash function using Web Crypto API
+        async function hashPassword(text) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text.toLowerCase().trim());
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
 
         // ============================================
         // DISTRICT LOCATION MAPPING
@@ -3703,9 +3721,10 @@
             document.getElementById('loginModal').classList.add('hidden');
         }
 
-        function attemptLogin() {
+        async function attemptLogin() {
             const password = document.getElementById('loginPassword').value;
-            if (password.toUpperCase() === LOGIN_PASSWORD) {
+            const inputHash = await hashPassword(password);
+            if (inputHash === LOGIN_PASSWORD_HASH) {
                 isLoggedIn = true;
                 hideLoginModal();
                 updateLoginButton();
@@ -3818,6 +3837,12 @@
                   if (!params.value) return '<span class="text-gray-400">—</span>';
                   const escapedValue = String(params.value).replace(/'/g, "\\'").replace(/"/g, '&quot;');
                   return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer" onclick="event.stopPropagation(); filterByName('${escapedValue}', 'defenseAttorney');">${params.value}</span>`;
+              }
+            },
+            { field: 'Address', headerName: 'Address', width: 250,
+              cellRenderer: params => {
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
+                  return `<span>${params.value}</span>`;
               }
             },
             { field: 'District', headerName: 'Council District', width: 140,
@@ -7420,22 +7445,38 @@
         function runBulkSearch() {
             const input = document.getElementById('bulkNames').value;
             const threshold = parseFloat(document.getElementById('fuzzyThreshold').value);
+            const searchField = document.getElementById('bulkSearchField').value;
             const searchTerms = input.split(/[,\n]/).map(t => t.trim()).filter(t => t);
-            
+
             if (searchTerms.length === 0) return;
-            
+
             searchMatches = [];
-            
+
             searchTerms.forEach(term => {
                 filteredData.forEach(record => {
-                    const fields = [record.Plaintiff, record.Defendant];
+                    let fields = [];
+
+                    // Determine which fields to search based on selection
+                    if (searchField === 'landlord') {
+                        fields = [{ value: record.Plaintiff, type: 'Landlord' }];
+                    } else if (searchField === 'address') {
+                        fields = [{ value: record.Address, type: 'Address' }];
+                    } else {
+                        // 'both' - search both landlord and address
+                        fields = [
+                            { value: record.Plaintiff, type: 'Landlord' },
+                            { value: record.Address, type: 'Address' }
+                        ];
+                    }
+
                     fields.forEach(field => {
-                        if (field) {
-                            const similarity = calculateSimilarity(term.toLowerCase(), field.toLowerCase());
+                        if (field.value) {
+                            const similarity = calculateSimilarity(term.toLowerCase(), field.value.toLowerCase());
                             if (similarity >= threshold) {
                                 searchMatches.push({
                                     searchTerm: term,
-                                    match: field,
+                                    match: field.value,
+                                    matchType: field.type,
                                     record: record,
                                     confidence: similarity
                                 });
@@ -7444,7 +7485,7 @@
                     });
                 });
             });
-            
+
             displayBulkResults(searchMatches);
         }
 
@@ -7512,9 +7553,11 @@
                         <tr>
                             <td>${escapeHtml(r.searchTerm)}</td>
                             <td>${escapeHtml(r.match)}</td>
+                            <td><span class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-700">${escapeHtml(r.matchType || 'Name')}</span></td>
                             <td><span class="confidence-badge ${confClass}">${(r.confidence * 100).toFixed(0)}%</span></td>
                             <td>${escapeHtml(fileDate)}</td>
-                            <td>${escapeHtml(r.record.Attorney || 'Unavailable')}</td>
+                            <td>${escapeHtml(r.record.Plaintiff || '—')}</td>
+                            <td>${escapeHtml(r.record.Address || '—')}</td>
                         </tr>
                     `;
                 }).join('');
@@ -7526,10 +7569,12 @@
                             <thead>
                                 <tr>
                                     <th>Search Term</th>
-                                    <th>Matched Name</th>
+                                    <th>Matched Value</th>
+                                    <th>Match Type</th>
                                     <th>Confidence</th>
                                     <th>File Date</th>
-                                    <th>Attorney</th>
+                                    <th>Landlord</th>
+                                    <th>Address</th>
                                 </tr>
                             </thead>
                             <tbody>
