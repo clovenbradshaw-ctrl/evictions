@@ -2815,7 +2815,17 @@
     <script>
         // Login system
         let isLoggedIn = false;
-        const LOGIN_PASSWORD = 'HIAHR';
+        // SHA-256 hash of the password (hashed in lowercase)
+        const LOGIN_PASSWORD_HASH = 'fac97e07e2a67586b26047d8862db7306133ca2e1d033013fea044177d584404';
+
+        // Hash function using Web Crypto API
+        async function hashPassword(text) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text.toLowerCase().trim());
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
 
         function showLoginModal() {
             document.getElementById('loginModal').classList.remove('hidden');
@@ -2828,9 +2838,10 @@
             document.getElementById('loginModal').classList.add('hidden');
         }
 
-        function attemptLogin() {
+        async function attemptLogin() {
             const password = document.getElementById('loginPassword').value;
-            if (password.toUpperCase() === LOGIN_PASSWORD) {
+            const inputHash = await hashPassword(password);
+            if (inputHash === LOGIN_PASSWORD_HASH) {
                 isLoggedIn = true;
                 hideLoginModal();
                 updateLoginButton();
