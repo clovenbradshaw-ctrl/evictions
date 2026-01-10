@@ -4332,6 +4332,24 @@
         // Reduce activity stream records to get current state per docket
         // The activity stream contains multiple records per case (new_case, address_update, etc.)
         // We need the latest record per docket_number to get current state
+        // Helper function to check if a value is meaningful (not null, undefined, or empty string)
+        function hasValue(val) {
+            return val !== null && val !== undefined && val !== '';
+        }
+
+        // Merge two records, preferring non-null/non-empty values
+        // When both have values for a field, prefer the newer record's value
+        function mergeRecordFields(existing, newer) {
+            const merged = { ...newer };
+            for (const key of Object.keys(existing)) {
+                // If newer record has no value but existing does, use existing value
+                if (!hasValue(merged[key]) && hasValue(existing[key])) {
+                    merged[key] = existing[key];
+                }
+            }
+            return merged;
+        }
+
         function reduceActivityStream(activityRecords) {
             const byDocket = new Map();
 
@@ -4340,9 +4358,14 @@
                 if (!docket) continue;
 
                 const existing = byDocket.get(docket);
-                // Keep the record with the highest logged_at (most recent)
-                if (!existing || record.logged_at > existing.logged_at) {
+                if (!existing) {
                     byDocket.set(docket, record);
+                } else if (record.logged_at > existing.logged_at) {
+                    // Merge: newer record wins for timestamp, but preserve existing non-null values
+                    byDocket.set(docket, mergeRecordFields(existing, record));
+                } else {
+                    // Existing is newer, but still merge in any non-null values from this record
+                    byDocket.set(docket, mergeRecordFields(record, existing));
                 }
             }
 
@@ -4402,9 +4425,14 @@
                 if (!docket) continue;
 
                 const existing = byDocket.get(docket);
-                // Keep the record with the highest logged_at (most recent)
-                if (!existing || record.logged_at > existing.logged_at) {
+                if (!existing) {
                     byDocket.set(docket, record);
+                } else if (record.logged_at > existing.logged_at) {
+                    // Merge: newer record wins for timestamp, but preserve existing non-null values
+                    byDocket.set(docket, mergeRecordFields(existing, record));
+                } else {
+                    // Existing is newer, but still merge in any non-null values from this record
+                    byDocket.set(docket, mergeRecordFields(record, existing));
                 }
             }
 
@@ -4446,7 +4474,7 @@
             });
         }
 
-        // Deduplicate records by docket number (Case_Number), keeping the most recent
+        // Deduplicate records by docket number (Case_Number), merging fields to preserve non-null values
         // Uses _logged_at (activity stream timestamp) if available, otherwise falls back to File_Date
         function dedupeByDocketNumber(records) {
             const seen = new Map();
@@ -4462,13 +4490,18 @@
                 if (!seen.has(docketNumber)) {
                     seen.set(docketNumber, record);
                 } else {
-                    // Keep the record with the most recent timestamp
+                    // Merge records, preferring non-null values from either
                     const existing = seen.get(docketNumber);
+                    let newerRecord, olderRecord;
 
-                    // Prefer _logged_at (activity stream timestamp) if available
+                    // Determine which record is newer
                     if (record._logged_at !== undefined && existing._logged_at !== undefined) {
                         if (record._logged_at > existing._logged_at) {
-                            seen.set(docketNumber, record);
+                            newerRecord = record;
+                            olderRecord = existing;
+                        } else {
+                            newerRecord = existing;
+                            olderRecord = record;
                         }
                     } else {
                         // Fall back to File_Date comparison for legacy data
@@ -4476,9 +4509,16 @@
                         const currentDate = new Date(record.File_Date || 0);
 
                         if (currentDate > existingDate) {
-                            seen.set(docketNumber, record);
+                            newerRecord = record;
+                            olderRecord = existing;
+                        } else {
+                            newerRecord = existing;
+                            olderRecord = record;
                         }
                     }
+
+                    // Merge: newer record is base, but preserve non-null values from older
+                    seen.set(docketNumber, mergeRecordFields(olderRecord, newerRecord));
                 }
             }
 
