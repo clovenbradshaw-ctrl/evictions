@@ -1268,22 +1268,70 @@
                 }
             }
 
-            // Flatten case_data to top level
+            // Debug: log sample record structure
+            const sampleRecords = Array.from(byDocket.values()).slice(0, 2);
+            if (sampleRecords.length > 0) {
+                console.log('🔍 Sample activity record keys:', Object.keys(sampleRecords[0]));
+                if (sampleRecords[0].case_data) {
+                    console.log('🔍 case_data keys:', Object.keys(sampleRecords[0].case_data));
+                }
+            }
+
+            // Flatten case_data to top level - support both PascalCase and snake_case
             return Array.from(byDocket.values()).map(record => {
                 const caseData = record.case_data || {};
                 return {
-                    Docket_Number: record.docket_number || caseData.Docket_Number,
-                    File_Date: caseData.File_Date,
-                    Status: caseData.Status,
-                    Plaintiff_Petitioner: caseData.Plaintiff_Petitioner,
-                    Defendant_Respondent: caseData.Defendant_Respondent,
-                    Attorney: caseData.Attorney,
-                    address_formatted: caseData.address_formatted,
-                    latitude: caseData.latitude,
-                    longitude: caseData.longitude,
-                    council_district: caseData.council_district,
-                    council_district_number: caseData.council_district_number,
-                    council_member: caseData.council_member
+                    Docket_Number: record.docket_number || caseData.Docket_Number || caseData.docket_number,
+                    File_Date: caseData.File_Date || caseData.file_date,
+                    Status: caseData.Status || caseData.status,
+                    Plaintiff_Petitioner: caseData.Plaintiff_Petitioner || caseData.plaintiff_petitioner || caseData.plaintiff,
+                    Defendant_Respondent: caseData.Defendant_Respondent || caseData.defendant_respondent || caseData.defendant,
+                    Attorney: caseData.Attorney || caseData.attorney || caseData.plaintiff_attorney,
+                    address_formatted: caseData.address_formatted || caseData.formatted_address || caseData.Address_1 || caseData.address_1 || caseData.address,
+                    latitude: caseData.latitude || caseData.lat,
+                    longitude: caseData.longitude || caseData.lng || caseData.lon,
+                    council_district: caseData.council_district || caseData.Council_District,
+                    council_district_number: caseData.council_district_number || caseData.Council_District_Number,
+                    council_member: caseData.council_member || caseData.Council_Member
+                };
+            });
+        }
+
+        // Reduce activity stream records when data fields are at top level (no case_data wrapper)
+        function reduceActivityStreamFlat(activityRecords) {
+            const byDocket = new Map();
+
+            for (const record of activityRecords) {
+                const docket = record.docket_number;
+                if (!docket) continue;
+
+                const existing = byDocket.get(docket);
+                if (!existing || record.logged_at > existing.logged_at) {
+                    byDocket.set(docket, record);
+                }
+            }
+
+            // Debug: log sample record keys
+            const sampleRecords = Array.from(byDocket.values()).slice(0, 2);
+            if (sampleRecords.length > 0) {
+                console.log('🔍 Sample flat activity record keys:', Object.keys(sampleRecords[0]));
+            }
+
+            // Map flat records - support both PascalCase and snake_case
+            return Array.from(byDocket.values()).map(record => {
+                return {
+                    Docket_Number: record.docket_number || record.Docket_Number,
+                    File_Date: record.File_Date || record.file_date,
+                    Status: record.Status || record.status,
+                    Plaintiff_Petitioner: record.Plaintiff_Petitioner || record.plaintiff_petitioner || record.plaintiff,
+                    Defendant_Respondent: record.Defendant_Respondent || record.defendant_respondent || record.defendant,
+                    Attorney: record.Attorney || record.attorney || record.plaintiff_attorney,
+                    address_formatted: record.address_formatted || record.formatted_address || record.Address_1 || record.address_1 || record.address,
+                    latitude: record.latitude || record.lat,
+                    longitude: record.longitude || record.lng || record.lon,
+                    council_district: record.council_district || record.Council_District,
+                    council_district_number: record.council_district_number || record.Council_District_Number,
+                    council_member: record.council_member || record.Council_Member
                 };
             });
         }
@@ -1306,12 +1354,23 @@
                     data = [result];
                 }
 
+                // Debug: log first record structure
+                if (data.length > 0) {
+                    console.log('🔍 First record keys:', Object.keys(data[0]));
+                }
+
                 // Detect activity stream format and reduce to current state
                 const isActivityStream = data.length > 0 && data[0].logged_at !== undefined && data[0].case_data !== undefined;
+                const hasActivityMetadata = data.length > 0 && data[0].logged_at !== undefined;
+
                 if (isActivityStream) {
-                    console.log('Reducing', data.length, 'activity records to current state...');
+                    console.log('📊 Detected activity stream with case_data, reducing', data.length, 'records...');
                     evictionData = reduceActivityStream(data);
-                    console.log('Reduced to', evictionData.length, 'unique cases');
+                    console.log('📊 Reduced to', evictionData.length, 'unique cases');
+                } else if (hasActivityMetadata) {
+                    console.log('📊 Detected activity stream WITHOUT case_data (fields at top level)');
+                    evictionData = reduceActivityStreamFlat(data);
+                    console.log('📊 Reduced to', evictionData.length, 'unique cases');
                 } else {
                     evictionData = data;
                 }
