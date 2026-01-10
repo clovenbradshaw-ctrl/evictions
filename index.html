@@ -4066,7 +4066,8 @@
         }
 
         async function loadData() {
-            const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainers';
+            // Activity stream endpoint - returns multiple records per case showing data changes over time
+            const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case';
 
             try {
                 console.group('🔄 Data Loading');
@@ -4191,6 +4192,7 @@
 
                 // Handle different response formats
                 let data;
+                let responseMeta = null;
                 if (Array.isArray(result)) {
                     data = result;
                     console.log('📦 Data format: Direct array');
@@ -4199,7 +4201,11 @@
                     console.log('📦 Data format: {items: [...]}');
                 } else if (result?.data) {
                     data = result.data;
-                    console.log('📦 Data format: {data: [...]}');
+                    responseMeta = result.meta || null;
+                    console.log('📦 Data format: {data: [...], meta: {...}}');
+                    if (responseMeta) {
+                        console.log('📊 Response metadata:', responseMeta);
+                    }
                 } else {
                     data = [result];
                     console.log('📦 Data format: Single object wrapped in array');
@@ -4207,7 +4213,20 @@
 
                 console.log('🔢 Raw record count:', data.length);
 
-                const normalizedData = data.map(normalizeRecord);
+                // Detect if this is activity stream data (has logged_at, action, case_data fields)
+                const isActivityStream = data.length > 0 && data[0].logged_at !== undefined && data[0].case_data !== undefined;
+
+                let flattenedData;
+                if (isActivityStream) {
+                    console.log('📊 Detected activity stream format, reducing to current state per docket...');
+                    flattenedData = reduceActivityStream(data);
+                    console.log('📊 Reduced', data.length, 'activity records to', flattenedData.length, 'unique cases');
+                } else {
+                    console.log('📊 Using legacy flat record format');
+                    flattenedData = data;
+                }
+
+                const normalizedData = flattenedData.map(normalizeRecord);
                 allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
@@ -4297,7 +4316,59 @@
             }
         }
 
-        // Deduplicate records by docket number (Case_Number), keeping the most recent by File_Date
+        // Reduce activity stream records to get current state per docket
+        // The activity stream contains multiple records per case (new_case, address_update, etc.)
+        // We need the latest record per docket_number to get current state
+        function reduceActivityStream(activityRecords) {
+            const byDocket = new Map();
+
+            for (const record of activityRecords) {
+                const docket = record.docket_number;
+                if (!docket) continue;
+
+                const existing = byDocket.get(docket);
+                // Keep the record with the highest logged_at (most recent)
+                if (!existing || record.logged_at > existing.logged_at) {
+                    byDocket.set(docket, record);
+                }
+            }
+
+            // Flatten the activity stream records to flat case records
+            return Array.from(byDocket.values()).map(record => {
+                // Merge case_data fields to top level for compatibility with existing code
+                const caseData = record.case_data || {};
+                return {
+                    // Activity stream metadata
+                    _logged_at: record.logged_at,
+                    _action: record.action,
+                    _activity_id: record.id,
+                    // Case data fields (flattened from case_data)
+                    Docket_Number: record.docket_number || caseData.Docket_Number,
+                    File_Date: caseData.File_Date,
+                    Status: caseData.Status,
+                    Office: caseData.Office,
+                    Description: caseData.Description,
+                    Plaintiff_Petitioner: caseData.Plaintiff_Petitioner,
+                    Defendant_Respondent: caseData.Defendant_Respondent,
+                    Attorney: caseData.Attorney,
+                    Defendant_Attorney: caseData.defendant_attorney || caseData.Defendant_Attorney,
+                    Address_1: caseData.Address_1,
+                    Address_2: caseData.Address_2,
+                    city_state_zip: caseData.city_state_zip,
+                    address_formatted: caseData.address_formatted,
+                    formatted_address: caseData.formatted_address,
+                    latitude: caseData.latitude,
+                    longitude: caseData.longitude,
+                    council_district: caseData.council_district,
+                    council_district_number: caseData.council_district_number,
+                    council_member: caseData.council_member,
+                    individual_ll: caseData.individual_ll
+                };
+            });
+        }
+
+        // Deduplicate records by docket number (Case_Number), keeping the most recent
+        // Uses _logged_at (activity stream timestamp) if available, otherwise falls back to File_Date
         function dedupeByDocketNumber(records) {
             const seen = new Map();
 
@@ -4312,13 +4383,22 @@
                 if (!seen.has(docketNumber)) {
                     seen.set(docketNumber, record);
                 } else {
-                    // Keep the record with the more recent File_Date
+                    // Keep the record with the most recent timestamp
                     const existing = seen.get(docketNumber);
-                    const existingDate = new Date(existing.File_Date || 0);
-                    const currentDate = new Date(record.File_Date || 0);
 
-                    if (currentDate > existingDate) {
-                        seen.set(docketNumber, record);
+                    // Prefer _logged_at (activity stream timestamp) if available
+                    if (record._logged_at !== undefined && existing._logged_at !== undefined) {
+                        if (record._logged_at > existing._logged_at) {
+                            seen.set(docketNumber, record);
+                        }
+                    } else {
+                        // Fall back to File_Date comparison for legacy data
+                        const existingDate = new Date(existing.File_Date || 0);
+                        const currentDate = new Date(record.File_Date || 0);
+
+                        if (currentDate > existingDate) {
+                            seen.set(docketNumber, record);
+                        }
                     }
                 }
             }
@@ -4343,20 +4423,26 @@
             const rawAttorney = record.Attorney || record.attorney || '';
             const attorneyParts = String(rawAttorney).split(/[;]/).map(a => a.trim());
             const plaintiffAttorney = cleanAttorney(attorneyParts[0]) || '';
-            const defenseAttorney = attorneyParts.length > 1 ? cleanAttorney(attorneyParts[1]) : '';
+            // Prefer explicit Defendant_Attorney field from activity stream, otherwise parse from semicolon-separated Attorney field
+            const defenseAttorney = record.Defendant_Attorney
+                ? cleanAttorney(record.Defendant_Attorney)
+                : (attorneyParts.length > 1 ? cleanAttorney(attorneyParts[1]) : '');
 
             const normalized = {
                 ...record,
                 File_Date: parseDate(record.File_Date || record.file_date),
                 Plaintiff: record.Plaintiff_Petitioner || record.Plaintiff || record.plaintiff || '',
                 Defendant: record.Defendant_Respondent || record.Defendant || record.defendant || '',
-                Address: record.address_formatted || record.formatted_address || record.address || '',
+                Address: record.address_formatted || record.formatted_address || record.Address_1 || record.address || '',
                 District: district,
                 Case_Number: record.Docket_Number || record.Case_Number || record.case_number || record.id || '',
                 Attorney: plaintiffAttorney,
                 Defense_Attorney: defenseAttorney,
                 CouncilMember: record.council_member || '',
-                individual_ll: record.individual_ll === "1" || record.individual_ll === true || record.individual_ll === 'true'
+                individual_ll: record.individual_ll === "1" || record.individual_ll === true || record.individual_ll === 'true',
+                // Preserve activity stream metadata if present
+                _logged_at: record._logged_at,
+                _action: record._action
             };
 
             return normalized;

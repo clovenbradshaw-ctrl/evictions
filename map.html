@@ -1149,7 +1149,8 @@
         // =============================================
         // CONFIGURATION
         // =============================================
-        const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainers';
+        // Activity stream endpoint - returns multiple records per case showing data changes over time
+        const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case';
         const NASHVILLE_CENTER = [36.1627, -86.7816];
         const DEFAULT_ZOOM = 11;
 
@@ -1253,12 +1254,68 @@
             }
         }
 
+        // Reduce activity stream records to get current state per docket
+        function reduceActivityStream(activityRecords) {
+            const byDocket = new Map();
+
+            for (const record of activityRecords) {
+                const docket = record.docket_number;
+                if (!docket) continue;
+
+                const existing = byDocket.get(docket);
+                if (!existing || record.logged_at > existing.logged_at) {
+                    byDocket.set(docket, record);
+                }
+            }
+
+            // Flatten case_data to top level
+            return Array.from(byDocket.values()).map(record => {
+                const caseData = record.case_data || {};
+                return {
+                    Docket_Number: record.docket_number || caseData.Docket_Number,
+                    File_Date: caseData.File_Date,
+                    Status: caseData.Status,
+                    Plaintiff_Petitioner: caseData.Plaintiff_Petitioner,
+                    Defendant_Respondent: caseData.Defendant_Respondent,
+                    Attorney: caseData.Attorney,
+                    address_formatted: caseData.address_formatted,
+                    latitude: caseData.latitude,
+                    longitude: caseData.longitude,
+                    council_district: caseData.council_district,
+                    council_district_number: caseData.council_district_number,
+                    council_member: caseData.council_member
+                };
+            });
+        }
+
         async function loadEvictionData() {
             try {
                 const response = await fetch(API_URL);
                 if (!response.ok) throw new Error('API request failed');
-                const data = await response.json();
-                evictionData = Array.isArray(data) ? data : (data.items || []);
+                const result = await response.json();
+
+                // Handle different response formats
+                let data;
+                if (Array.isArray(result)) {
+                    data = result;
+                } else if (result?.data) {
+                    data = result.data;
+                } else if (result?.items) {
+                    data = result.items;
+                } else {
+                    data = [result];
+                }
+
+                // Detect activity stream format and reduce to current state
+                const isActivityStream = data.length > 0 && data[0].logged_at !== undefined && data[0].case_data !== undefined;
+                if (isActivityStream) {
+                    console.log('Reducing', data.length, 'activity records to current state...');
+                    evictionData = reduceActivityStream(data);
+                    console.log('Reduced to', evictionData.length, 'unique cases');
+                } else {
+                    evictionData = data;
+                }
+
                 console.log('Loaded', evictionData.length, 'eviction records');
             } catch (e) {
                 console.error('Failed to load eviction data:', e);
