@@ -4213,13 +4213,26 @@
 
                 console.log('🔢 Raw record count:', data.length);
 
+                // Debug: log first record structure to help diagnose data mapping issues
+                if (data.length > 0) {
+                    console.log('🔍 First record keys:', Object.keys(data[0]));
+                    console.log('🔍 First record sample:', JSON.stringify(data[0], null, 2).substring(0, 1000));
+                }
+
                 // Detect if this is activity stream data (has logged_at, action, case_data fields)
+                // Also detect if case_data exists but might be named differently
                 const isActivityStream = data.length > 0 && data[0].logged_at !== undefined && data[0].case_data !== undefined;
+                const hasActivityMetadata = data.length > 0 && data[0].logged_at !== undefined;
 
                 let flattenedData;
                 if (isActivityStream) {
-                    console.log('📊 Detected activity stream format, reducing to current state per docket...');
+                    console.log('📊 Detected activity stream format with case_data, reducing to current state per docket...');
                     flattenedData = reduceActivityStream(data);
+                    console.log('📊 Reduced', data.length, 'activity records to', flattenedData.length, 'unique cases');
+                } else if (hasActivityMetadata) {
+                    // Activity stream without case_data - data fields are at top level
+                    console.log('📊 Detected activity stream format WITHOUT case_data (fields at top level)');
+                    flattenedData = reduceActivityStreamFlat(data);
                     console.log('📊 Reduced', data.length, 'activity records to', flattenedData.length, 'unique cases');
                 } else {
                     console.log('📊 Using legacy flat record format');
@@ -4333,9 +4346,21 @@
                 }
             }
 
+            // Debug: log sample record structure
+            const sampleRecords = Array.from(byDocket.values()).slice(0, 2);
+            if (sampleRecords.length > 0) {
+                console.log('🔍 Sample activity record structure:', JSON.stringify(sampleRecords[0], null, 2));
+                if (sampleRecords[0].case_data) {
+                    console.log('🔍 case_data fields:', Object.keys(sampleRecords[0].case_data));
+                } else {
+                    console.log('⚠️ case_data is missing or empty in first record');
+                }
+            }
+
             // Flatten the activity stream records to flat case records
             return Array.from(byDocket.values()).map(record => {
                 // Merge case_data fields to top level for compatibility with existing code
+                // Handle both PascalCase and snake_case field names from API
                 const caseData = record.case_data || {};
                 return {
                     // Activity stream metadata
@@ -4343,26 +4368,80 @@
                     _action: record.action,
                     _activity_id: record.id,
                     // Case data fields (flattened from case_data)
-                    Docket_Number: record.docket_number || caseData.Docket_Number,
-                    File_Date: caseData.File_Date,
-                    Status: caseData.Status,
-                    Office: caseData.Office,
-                    Description: caseData.Description,
-                    Plaintiff_Petitioner: caseData.Plaintiff_Petitioner,
-                    Defendant_Respondent: caseData.Defendant_Respondent,
-                    Attorney: caseData.Attorney,
-                    Defendant_Attorney: caseData.defendant_attorney || caseData.Defendant_Attorney,
-                    Address_1: caseData.Address_1,
-                    Address_2: caseData.Address_2,
-                    city_state_zip: caseData.city_state_zip,
-                    address_formatted: caseData.address_formatted,
-                    formatted_address: caseData.formatted_address,
-                    latitude: caseData.latitude,
-                    longitude: caseData.longitude,
-                    council_district: caseData.council_district,
-                    council_district_number: caseData.council_district_number,
-                    council_member: caseData.council_member,
-                    individual_ll: caseData.individual_ll
+                    // Support both PascalCase and snake_case field names
+                    Docket_Number: record.docket_number || caseData.Docket_Number || caseData.docket_number,
+                    File_Date: caseData.File_Date || caseData.file_date,
+                    Status: caseData.Status || caseData.status,
+                    Office: caseData.Office || caseData.office,
+                    Description: caseData.Description || caseData.description,
+                    Plaintiff_Petitioner: caseData.Plaintiff_Petitioner || caseData.plaintiff_petitioner || caseData.plaintiff,
+                    Defendant_Respondent: caseData.Defendant_Respondent || caseData.defendant_respondent || caseData.defendant,
+                    Attorney: caseData.Attorney || caseData.attorney || caseData.plaintiff_attorney,
+                    Defendant_Attorney: caseData.defendant_attorney || caseData.Defendant_Attorney || caseData.defense_attorney,
+                    Address_1: caseData.Address_1 || caseData.address_1 || caseData.address,
+                    Address_2: caseData.Address_2 || caseData.address_2,
+                    city_state_zip: caseData.city_state_zip || caseData.City_State_Zip,
+                    address_formatted: caseData.address_formatted || caseData.formatted_address,
+                    formatted_address: caseData.formatted_address || caseData.address_formatted,
+                    latitude: caseData.latitude || caseData.lat,
+                    longitude: caseData.longitude || caseData.lng || caseData.lon,
+                    council_district: caseData.council_district || caseData.Council_District,
+                    council_district_number: caseData.council_district_number || caseData.Council_District_Number,
+                    council_member: caseData.council_member || caseData.Council_Member,
+                    individual_ll: caseData.individual_ll || caseData.Individual_LL
+                };
+            });
+        }
+
+        // Reduce activity stream records when data fields are at top level (no case_data wrapper)
+        function reduceActivityStreamFlat(activityRecords) {
+            const byDocket = new Map();
+
+            for (const record of activityRecords) {
+                const docket = record.docket_number;
+                if (!docket) continue;
+
+                const existing = byDocket.get(docket);
+                // Keep the record with the highest logged_at (most recent)
+                if (!existing || record.logged_at > existing.logged_at) {
+                    byDocket.set(docket, record);
+                }
+            }
+
+            // Debug: log sample record structure
+            const sampleRecords = Array.from(byDocket.values()).slice(0, 2);
+            if (sampleRecords.length > 0) {
+                console.log('🔍 Sample flat activity record keys:', Object.keys(sampleRecords[0]));
+            }
+
+            // Map flat records with field name fallbacks
+            return Array.from(byDocket.values()).map(record => {
+                return {
+                    // Activity stream metadata
+                    _logged_at: record.logged_at,
+                    _action: record.action,
+                    _activity_id: record.id,
+                    // Case data fields at top level - support both PascalCase and snake_case
+                    Docket_Number: record.docket_number || record.Docket_Number,
+                    File_Date: record.File_Date || record.file_date,
+                    Status: record.Status || record.status,
+                    Office: record.Office || record.office,
+                    Description: record.Description || record.description,
+                    Plaintiff_Petitioner: record.Plaintiff_Petitioner || record.plaintiff_petitioner || record.plaintiff,
+                    Defendant_Respondent: record.Defendant_Respondent || record.defendant_respondent || record.defendant,
+                    Attorney: record.Attorney || record.attorney || record.plaintiff_attorney,
+                    Defendant_Attorney: record.defendant_attorney || record.Defendant_Attorney || record.defense_attorney,
+                    Address_1: record.Address_1 || record.address_1 || record.address,
+                    Address_2: record.Address_2 || record.address_2,
+                    city_state_zip: record.city_state_zip || record.City_State_Zip,
+                    address_formatted: record.address_formatted || record.formatted_address,
+                    formatted_address: record.formatted_address || record.address_formatted,
+                    latitude: record.latitude || record.lat,
+                    longitude: record.longitude || record.lng || record.lon,
+                    council_district: record.council_district || record.Council_District,
+                    council_district_number: record.council_district_number || record.Council_District_Number,
+                    council_member: record.council_member || record.Council_Member,
+                    individual_ll: record.individual_ll || record.Individual_LL
                 };
             });
         }
