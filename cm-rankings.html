@@ -1637,6 +1637,10 @@
 
         // Decompress eviction data from compressed format
         function decompressEvictionData(compressed) {
+            if (!compressed || !Array.isArray(compressed)) {
+                console.warn('⚠️ decompressEvictionData received invalid input:', typeof compressed);
+                return [];
+            }
             return compressed.map(r => ({
                 Case_Number: r.id,
                 District: r.d,
@@ -2176,12 +2180,21 @@
                 // Try IndexedDB if localStorage didn't have data
                 if (!evictions && storageType === 'indexedDB') {
                     console.log('💾 Checking IndexedDB...');
-                    const idbResult = await evictionDB.load();
-                    if (idbResult?.data) {
-                        evictions = decompressEvictionData(idbResult.data);
-                        console.log('✅ Loaded eviction data from IndexedDB:', {
-                            recordCount: evictions?.length || 0
-                        });
+                    try {
+                        const idbResult = await evictionDB.load();
+                        if (idbResult) {
+                            // Handle both { data: [...] } format and legacy direct array format
+                            const dataToDecompress = Array.isArray(idbResult.data) ? idbResult.data :
+                                                      Array.isArray(idbResult) ? idbResult : null;
+                            if (dataToDecompress) {
+                                evictions = decompressEvictionData(dataToDecompress);
+                                console.log('✅ Loaded eviction data from IndexedDB:', {
+                                    recordCount: evictions?.length || 0
+                                });
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('IndexedDB load failed:', e);
                     }
                 }
 
