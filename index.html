@@ -3964,8 +3964,8 @@
                 console.log('Restored UI state from previous session');
             }
 
+            initCharts();  // Initialize charts before loading data
             await loadData();
-            initCharts();
             updatePivotControls();
 
             // Start auto-refresh polling (every 5 minutes)
@@ -5893,6 +5893,11 @@
                 hoverBackgroundColor: colors[index % colors.length].border
             }));
 
+            // Only update if chart is initialized
+            if (!monthlyChart) {
+                console.warn('⚠️ monthlyChart not initialized yet, skipping update');
+                return;
+            }
             monthlyChart.data.datasets = datasets;
             monthlyChart.update();
         }
