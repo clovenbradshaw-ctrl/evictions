@@ -3469,9 +3469,10 @@
         };
 
         // IndexedDB helper for large data storage (localStorage has ~5MB limit)
+        // This stores FULL records (not compressed) for instant loading
         const evictionDB = {
             DB_NAME: 'evictionTrackerDB',
-            DB_VERSION: 1,
+            DB_VERSION: 2,
             STORE_NAME: 'evictionData',
 
             async open() {
@@ -3528,6 +3529,53 @@
                     });
                 } catch (e) {
                     console.error('IndexedDB load failed:', e);
+                    return null;
+                }
+            },
+
+            // Save full records (no compression) for fast loading
+            async saveFull(records, timestamp) {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.STORE_NAME, 'readwrite');
+                        const store = tx.objectStore(this.STORE_NAME);
+                        store.put({ id: 'fullEvictionData', data: records, timestamp });
+                        tx.oncomplete = () => {
+                            db.close();
+                            console.log('💾 Saved', records.length, 'full records to IndexedDB');
+                            resolve(true);
+                        };
+                        tx.onerror = () => {
+                            db.close();
+                            reject(tx.error);
+                        };
+                    });
+                } catch (e) {
+                    console.error('IndexedDB saveFull failed:', e);
+                    return false;
+                }
+            },
+
+            // Load full records
+            async loadFull() {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.STORE_NAME, 'readonly');
+                        const store = tx.objectStore(this.STORE_NAME);
+                        const request = store.get('fullEvictionData');
+                        request.onsuccess = () => {
+                            db.close();
+                            resolve(request.result || null);
+                        };
+                        request.onerror = () => {
+                            db.close();
+                            reject(request.error);
+                        };
+                    });
+                } catch (e) {
+                    console.error('IndexedDB loadFull failed:', e);
                     return null;
                 }
             }
@@ -4199,36 +4247,50 @@
             return Math.round((Date.now() - parseInt(storedTimestamp)) / (1000 * 60 * 60));
         }
 
-        // Helper to load cached data from localStorage or IndexedDB
+        // Helper to load cached data from IndexedDB (full records) or localStorage (compressed)
         async function loadCachedData() {
-            const storageType = localStorage.getItem('evictionDataStorage');
             let cachedData = null;
 
-            // Try compressed localStorage first
+            // Try IndexedDB full records first (best option - all fields preserved)
+            try {
+                const idbResult = await evictionDB.loadFull();
+                if (idbResult?.data && idbResult.data.length > 0) {
+                    cachedData = idbResult.data;
+                    console.log('📦 Loaded', cachedData.length, 'full records from IndexedDB');
+                    return cachedData;
+                }
+            } catch (e) {
+                console.warn('IndexedDB full load failed:', e);
+            }
+
+            // Fallback: Try compressed localStorage
             const compressedData = localStorage.getItem('evictionDataCompressed');
             if (compressedData) {
                 cachedData = decompressEvictionData(JSON.parse(compressedData));
                 console.log('📦 Loaded compressed data from localStorage');
-            }
-            // Try legacy uncompressed format
-            else {
-                const legacyData = localStorage.getItem('evictionData');
-                if (legacyData) {
-                    cachedData = JSON.parse(legacyData);
-                    console.log('📦 Loaded legacy data from localStorage');
-                }
+                return cachedData;
             }
 
-            // Try IndexedDB if localStorage didn't have data
-            if (!cachedData && storageType === 'indexedDB') {
+            // Fallback: Try legacy uncompressed localStorage
+            const legacyData = localStorage.getItem('evictionData');
+            if (legacyData) {
+                cachedData = JSON.parse(legacyData);
+                console.log('📦 Loaded legacy data from localStorage');
+                return cachedData;
+            }
+
+            // Fallback: Try old IndexedDB compressed format
+            const storageType = localStorage.getItem('evictionDataStorage');
+            if (storageType === 'indexedDB') {
                 const idbResult = await evictionDB.load();
                 if (idbResult?.data) {
                     cachedData = decompressEvictionData(idbResult.data);
-                    console.log('📦 Loaded data from IndexedDB');
+                    console.log('📦 Loaded compressed data from IndexedDB');
+                    return cachedData;
                 }
             }
 
-            return cachedData;
+            return null;
         }
 
         async function loadData() {
@@ -4439,45 +4501,24 @@
                 dataCache.invalidateAll();
                 console.log('🧹 Cleared computed data caches for new data');
 
-                // Store eviction data for use by other pages (e.g., CM rankings)
-                // Use compressed format to reduce size, fall back to IndexedDB if localStorage quota exceeded
+                // Store eviction data: full records in IndexedDB, compressed in localStorage
                 const timestamp = Date.now();
-                const compressed = compressEvictionData(allData);
-                let storedInLocalStorage = false;
 
+                // Always save FULL records to IndexedDB (instant loading on next visit)
+                evictionDB.saveFull(allData, timestamp).then(success => {
+                    if (success) {
+                        localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                    }
+                });
+
+                // Also save compressed to localStorage for CM rankings page compatibility
+                const compressed = compressEvictionData(allData);
                 try {
                     localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
-                    localStorage.setItem('evictionDataTimestamp', timestamp.toString());
                     localStorage.removeItem('evictionData'); // Remove old uncompressed data
-                    storedInLocalStorage = true;
-                    console.log('💾 Stored', allData.length, 'compressed records in localStorage for CM rankings page');
+                    console.log('💾 Stored compressed data in localStorage for CM rankings');
                 } catch (e) {
-                    console.warn('⚠️ localStorage quota exceeded, falling back to IndexedDB:', e.message);
-                    // Fall back to IndexedDB for large datasets
-                    evictionDB.save(compressed, timestamp).then(success => {
-                        if (success) {
-                            console.log('💾 Stored', allData.length, 'records in IndexedDB for CM rankings page');
-                            // Mark that we're using IndexedDB
-                            try {
-                                localStorage.setItem('evictionDataStorage', 'indexedDB');
-                                localStorage.setItem('evictionDataTimestamp', timestamp.toString());
-                                localStorage.removeItem('evictionDataCompressed');
-                                localStorage.removeItem('evictionData');
-                            } catch (e2) {
-                                // Ignore - we still have data in IndexedDB
-                            }
-                        } else {
-                            console.error('❌ Could not store eviction data in IndexedDB');
-                        }
-                    });
-                }
-
-                if (storedInLocalStorage) {
-                    try {
-                        localStorage.setItem('evictionDataStorage', 'localStorage');
-                    } catch (e) {
-                        // Ignore - main data is already stored
-                    }
+                    console.warn('⚠️ localStorage quota exceeded for compressed data:', e.message);
                 }
 
                 const dupeCount = normalizedData.length - allData.length;
@@ -4649,16 +4690,17 @@
                 // Invalidate computed data caches
                 dataCache.invalidateAll();
 
-                // Persist updated data
+                // Persist updated data: full records to IndexedDB
                 const timestamp = Date.now();
+                await evictionDB.saveFull(allData, timestamp);
+                localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+
+                // Also update compressed localStorage for compatibility
                 const compressed = compressEvictionData(allData);
                 try {
                     localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
-                    localStorage.setItem('evictionDataTimestamp', timestamp.toString());
-                    console.log('💾 Saved updated data to localStorage');
                 } catch (e) {
-                    console.warn('⚠️ localStorage quota exceeded, falling back to IndexedDB');
-                    await evictionDB.save(compressed, timestamp);
+                    console.warn('⚠️ localStorage quota exceeded for compressed data');
                 }
 
                 console.log(`✅ Sync complete: ${addedCount} new, ${updatedCount} updated, ${allData.length} total`);
