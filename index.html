@@ -394,7 +394,37 @@
             color: #991b1b;
             border: 1px solid #fecaca;
         }
-        
+
+        /* Polling status indicator */
+        .poll-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .poll-status-dot.active {
+            background: #10b981;
+            box-shadow: 0 0 6px #10b981;
+            animation: pulse-dot 2s infinite;
+        }
+
+        .poll-status-dot.paused {
+            background: #9ca3af;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.2); }
+        }
+
+        /* Animate spin for refresh button */
+        .animate-spin {
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
         .fuzzy-slider {
             width: 100%;
             height: 6px;
@@ -2371,9 +2401,16 @@
                     <a href="cm-rankings.html" class="btn btn-secondary" style="text-decoration: none;">
                         📊 CM Rankings
                     </a>
-                    <span class="text-sm text-gray-500">Last Updated: <span id="lastUpdate">Loading...</span></span>
-                    <button onclick="loadData()" class="btn btn-secondary">
+                    <div class="flex items-center gap-2">
+                        <span id="pollStatusDot" class="poll-status-dot active" title="Auto-refresh active"></span>
+                        <span class="text-sm text-gray-500">Last Updated: <span id="lastUpdate">Loading...</span></span>
+                        <span id="pollCountdown" class="text-xs text-gray-400"></span>
+                    </div>
+                    <button id="refreshBtn" onclick="manualRefresh()" class="btn btn-secondary">
                         🔄 Refresh
+                    </button>
+                    <button onclick="togglePolling()" class="btn btn-secondary text-xs" title="Toggle auto-refresh">
+                        ⏱️
                     </button>
                     <button id="loginBtn" onclick="showLoginModal()" class="btn btn-primary" style="background: #dc2626; padding: 10px 24px;">
                         🔒 Login to View Tenant Names
@@ -3859,7 +3896,7 @@
         ];
 
         // Initialize on load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             // Restore saved UI state first
             const savedState = loadUIState();
             if (savedState) {
@@ -3875,9 +3912,26 @@
                 console.log('Restored UI state from previous session');
             }
 
-            loadData();
+            await loadData();
             initCharts();
             updatePivotControls();
+
+            // Start auto-refresh polling (every 5 minutes)
+            startPolling();
+
+            // Pause polling when tab is hidden, resume when visible
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    console.log('👁️ Tab hidden - pausing poll timer');
+                } else {
+                    console.log('👁️ Tab visible - resuming poll timer');
+                    // If enough time has passed while hidden, refresh now
+                    if (lastPollTime && (Date.now() - lastPollTime) >= POLL_INTERVAL_MS) {
+                        console.log('⏰ Catching up on missed refresh');
+                        manualRefresh();
+                    }
+                }
+            });
 
             // Restore name filter after a short delay to ensure elements exist
             if (savedState && savedState.nameFilter) {
@@ -4018,6 +4072,118 @@
         // Cache staleness threshold: 24 hours in milliseconds
         const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+        // Polling configuration
+        const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+        let pollIntervalId = null;
+        let lastPollTime = null;
+        let isPollingEnabled = true;
+        let isLoadingData = false;
+
+        // Smart query: track the most recent logged_at timestamp for incremental fetches
+        function getLastLoggedAt() {
+            return localStorage.getItem('evictionLastLoggedAt');
+        }
+
+        function setLastLoggedAt(timestamp) {
+            if (timestamp) {
+                localStorage.setItem('evictionLastLoggedAt', timestamp);
+            }
+        }
+
+        // Get countdown until next poll in seconds
+        function getNextPollCountdown() {
+            if (!lastPollTime || !isPollingEnabled) return null;
+            const elapsed = Date.now() - lastPollTime;
+            const remaining = Math.max(0, POLL_INTERVAL_MS - elapsed);
+            return Math.ceil(remaining / 1000);
+        }
+
+        // Format seconds to mm:ss
+        function formatCountdown(seconds) {
+            if (seconds === null) return '--:--';
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Update the refresh button and status indicators
+        function updateRefreshUI() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            const countdownEl = document.getElementById('pollCountdown');
+            const statusDot = document.getElementById('pollStatusDot');
+
+            if (refreshBtn) {
+                if (isLoadingData) {
+                    refreshBtn.disabled = true;
+                    refreshBtn.innerHTML = '<span class="animate-spin inline-block">↻</span> Loading...';
+                } else {
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '🔄 Refresh';
+                }
+            }
+
+            if (countdownEl) {
+                const countdown = getNextPollCountdown();
+                countdownEl.textContent = countdown !== null ? `Next sync: ${formatCountdown(countdown)}` : '';
+            }
+
+            if (statusDot) {
+                statusDot.className = isPollingEnabled ? 'poll-status-dot active' : 'poll-status-dot paused';
+                statusDot.title = isPollingEnabled ? 'Auto-refresh active' : 'Auto-refresh paused';
+            }
+        }
+
+        // Start polling for new data
+        function startPolling() {
+            if (pollIntervalId) return; // Already polling
+
+            isPollingEnabled = true;
+            lastPollTime = Date.now();
+
+            pollIntervalId = setInterval(async () => {
+                if (!isPollingEnabled || isLoadingData) return;
+
+                console.log('⏰ Auto-refresh triggered');
+                await loadDataIncremental();
+                lastPollTime = Date.now();
+            }, POLL_INTERVAL_MS);
+
+            // Start countdown timer update
+            setInterval(updateRefreshUI, 1000);
+
+            console.log(`✅ Polling started (every ${POLL_INTERVAL_MS / 1000 / 60} minutes)`);
+            updateRefreshUI();
+        }
+
+        // Stop polling
+        function stopPolling() {
+            if (pollIntervalId) {
+                clearInterval(pollIntervalId);
+                pollIntervalId = null;
+            }
+            isPollingEnabled = false;
+            updateRefreshUI();
+            console.log('⏹️ Polling stopped');
+        }
+
+        // Toggle polling on/off
+        function togglePolling() {
+            if (isPollingEnabled) {
+                stopPolling();
+            } else {
+                startPolling();
+            }
+        }
+
+        // Manual refresh - resets the poll timer
+        async function manualRefresh() {
+            if (isLoadingData) return;
+
+            console.log('🔄 Manual refresh triggered');
+            lastPollTime = Date.now(); // Reset poll timer
+            await loadDataIncremental();
+        }
+
         // Helper to check if cache is fresh (less than 24 hours old)
         function isCacheFresh() {
             const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
@@ -4068,6 +4234,9 @@
         async function loadData() {
             // Activity stream endpoint - returns multiple records per case showing data changes over time
             const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case';
+
+            isLoadingData = true;
+            updateRefreshUI();
 
             try {
                 console.group('🔄 Data Loading');
@@ -4224,6 +4393,18 @@
                 const isActivityStream = data.length > 0 && data[0].logged_at !== undefined && data[0].case_data !== undefined;
                 const hasActivityMetadata = data.length > 0 && data[0].logged_at !== undefined;
 
+                // Track the newest logged_at timestamp for smart incremental queries
+                let newestLoggedAt = null;
+                for (const record of data) {
+                    if (record.logged_at && (!newestLoggedAt || record.logged_at > newestLoggedAt)) {
+                        newestLoggedAt = record.logged_at;
+                    }
+                }
+                if (newestLoggedAt) {
+                    setLastLoggedAt(newestLoggedAt);
+                    console.log('📌 Saved newest logged_at for incremental sync:', newestLoggedAt);
+                }
+
                 let flattenedData;
                 if (isActivityStream) {
                     console.log('📊 Detected activity stream format with case_data, reducing to current state per docket...');
@@ -4326,6 +4507,189 @@
                     stack: error.stack
                 });
                 updateStatus(`Error loading data: ${error.message}. Please try refreshing the page.`, 'error');
+            } finally {
+                isLoadingData = false;
+                updateRefreshUI();
+            }
+        }
+
+        // Incremental data loading - fetch only new records since last sync
+        // This is the "smart query" approach for fast refreshes
+        async function loadDataIncremental() {
+            const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case';
+
+            // If no data loaded yet, do a full load
+            if (!allData || allData.length === 0) {
+                return loadData();
+            }
+
+            isLoadingData = true;
+            updateRefreshUI();
+
+            try {
+                console.group('🔄 Incremental Data Sync');
+                console.log('Timestamp:', new Date().toISOString());
+
+                // Get the last logged_at timestamp to query only newer records
+                const lastLoggedAt = getLastLoggedAt();
+                let url = API_URL;
+
+                // If we have a last timestamp, query only records newer than that
+                // The API supports filtering with logged_at.gt parameter
+                if (lastLoggedAt) {
+                    const params = new URLSearchParams();
+                    params.append('logged_at.gt', lastLoggedAt);
+                    url = `${API_URL}?${params.toString()}`;
+                    console.log('📊 Smart query: fetching records after', lastLoggedAt);
+                } else {
+                    console.log('📊 No previous timestamp, doing full fetch');
+                }
+
+                updateStatus('Checking for new records...', 'loading');
+
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                // Handle different response formats
+                let newData;
+                if (Array.isArray(result)) {
+                    newData = result;
+                } else if (result?.items) {
+                    newData = result.items;
+                } else if (result?.data) {
+                    newData = result.data;
+                } else {
+                    newData = [result];
+                }
+
+                console.log('🔢 New records received:', newData.length);
+
+                if (newData.length === 0) {
+                    console.log('✅ No new records found');
+                    console.groupEnd();
+                    updateStatus(`Data is up to date (${allData.length} records)`, 'success');
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleString() + ' (no changes)';
+                    return;
+                }
+
+                // Track the newest logged_at timestamp from new data
+                let newestLoggedAt = lastLoggedAt;
+                for (const record of newData) {
+                    if (record.logged_at && (!newestLoggedAt || record.logged_at > newestLoggedAt)) {
+                        newestLoggedAt = record.logged_at;
+                    }
+                }
+
+                // Process new records
+                const isActivityStream = newData.length > 0 && newData[0].logged_at !== undefined && newData[0].case_data !== undefined;
+                const hasActivityMetadata = newData.length > 0 && newData[0].logged_at !== undefined;
+
+                let processedNewData;
+                if (isActivityStream) {
+                    processedNewData = reduceActivityStream(newData);
+                } else if (hasActivityMetadata) {
+                    processedNewData = reduceActivityStreamFlat(newData);
+                } else {
+                    processedNewData = newData;
+                }
+
+                const normalizedNewData = processedNewData.map(normalizeRecord);
+
+                // Merge new data with existing data
+                // Use a Map for efficient deduplication by Case_Number
+                const dataMap = new Map();
+
+                // Add existing data first
+                for (const record of allData) {
+                    const key = (record.Case_Number || '').trim();
+                    if (key) {
+                        dataMap.set(key, record);
+                    }
+                }
+
+                // Add/update with new data (new data takes precedence)
+                let updatedCount = 0;
+                let addedCount = 0;
+                for (const record of normalizedNewData) {
+                    const key = (record.Case_Number || '').trim();
+                    if (key) {
+                        if (dataMap.has(key)) {
+                            // Merge fields, preferring new record values
+                            const existing = dataMap.get(key);
+                            const merged = { ...existing };
+                            for (const [field, value] of Object.entries(record)) {
+                                if (hasValue(value)) {
+                                    merged[field] = value;
+                                }
+                            }
+                            dataMap.set(key, merged);
+                            updatedCount++;
+                        } else {
+                            dataMap.set(key, record);
+                            addedCount++;
+                        }
+                    }
+                }
+
+                // Convert back to array
+                allData = Array.from(dataMap.values());
+                filteredData = allData;
+                calculateGlobalDataRange(allData);
+
+                // Update the last logged_at timestamp
+                if (newestLoggedAt) {
+                    setLastLoggedAt(newestLoggedAt);
+                }
+
+                // Invalidate computed data caches
+                dataCache.invalidateAll();
+
+                // Persist updated data
+                const timestamp = Date.now();
+                const compressed = compressEvictionData(allData);
+                try {
+                    localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
+                    localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                    console.log('💾 Saved updated data to localStorage');
+                } catch (e) {
+                    console.warn('⚠️ localStorage quota exceeded, falling back to IndexedDB');
+                    await evictionDB.save(compressed, timestamp);
+                }
+
+                console.log(`✅ Sync complete: ${addedCount} new, ${updatedCount} updated, ${allData.length} total`);
+                console.groupEnd();
+
+                // Update UI
+                const changeMsg = addedCount > 0 || updatedCount > 0
+                    ? `Synced: +${addedCount} new, ${updatedCount} updated`
+                    : 'No changes';
+                updateStatus(`${allData.length} records (${changeMsg})`, 'success');
+                updateMetrics();
+                updateCharts();
+                createDistrictMap();
+
+                // Refresh grid if initialized
+                if (gridApi) {
+                    gridApi.setRowData(filteredData);
+                }
+
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+
+                // Re-apply filters
+                restorePersistedFilters();
+
+            } catch (error) {
+                console.groupEnd();
+                console.error('❌ Incremental sync error:', error);
+                updateStatus(`Sync failed: ${error.message}`, 'error');
+            } finally {
+                isLoadingData = false;
+                updateRefreshUI();
             }
         }
 
