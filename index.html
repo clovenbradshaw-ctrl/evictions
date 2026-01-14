@@ -3912,7 +3912,8 @@
                 console.log('Restored UI state from previous session');
             }
 
-            await loadData();
+            // Use optimized loading (IndexedDB-first with background refresh)
+            await loadDataOptimized();
             initCharts();
             updatePivotControls();
 
@@ -4231,6 +4232,648 @@
             return cachedData;
         }
 
+        // ============================================================
+        // OPTIMIZED DATA LOADING SYSTEM
+        // - IndexedDB-first for instant render on repeat visits
+        // - Time-based chunking for progressive loading
+        // - Web Worker for offloading CPU-intensive processing
+        // ============================================================
+
+        // Web Worker instance for data processing
+        let dataWorker = null;
+
+        // Initialize the data processing Web Worker
+        function initDataWorker() {
+            if (dataWorker) return dataWorker;
+
+            try {
+                dataWorker = new Worker('data-processor.js');
+                dataWorker.onerror = (e) => {
+                    console.error('Worker error:', e);
+                    dataWorker = null;
+                };
+                console.log('✅ Data processing worker initialized');
+                return dataWorker;
+            } catch (e) {
+                console.warn('⚠️ Web Worker not available, falling back to main thread:', e.message);
+                return null;
+            }
+        }
+
+        // Process data using Web Worker (with fallback to main thread)
+        function processDataWithWorker(type, data, extras = {}) {
+            return new Promise((resolve) => {
+                const worker = initDataWorker();
+
+                if (!worker) {
+                    // Fallback: process on main thread
+                    resolve(processDataMainThread(type, data, extras));
+                    return;
+                }
+
+                const handler = (e) => {
+                    if (e.data.type === type + '_COMPLETE' || e.data.type === 'CHUNK_PROCESSED' || e.data.type === 'DEDUPE_COMPLETE') {
+                        worker.removeEventListener('message', handler);
+                        resolve(e.data);
+                    }
+                };
+
+                worker.addEventListener('message', handler);
+                worker.postMessage({ type, data, ...extras });
+            });
+        }
+
+        // Fallback: main thread data processing
+        function processDataMainThread(type, data, extras = {}) {
+            const startTime = performance.now();
+
+            switch (type) {
+                case 'PROCESS_CHUNK': {
+                    const isActivityStream = data.length > 0 && data[0].logged_at !== undefined && data[0].case_data !== undefined;
+                    const hasActivityMetadata = data.length > 0 && data[0].logged_at !== undefined;
+
+                    let flattenedData;
+                    if (isActivityStream) {
+                        flattenedData = reduceActivityStream(data);
+                    } else if (hasActivityMetadata) {
+                        flattenedData = reduceActivityStreamFlat(data);
+                    } else {
+                        flattenedData = data;
+                    }
+
+                    const normalizedData = flattenedData.map(normalizeRecord);
+
+                    let newestLoggedAt = null;
+                    for (const record of data) {
+                        if (record.logged_at && (!newestLoggedAt || record.logged_at > newestLoggedAt)) {
+                            newestLoggedAt = record.logged_at;
+                        }
+                    }
+
+                    return {
+                        type: 'CHUNK_PROCESSED',
+                        data: normalizedData,
+                        newestLoggedAt,
+                        chunkIndex: extras.chunkIndex,
+                        totalChunks: extras.totalChunks,
+                        stats: { inputCount: data.length, outputCount: normalizedData.length, processingTimeMs: performance.now() - startTime }
+                    };
+                }
+                case 'DEDUPE': {
+                    const deduped = dedupeByDocketNumber(data);
+                    return {
+                        type: 'DEDUPE_COMPLETE',
+                        data: deduped,
+                        stats: { inputCount: data.length, outputCount: deduped.length, duplicatesRemoved: data.length - deduped.length, processingTimeMs: performance.now() - startTime }
+                    };
+                }
+                default:
+                    return { type: type + '_COMPLETE', data };
+            }
+        }
+
+        // Enhanced IndexedDB with better structure for chunked/incremental storage
+        const evictionDBOptimized = {
+            DB_NAME: 'evictionTrackerDB_v2',
+            DB_VERSION: 2,
+            STORE_NAME: 'evictionRecords',
+            META_STORE: 'metadata',
+
+            async open() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        // Main records store with index on Case_Number
+                        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+                            const store = db.createObjectStore(this.STORE_NAME, { keyPath: 'Case_Number' });
+                            store.createIndex('District', 'District', { unique: false });
+                            store.createIndex('File_Date', 'File_Date', { unique: false });
+                        }
+                        // Metadata store for timestamps, sync info
+                        if (!db.objectStoreNames.contains(this.META_STORE)) {
+                            db.createObjectStore(this.META_STORE, { keyPath: 'key' });
+                        }
+                    };
+                });
+            },
+
+            async saveAll(records, metadata = {}) {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction([this.STORE_NAME, this.META_STORE], 'readwrite');
+                        const store = tx.objectStore(this.STORE_NAME);
+                        const metaStore = tx.objectStore(this.META_STORE);
+
+                        // Batch insert records
+                        let completed = 0;
+                        for (const record of records) {
+                            if (record.Case_Number) {
+                                store.put(record);
+                                completed++;
+                            }
+                        }
+
+                        // Save metadata
+                        metaStore.put({ key: 'lastSync', value: Date.now(), ...metadata });
+                        metaStore.put({ key: 'recordCount', value: records.length });
+                        if (metadata.newestLoggedAt) {
+                            metaStore.put({ key: 'newestLoggedAt', value: metadata.newestLoggedAt });
+                        }
+
+                        tx.oncomplete = () => {
+                            db.close();
+                            resolve({ saved: completed, total: records.length });
+                        };
+                        tx.onerror = () => {
+                            db.close();
+                            reject(tx.error);
+                        };
+                    });
+                } catch (e) {
+                    console.error('IndexedDB saveAll failed:', e);
+                    return { saved: 0, total: records.length, error: e.message };
+                }
+            },
+
+            async loadAll() {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction([this.STORE_NAME, this.META_STORE], 'readonly');
+                        const store = tx.objectStore(this.STORE_NAME);
+                        const metaStore = tx.objectStore(this.META_STORE);
+
+                        const request = store.getAll();
+                        let metadata = {};
+
+                        metaStore.get('lastSync').onsuccess = (e) => { if (e.target.result) metadata.lastSync = e.target.result.value; };
+                        metaStore.get('recordCount').onsuccess = (e) => { if (e.target.result) metadata.recordCount = e.target.result.value; };
+                        metaStore.get('newestLoggedAt').onsuccess = (e) => { if (e.target.result) metadata.newestLoggedAt = e.target.result.value; };
+
+                        request.onsuccess = () => {
+                            db.close();
+                            resolve({ data: request.result || [], metadata });
+                        };
+                        request.onerror = () => {
+                            db.close();
+                            reject(request.error);
+                        };
+                    });
+                } catch (e) {
+                    console.error('IndexedDB loadAll failed:', e);
+                    return { data: [], metadata: {}, error: e.message };
+                }
+            },
+
+            async getMetadata() {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve) => {
+                        const tx = db.transaction(this.META_STORE, 'readonly');
+                        const store = tx.objectStore(this.META_STORE);
+                        const metadata = {};
+
+                        store.get('lastSync').onsuccess = (e) => { if (e.target.result) metadata.lastSync = e.target.result.value; };
+                        store.get('recordCount').onsuccess = (e) => { if (e.target.result) metadata.recordCount = e.target.result.value; };
+                        store.get('newestLoggedAt').onsuccess = (e) => { if (e.target.result) metadata.newestLoggedAt = e.target.result.value; };
+
+                        tx.oncomplete = () => {
+                            db.close();
+                            resolve(metadata);
+                        };
+                    });
+                } catch (e) {
+                    return {};
+                }
+            },
+
+            async mergeRecords(newRecords) {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.STORE_NAME, 'readwrite');
+                        const store = tx.objectStore(this.STORE_NAME);
+
+                        let added = 0, updated = 0;
+                        for (const record of newRecords) {
+                            if (record.Case_Number) {
+                                const getReq = store.get(record.Case_Number);
+                                getReq.onsuccess = () => {
+                                    if (getReq.result) {
+                                        // Merge with existing
+                                        const merged = { ...getReq.result };
+                                        for (const [key, value] of Object.entries(record)) {
+                                            if (value !== null && value !== undefined && value !== '') {
+                                                merged[key] = value;
+                                            }
+                                        }
+                                        store.put(merged);
+                                        updated++;
+                                    } else {
+                                        store.put(record);
+                                        added++;
+                                    }
+                                };
+                            }
+                        }
+
+                        tx.oncomplete = () => {
+                            db.close();
+                            resolve({ added, updated });
+                        };
+                        tx.onerror = () => {
+                            db.close();
+                            reject(tx.error);
+                        };
+                    });
+                } catch (e) {
+                    console.error('IndexedDB merge failed:', e);
+                    return { added: 0, updated: 0, error: e.message };
+                }
+            }
+        };
+
+        // Time-based chunking configuration
+        const CHUNK_CONFIG = {
+            // Fetch recent data first for faster initial render
+            timeRanges: [
+                { label: 'Recent (last 30 days)', daysBack: 30 },
+                { label: 'Last 3 months', daysBack: 90 },
+                { label: 'Last 6 months', daysBack: 180 },
+                { label: 'Historical', daysBack: null } // All remaining
+            ],
+            chunkSize: 2000 // Records per API request if pagination supported
+        };
+
+        // Generate date range filters for chunked loading
+        function getTimeChunks() {
+            const now = new Date();
+            const chunks = [];
+            let lastEnd = null;
+
+            for (const range of CHUNK_CONFIG.timeRanges) {
+                if (range.daysBack === null) {
+                    // Historical: everything before the last range
+                    if (lastEnd) {
+                        chunks.push({
+                            label: range.label,
+                            endDate: lastEnd,
+                            startDate: null
+                        });
+                    }
+                } else {
+                    const startDate = new Date(now);
+                    startDate.setDate(startDate.getDate() - range.daysBack);
+                    chunks.push({
+                        label: range.label,
+                        startDate: startDate.toISOString().split('T')[0],
+                        endDate: lastEnd
+                    });
+                    lastEnd = startDate.toISOString().split('T')[0];
+                }
+            }
+
+            return chunks;
+        }
+
+        // OPTIMIZED LOAD: IndexedDB-first with instant render, then background refresh
+        async function loadDataOptimized() {
+            const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case';
+
+            isLoadingData = true;
+            updateRefreshUI();
+
+            try {
+                console.group('🚀 Optimized Data Loading');
+                const loadStartTime = performance.now();
+
+                // PHASE 1: Instant render from IndexedDB (< 100ms target)
+                console.log('Phase 1: Loading from IndexedDB...');
+                const idbResult = await evictionDBOptimized.loadAll();
+
+                if (idbResult.data && idbResult.data.length > 0) {
+                    allData = idbResult.data;
+                    filteredData = allData;
+                    calculateGlobalDataRange(allData);
+
+                    const cacheAge = idbResult.metadata.lastSync
+                        ? Math.round((Date.now() - idbResult.metadata.lastSync) / (1000 * 60 * 60))
+                        : null;
+
+                    console.log(`✅ Instant render: ${allData.length} records from IndexedDB (${cacheAge}h old)`);
+                    updateStatus(`Loaded ${allData.length} cached records instantly`, 'success');
+
+                    // Render UI immediately
+                    updateMetrics();
+                    updateCharts();
+                    createDistrictMap();
+                    await loadDistrictDemographics();
+                    initDemographicsCharts();
+                    initGrid();
+                    document.getElementById('lastUpdate').textContent = idbResult.metadata.lastSync
+                        ? new Date(idbResult.metadata.lastSync).toLocaleString() + ' (cached)'
+                        : 'Cached data';
+                    restorePersistedFilters();
+
+                    const phase1Time = performance.now() - loadStartTime;
+                    console.log(`⚡ Phase 1 complete in ${phase1Time.toFixed(0)}ms`);
+
+                    // Check if data is fresh enough (skip refresh if very recent)
+                    const ageMinutes = cacheAge !== null ? cacheAge * 60 : Infinity;
+                    if (ageMinutes < 5) {
+                        console.log('📌 Cache is very fresh (< 5 min), skipping background refresh');
+                        console.groupEnd();
+                        isLoadingData = false;
+                        updateRefreshUI();
+                        return;
+                    }
+
+                    // PHASE 2: Background refresh (don't block UI)
+                    console.log('Phase 2: Starting background refresh...');
+                    updateStatus(`${allData.length} records loaded. Checking for updates...`, 'loading');
+
+                    // Use incremental sync if we have a last logged_at timestamp
+                    if (idbResult.metadata.newestLoggedAt) {
+                        setLastLoggedAt(idbResult.metadata.newestLoggedAt);
+                    }
+
+                    // Non-blocking background refresh
+                    setTimeout(() => refreshDataInBackground(API_URL, idbResult.metadata.newestLoggedAt), 100);
+
+                    console.groupEnd();
+                    isLoadingData = false;
+                    updateRefreshUI();
+                    return;
+                }
+
+                // No cached data - fall back to legacy load approach, then try chunked
+                console.log('No IndexedDB cache, checking legacy cache...');
+                const legacyCache = await loadCachedData();
+
+                if (legacyCache && legacyCache.length > 0) {
+                    console.log(`Found ${legacyCache.length} records in legacy cache, migrating to IndexedDB...`);
+                    allData = legacyCache;
+                    filteredData = allData;
+                    calculateGlobalDataRange(allData);
+
+                    updateStatus(`Loaded ${allData.length} cached records`, 'success');
+                    updateMetrics();
+                    updateCharts();
+                    createDistrictMap();
+                    await loadDistrictDemographics();
+                    initDemographicsCharts();
+                    initGrid();
+                    restorePersistedFilters();
+
+                    // Migrate to optimized IndexedDB in background
+                    setTimeout(async () => {
+                        await evictionDBOptimized.saveAll(allData, { newestLoggedAt: getLastLoggedAt() });
+                        console.log('✅ Migrated legacy cache to optimized IndexedDB');
+                    }, 500);
+
+                    console.groupEnd();
+                    isLoadingData = false;
+                    updateRefreshUI();
+                    return;
+                }
+
+                // PHASE 3: Fresh load with chunking (no cache available)
+                console.log('Phase 3: Fresh load with progressive chunking...');
+                await loadDataChunked(API_URL);
+
+                console.groupEnd();
+
+            } catch (error) {
+                console.groupEnd();
+                console.error('❌ Optimized load failed:', error);
+
+                // Fall back to original loadData
+                console.log('Falling back to original load method...');
+                await loadData();
+            } finally {
+                isLoadingData = false;
+                updateRefreshUI();
+            }
+        }
+
+        // Background refresh without blocking UI
+        async function refreshDataInBackground(apiUrl, lastLoggedAt) {
+            try {
+                let url = apiUrl;
+                if (lastLoggedAt) {
+                    url = `${apiUrl}?logged_at.gt=${encodeURIComponent(lastLoggedAt)}`;
+                    console.log('🔄 Background sync: fetching records after', lastLoggedAt);
+                }
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    console.warn('Background refresh failed:', response.status);
+                    updateStatus(`${allData.length} records (sync failed)`, 'success');
+                    return;
+                }
+
+                const result = await response.json();
+                let newData = Array.isArray(result) ? result
+                    : result?.items || result?.data || [result];
+
+                if (newData.length === 0) {
+                    console.log('✅ Background sync: no new records');
+                    updateStatus(`${allData.length} records (up to date)`, 'success');
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+                    return;
+                }
+
+                console.log(`📥 Background sync: ${newData.length} new/updated records`);
+
+                // Process in worker
+                const processed = await processDataWithWorker('PROCESS_CHUNK', newData);
+
+                // Track newest timestamp
+                let newestLoggedAt = lastLoggedAt;
+                for (const record of newData) {
+                    if (record.logged_at && (!newestLoggedAt || record.logged_at > newestLoggedAt)) {
+                        newestLoggedAt = record.logged_at;
+                    }
+                }
+
+                // Merge with existing data
+                const dataMap = new Map();
+                for (const record of allData) {
+                    const key = (record.Case_Number || '').trim();
+                    if (key) dataMap.set(key, record);
+                }
+
+                let addedCount = 0, updatedCount = 0;
+                for (const record of processed.data) {
+                    const key = (record.Case_Number || '').trim();
+                    if (key) {
+                        if (dataMap.has(key)) {
+                            const existing = dataMap.get(key);
+                            const merged = { ...existing };
+                            for (const [field, value] of Object.entries(record)) {
+                                if (value !== null && value !== undefined && value !== '') {
+                                    merged[field] = value;
+                                }
+                            }
+                            dataMap.set(key, merged);
+                            updatedCount++;
+                        } else {
+                            dataMap.set(key, record);
+                            addedCount++;
+                        }
+                    }
+                }
+
+                allData = Array.from(dataMap.values());
+                filteredData = allData;
+                calculateGlobalDataRange(allData);
+
+                // Update IndexedDB
+                if (newestLoggedAt) setLastLoggedAt(newestLoggedAt);
+                await evictionDBOptimized.saveAll(allData, { newestLoggedAt });
+
+                // Invalidate caches and refresh UI
+                dataCache.invalidateAll();
+
+                const changeMsg = addedCount > 0 || updatedCount > 0
+                    ? `+${addedCount} new, ${updatedCount} updated`
+                    : 'up to date';
+                console.log(`✅ Background sync complete: ${changeMsg}`);
+                updateStatus(`${allData.length} records (${changeMsg})`, 'success');
+
+                // Refresh grid and charts
+                updateMetrics();
+                updateCharts();
+                createDistrictMap();
+                if (gridApi) {
+                    if (viewMode === 'pivot') {
+                        pivotData = buildPivotData(pivotDimension);
+                        gridApi.setRowData(pivotData);
+                    } else {
+                        gridApi.setRowData(filteredData);
+                    }
+                }
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+
+            } catch (error) {
+                console.error('Background refresh error:', error);
+                updateStatus(`${allData.length} records (sync error)`, 'success');
+            }
+        }
+
+        // Chunked data loading for fresh loads (most recent data first)
+        async function loadDataChunked(apiUrl) {
+            const chunks = getTimeChunks();
+            let allRecords = [];
+            let newestLoggedAt = null;
+            let renderedFirst = false;
+
+            updateStatus('Loading data in chunks (recent first)...', 'loading');
+
+            for (let i = 0; i < chunks.length; i++) {
+                const chunk = chunks[i];
+                console.log(`📦 Loading chunk ${i + 1}/${chunks.length}: ${chunk.label}`);
+                updateStatus(`Loading ${chunk.label}... (${allRecords.length} records so far)`, 'loading');
+
+                try {
+                    // Build URL with date filters if the API supports it
+                    // Note: This API may not support date filtering, so we fetch all and filter client-side
+                    const response = await fetch(apiUrl);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                    const result = await response.json();
+                    let data = Array.isArray(result) ? result
+                        : result?.items || result?.data || [result];
+
+                    // For first chunk, process and render immediately
+                    const processed = await processDataWithWorker('PROCESS_CHUNK', data, {
+                        chunkIndex: i,
+                        totalChunks: chunks.length
+                    });
+
+                    // Track newest timestamp
+                    if (processed.newestLoggedAt && (!newestLoggedAt || processed.newestLoggedAt > newestLoggedAt)) {
+                        newestLoggedAt = processed.newestLoggedAt;
+                    }
+
+                    allRecords = [...allRecords, ...processed.data];
+
+                    // Deduplicate after each chunk
+                    const deduped = await processDataWithWorker('DEDUPE', allRecords);
+                    allRecords = deduped.data;
+
+                    // Render after first chunk for fast initial display
+                    if (!renderedFirst && allRecords.length > 0) {
+                        renderedFirst = true;
+                        allData = allRecords;
+                        filteredData = allData;
+                        calculateGlobalDataRange(allData);
+
+                        console.log(`⚡ First chunk rendered: ${allRecords.length} records`);
+                        updateMetrics();
+                        updateCharts();
+                        createDistrictMap();
+                        await loadDistrictDemographics();
+                        initDemographicsCharts();
+                        initGrid();
+                    } else if (renderedFirst) {
+                        // Update UI progressively
+                        allData = allRecords;
+                        filteredData = allData;
+                        updateMetrics();
+                        if (gridApi) {
+                            if (viewMode === 'pivot') {
+                                pivotData = buildPivotData(pivotDimension);
+                                gridApi.setRowData(pivotData);
+                            } else {
+                                gridApi.setRowData(filteredData);
+                            }
+                        }
+                    }
+
+                    // If this API doesn't support date filtering, we got all data in one request
+                    // Break after first successful fetch
+                    if (data.length > 0) {
+                        console.log('📌 API returned full dataset, skipping remaining chunks');
+                        break;
+                    }
+
+                } catch (error) {
+                    console.error(`Chunk ${i + 1} failed:`, error);
+                    // Continue with other chunks
+                }
+            }
+
+            // Final processing and storage
+            allData = allRecords;
+            filteredData = allData;
+            calculateGlobalDataRange(allData);
+
+            // Store in optimized IndexedDB
+            if (newestLoggedAt) setLastLoggedAt(newestLoggedAt);
+            await evictionDBOptimized.saveAll(allData, { newestLoggedAt });
+
+            // Also update legacy storage for compatibility
+            const timestamp = Date.now();
+            const compressed = compressEvictionData(allData);
+            try {
+                localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
+                localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                localStorage.setItem('evictionDataStorage', 'localStorage');
+            } catch (e) {
+                console.warn('localStorage quota exceeded');
+            }
+
+            updateStatus(`Loaded ${allData.length} records`, 'success');
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+            restorePersistedFilters();
+        }
+
+        // Original loadData function (kept for fallback and compatibility)
         async function loadData() {
             // Activity stream endpoint - returns multiple records per case showing data changes over time
             const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case';
