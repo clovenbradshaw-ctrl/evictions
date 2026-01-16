@@ -5026,23 +5026,59 @@
             const now = new Date();
             const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
             const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-            
+
             // Total records
             document.getElementById('totalRecords').textContent = allData.length.toLocaleString();
-            
+
             // This month
             const thisMonthCount = allData.filter(d => {
                 const date = new Date(d.File_Date);
                 return date >= thisMonthStart;
             }).length;
             document.getElementById('thisMonth').textContent = thisMonthCount.toLocaleString();
-            
+
             // Last 30 days
             const last30Count = allData.filter(d => {
                 const date = new Date(d.File_Date);
                 return date >= thirtyDaysAgo;
             }).length;
             document.getElementById('last30Days').textContent = last30Count.toLocaleString();
+
+            // Calculate 30-day average based on entire dataset
+            const thirtyChangeEl = document.getElementById('thirtyChange');
+            if (allData.length > 0) {
+                // Find earliest and latest filing dates
+                let earliestDate = null;
+                let latestDate = null;
+                allData.forEach(d => {
+                    const date = new Date(d.File_Date);
+                    if (!isNaN(date.getTime())) {
+                        if (!earliestDate || date < earliestDate) earliestDate = date;
+                        if (!latestDate || date > latestDate) latestDate = date;
+                    }
+                });
+
+                if (earliestDate && latestDate) {
+                    const totalDays = Math.ceil((latestDate - earliestDate) / (1000 * 60 * 60 * 24)) + 1;
+                    const dailyAverage = allData.length / totalDays;
+                    const avg30Day = Math.round(dailyAverage * 30);
+
+                    const diff = last30Count - avg30Day;
+                    const percentDiff = avg30Day > 0 ? Math.round((diff / avg30Day) * 100) : 0;
+
+                    if (diff > 0) {
+                        thirtyChangeEl.innerHTML = `<span class="text-red-600">↑ ${Math.abs(percentDiff)}% above avg (${avg30Day.toLocaleString()})</span>`;
+                    } else if (diff < 0) {
+                        thirtyChangeEl.innerHTML = `<span class="text-green-600">↓ ${Math.abs(percentDiff)}% below avg (${avg30Day.toLocaleString()})</span>`;
+                    } else {
+                        thirtyChangeEl.innerHTML = `<span class="text-gray-500">At average (${avg30Day.toLocaleString()})</span>`;
+                    }
+                } else {
+                    thirtyChangeEl.innerHTML = '';
+                }
+            } else {
+                thirtyChangeEl.innerHTML = '';
+            }
         }
 
         // Track active metric filter
