@@ -1272,14 +1272,35 @@
             const sampleRecords = Array.from(byDocket.values()).slice(0, 2);
             if (sampleRecords.length > 0) {
                 console.log('🔍 Sample activity record keys:', Object.keys(sampleRecords[0]));
-                if (sampleRecords[0].case_data) {
-                    console.log('🔍 case_data keys:', Object.keys(sampleRecords[0].case_data));
+                const sampleCaseData = sampleRecords[0].case_data;
+                if (sampleCaseData) {
+                    if (typeof sampleCaseData === 'string') {
+                        console.log('🔍 case_data is JSON string, parsing...');
+                        try {
+                            const parsed = JSON.parse(sampleCaseData);
+                            console.log('🔍 case_data keys:', Object.keys(parsed));
+                            console.log('🔍 File_Date from JSON:', parsed.File_Date || parsed.file_date || 'NOT FOUND');
+                        } catch (e) {
+                            console.warn('⚠️ Failed to parse case_data JSON string:', e.message);
+                        }
+                    } else {
+                        console.log('🔍 case_data keys:', Object.keys(sampleCaseData));
+                    }
                 }
             }
 
             // Flatten case_data to top level - support both PascalCase and snake_case
+            // Parse case_data if it's a JSON string (database stores JSON as string)
             return Array.from(byDocket.values()).map(record => {
-                const caseData = record.case_data || {};
+                let caseData = record.case_data || {};
+                if (typeof caseData === 'string') {
+                    try {
+                        caseData = JSON.parse(caseData);
+                    } catch (e) {
+                        console.warn('Failed to parse case_data JSON string:', e.message);
+                        caseData = {};
+                    }
+                }
                 return {
                     Docket_Number: record.docket_number || caseData.Docket_Number || caseData.docket_number,
                     File_Date: caseData.File_Date || caseData.file_date,
