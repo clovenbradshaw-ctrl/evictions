@@ -4,15 +4,17 @@
  * Migrates Nashville eviction tracker data to an append-only event-sourced database
  * using the Epistemic Operators grammar.
  *
- * Operations Table Schema (for Xano):
- * - id: TEXT (UUID)
- * - ts: TIMESTAMP (event timestamp)
+ * Operations Table Schema (Xano: evictionsEOevents):
+ * - id: UUID (primary key)
+ * - ts: INTEGER (Unix timestamp in milliseconds)
+ * - ts_iso: TIMESTAMP (ISO formatted timestamp)
  * - op: TEXT (INS, DES, SEG, CON, SYN, ALT, SUP, REC, NUL)
- * - target: JSONB (what's being operated on)
- * - context: JSONB (where/how it's happening)
- * - frame: JSONB (optional interpretive context)
- * - source_table: TEXT (computed from context.table)
- * - entity_id: TEXT (computed from target.id)
+ * - entity_id: TEXT (case docket number)
+ * - entity_type: TEXT (e.g., 'eviction_case')
+ * - source_table: TEXT (e.g., 'eviction_cases')
+ * - target: TEXT (JSON stringified - what's being operated on)
+ * - context: TEXT (JSON stringified - where/how it's happening)
+ * - frame: TEXT (JSON stringified - optional interpretive context)
  */
 
 const EOMigration = (function() {
@@ -23,12 +25,13 @@ const EOMigration = (function() {
   // =============================================================================
 
   const CONFIG = {
-    // Current Xano API endpoints
+    // Current Xano API endpoints (legacy)
     LEGACY_FETCH_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case',
     LEGACY_UPLOAD_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/nashville_detainer_cases',
 
-    // New EO operations endpoint (to be created in Xano)
-    OPERATIONS_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/eviction_operations',
+    // New EO operations endpoints
+    OPERATIONS_GET_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_operations',
+    OPERATIONS_POST_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/evictionseoevents',
 
     // Source table identifier
     SOURCE_TABLE: 'eviction_cases',
@@ -95,22 +98,60 @@ const EOMigration = (function() {
   // =============================================================================
 
   /**
-   * Create a base EO event structure
+   * Create a base EO event structure (internal format)
    */
   function createEvent(op, target, context, frame = null) {
+    const ts = Date.now();
     const event = {
       id: generateUUID(),
-      ts: Date.now(),
+      ts: ts,
+      ts_iso: new Date(ts).toISOString(),
       op: op,
+      entity_id: target.id || '',
+      entity_type: target.type || 'eviction_case',
+      source_table: context.table || CONFIG.SOURCE_TABLE,
       target: target,
-      context: context
+      context: context,
+      frame: frame || {}
     };
 
-    if (frame) {
-      event.frame = frame;
-    }
-
     return event;
+  }
+
+  /**
+   * Convert an event to Xano table format (TEXT columns for JSON fields)
+   */
+  function toXanoFormat(event) {
+    return {
+      id: event.id,
+      ts: event.ts,
+      ts_iso: event.ts_iso,
+      op: event.op,
+      entity_id: event.entity_id,
+      entity_type: event.entity_type,
+      source_table: event.source_table,
+      target: JSON.stringify(event.target),
+      context: JSON.stringify(event.context),
+      frame: JSON.stringify(event.frame || {})
+    };
+  }
+
+  /**
+   * Convert from Xano format back to internal format (parse JSON TEXT fields)
+   */
+  function fromXanoFormat(record) {
+    return {
+      id: record.id,
+      ts: record.ts,
+      ts_iso: record.ts_iso,
+      op: record.op,
+      entity_id: record.entity_id,
+      entity_type: record.entity_type,
+      source_table: record.source_table,
+      target: typeof record.target === 'string' ? JSON.parse(record.target) : record.target,
+      context: typeof record.context === 'string' ? JSON.parse(record.context) : record.context,
+      frame: typeof record.frame === 'string' ? JSON.parse(record.frame || '{}') : (record.frame || {})
+    };
   }
 
   /**
@@ -652,7 +693,8 @@ const EOMigration = (function() {
   // =============================================================================
 
   /**
-   * Fetch all events from the operations table
+   * Fetch events from the operations table
+   * GET https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_operations
    */
   async function fetchEvents(options = {}) {
     const params = new URLSearchParams();
@@ -664,7 +706,10 @@ const EOMigration = (function() {
       params.append('op', options.op);
     }
     if (options.since_ts) {
-      params.append('ts.gt', options.since_ts);
+      params.append('ts_gt', options.since_ts);
+    }
+    if (options.since_ts_gte) {
+      params.append('ts_gte', options.since_ts_gte);
     }
     if (options.source_table) {
       params.append('source_table', options.source_table);
@@ -677,31 +722,42 @@ const EOMigration = (function() {
     }
 
     const url = params.toString()
-      ? `${CONFIG.OPERATIONS_URL}?${params.toString()}`
-      : CONFIG.OPERATIONS_URL;
+      ? `${CONFIG.OPERATIONS_GET_URL}?${params.toString()}`
+      : CONFIG.OPERATIONS_GET_URL;
 
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch events: ${response.status}`);
     }
 
-    return response.json();
+    const data = await response.json();
+
+    // Handle paginated response format
+    const items = data.items || data;
+
+    // Convert from Xano format (TEXT JSON fields) to internal format
+    return Array.isArray(items) ? items.map(fromXanoFormat) : items;
   }
 
   /**
    * Push a single event to the operations table
+   * POST https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/evictionseoevents
    */
   async function pushEvent(event) {
-    const response = await fetch(CONFIG.OPERATIONS_URL, {
+    // Convert to Xano format (stringify JSON fields)
+    const xanoEvent = toXanoFormat(event);
+
+    const response = await fetch(CONFIG.OPERATIONS_POST_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(event)
+      body: JSON.stringify(xanoEvent)
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to push event: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to push event: ${response.status} - ${errorText}`);
     }
 
     return response.json();
@@ -726,7 +782,7 @@ const EOMigration = (function() {
           results.success++;
         } catch (error) {
           results.failed++;
-          results.errors.push({ event, error: error.message });
+          results.errors.push({ event: event.id, error: error.message });
         }
       }
 
@@ -737,6 +793,11 @@ const EOMigration = (function() {
           success: results.success,
           failed: results.failed
         });
+      }
+
+      // Small delay between batches to avoid rate limiting
+      if (i + CONFIG.BATCH_SIZE < events.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
@@ -972,6 +1033,10 @@ const EOMigration = (function() {
     pushEvent,
     pushEventsBatch,
     fetchLegacyData,
+
+    // Format conversion
+    toXanoFormat,
+    fromXanoFormat,
 
     // Schema reference
     XANO_TABLE_SCHEMA,

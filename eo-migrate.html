@@ -62,13 +62,17 @@
           class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded font-medium transition">
           Run Full Migration
         </button>
+        <button onclick="pushToXano()" id="btnPushXano" disabled
+          class="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded font-medium transition disabled:opacity-50 disabled:cursor-not-allowed">
+          Push to Xano
+        </button>
         <button onclick="downloadEvents()" id="btnDownload" disabled
           class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded font-medium transition disabled:opacity-50 disabled:cursor-not-allowed">
-          Download Events JSON
+          Download JSON
         </button>
         <button onclick="downloadCSV()" id="btnDownloadCSV" disabled
           class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded font-medium transition disabled:opacity-50 disabled:cursor-not-allowed">
-          Download Events CSV
+          Download CSV
         </button>
         <button onclick="clearLog()"
           class="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded font-medium transition">
@@ -155,23 +159,22 @@
     <!-- Xano Schema Reference -->
     <div class="bg-gray-800 rounded-lg p-6 mt-6">
       <h2 class="text-xl font-semibold mb-4">Xano Table Schema</h2>
-      <p class="text-gray-400 mb-4">Create this table in Xano to store the EO events:</p>
-      <pre class="bg-gray-900 rounded p-4 overflow-x-auto text-xs text-gray-300">Table: eviction_operations
+      <p class="text-gray-400 mb-4">Table: <code class="bg-gray-700 px-2 py-1 rounded">evictionsEOevents</code></p>
+      <pre class="bg-gray-900 rounded p-4 overflow-x-auto text-xs text-gray-300">Fields:
+  id           UUID       PRIMARY KEY
+  ts           INTEGER    Unix timestamp in milliseconds
+  ts_iso       TIMESTAMP  ISO formatted timestamp
+  op           TEXT       Operator (INS, ALT, NUL, CON, SYN, SEG, SUP, DES, REC)
+  entity_id    TEXT       Case docket number
+  entity_type  TEXT       Entity type (e.g., 'eviction_case')
+  source_table TEXT       Source table name
+  target       TEXT       JSON string - what's being operated on
+  context      TEXT       JSON string - operation details/data
+  frame        TEXT       JSON string - interpretive context
 
-Fields:
-  id           TEXT      PRIMARY KEY (UUID)
-  ts           INTEGER   NOT NULL (Unix timestamp in milliseconds)
-  op           TEXT      NOT NULL (INS, ALT, NUL, CON, SYN, SEG, SUP, DES, REC)
-  target       JSON      NOT NULL (what's being operated on)
-  context      JSON      NOT NULL (where/how it's happening)
-  frame        JSON      NULL (optional interpretive context)
-  entity_id    TEXT      INDEX (extracted from target.id)
-  source_table TEXT      INDEX (extracted from context.table)
-
-Indexes:
-  idx_entity_timeline  (entity_id, ts)
-  idx_op_timeline      (op, ts)
-  idx_table_timeline   (source_table, ts)</pre>
+API Endpoints:
+  GET  /api:3CsVHkZK/eviction_operations   (with filters: ts_gt, entity_id, op, etc.)
+  POST /api:3CsVHkZK/evictionseoevents     (create new event)</pre>
     </div>
   </div>
 
@@ -288,7 +291,11 @@ Indexes:
           events.push({
             id: generateUUID(),
             ts: ts,
+            ts_iso: new Date(ts).toISOString(),
             op: OPERATORS.INS,
+            entity_id: docket,
+            entity_type: 'eviction_case',
+            source_table: sourceTable,
             target: { id: docket, type: 'eviction_case' },
             context: { table: sourceTable, data: normalizeCase(record) },
             frame: { source: 'migration', legacy_id: record.id, legacy_action: action, version: '1.0' }
@@ -300,7 +307,11 @@ Indexes:
             events.push({
               id: generateUUID(),
               ts: ts,
+              ts_iso: new Date(ts).toISOString(),
               op: OPERATORS.ALT,
+              entity_id: docket,
+              entity_type: 'eviction_case',
+              source_table: sourceTable,
               target: { id: docket, type: 'eviction_case' },
               context: { table: sourceTable, changes: changes },
               frame: { source: 'migration', legacy_id: record.id, legacy_action: action, version: '1.0' }
@@ -312,10 +323,28 @@ Indexes:
       return events;
     }
 
+    /**
+     * Convert event to Xano format (stringify JSON fields)
+     */
+    function toXanoFormat(event) {
+      return {
+        id: event.id,
+        ts: event.ts,
+        ts_iso: event.ts_iso,
+        op: event.op,
+        entity_id: event.entity_id,
+        entity_type: event.entity_type,
+        source_table: event.source_table,
+        target: JSON.stringify(event.target),
+        context: JSON.stringify(event.context),
+        frame: JSON.stringify(event.frame || {})
+      };
+    }
+
     function reconstructAllStates(events) {
       const byEntity = new Map();
       for (const event of events) {
-        const entityId = event.target.id;
+        const entityId = event.entity_id || event.target.id;
         if (!byEntity.has(entityId)) byEntity.set(entityId, []);
         byEntity.get(entityId).push(event);
       }
@@ -413,6 +442,18 @@ Indexes:
     function setButtonsEnabled(enabled) {
       document.getElementById('btnDryRun').disabled = !enabled;
       document.getElementById('btnFullMigration').disabled = !enabled;
+      // Only enable action buttons if we have results
+      if (migrationResult && migrationResult.events.length > 0) {
+        document.getElementById('btnDownload').disabled = !enabled;
+        document.getElementById('btnDownloadCSV').disabled = !enabled;
+        document.getElementById('btnPushXano').disabled = !enabled;
+      }
+    }
+
+    function enableResultButtons() {
+      document.getElementById('btnDownload').disabled = false;
+      document.getElementById('btnDownloadCSV').disabled = false;
+      document.getElementById('btnPushXano').disabled = false;
     }
 
     // ==========================================================================
@@ -493,9 +534,7 @@ Indexes:
         updateProgress(100, 100, 'Complete!');
         showStats(migrationResult);
         showSample(events);
-
-        document.getElementById('btnDownload').disabled = false;
-        document.getElementById('btnDownloadCSV').disabled = false;
+        enableResultButtons();
 
         log(`Dry run complete: ${data.length} records → ${events.length} events → ${states.length} entities`, 'success');
       } catch (e) {
@@ -547,9 +586,7 @@ Indexes:
         updateProgress(100, 100, 'Complete!');
         showStats(migrationResult);
         showSample(events);
-
-        document.getElementById('btnDownload').disabled = false;
-        document.getElementById('btnDownloadCSV').disabled = false;
+        enableResultButtons();
 
         log('Full migration complete!', 'success');
         log(`Summary: ${data.length} legacy records → ${events.length} EO events`, 'success');
@@ -567,7 +604,9 @@ Indexes:
         return;
       }
 
-      const json = JSON.stringify(migrationResult.events, null, 2);
+      // Convert to Xano format (stringify JSON fields)
+      const xanoEvents = migrationResult.events.map(toXanoFormat);
+      const json = JSON.stringify(xanoEvents, null, 2);
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
 
@@ -579,7 +618,7 @@ Indexes:
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      log(`Downloaded ${migrationResult.events.length} events as JSON`, 'success');
+      log(`Downloaded ${migrationResult.events.length} events as JSON (Xano format)`, 'success');
     }
 
     function downloadCSV() {
@@ -588,16 +627,16 @@ Indexes:
         return;
       }
 
-      // Build CSV
+      // Build CSV matching Xano schema
       const headers = ['id', 'ts', 'ts_iso', 'op', 'entity_id', 'entity_type', 'source_table', 'target', 'context', 'frame'];
       const rows = migrationResult.events.map(e => [
         e.id,
         e.ts,
-        new Date(e.ts).toISOString(),
+        e.ts_iso,
         e.op,
-        e.target.id,
-        e.target.type || '',
-        e.context.table || '',
+        e.entity_id,
+        e.entity_type,
+        e.source_table,
         JSON.stringify(e.target),
         JSON.stringify(e.context),
         JSON.stringify(e.frame || {})
@@ -625,11 +664,79 @@ Indexes:
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      log(`Downloaded ${migrationResult.events.length} events as CSV`, 'success');
+      log(`Downloaded ${migrationResult.events.length} events as CSV (Xano format)`, 'success');
+    }
+
+    // Xano API endpoint
+    const XANO_POST_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/evictionseoevents';
+
+    async function pushToXano() {
+      if (!migrationResult || !migrationResult.events.length) {
+        log('No events to push', 'warn');
+        return;
+      }
+
+      if (!confirm(`Push ${migrationResult.events.length} events to Xano? This cannot be undone.`)) {
+        return;
+      }
+
+      setButtonsEnabled(false);
+      showProgress(true);
+      log(`Pushing ${migrationResult.events.length} events to Xano...`, 'info');
+
+      const events = migrationResult.events;
+      let success = 0;
+      let failed = 0;
+      const errors = [];
+
+      for (let i = 0; i < events.length; i++) {
+        const event = events[i];
+        const xanoEvent = toXanoFormat(event);
+
+        try {
+          const response = await fetch(XANO_POST_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(xanoEvent)
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          success++;
+        } catch (e) {
+          failed++;
+          errors.push({ id: event.id, error: e.message });
+          if (errors.length <= 5) {
+            log(`Error pushing event ${event.id}: ${e.message}`, 'error');
+          }
+        }
+
+        // Update progress every 10 events
+        if ((i + 1) % 10 === 0 || i === events.length - 1) {
+          const percent = Math.round(((i + 1) / events.length) * 100);
+          updateProgress(i + 1, events.length, `Pushing events... ${success} success, ${failed} failed`);
+        }
+
+        // Small delay to avoid rate limiting
+        if ((i + 1) % 50 === 0) {
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+
+      updateProgress(events.length, events.length, 'Complete!');
+      log(`Push complete: ${success} success, ${failed} failed`, success > 0 ? 'success' : 'error');
+
+      if (errors.length > 5) {
+        log(`... and ${errors.length - 5} more errors`, 'warn');
+      }
+
+      setButtonsEnabled(true);
     }
 
     // Init
     log('EO Migration Tool ready', 'success');
+    log(`POST endpoint: ${XANO_POST_URL}`, 'info');
   </script>
 </body>
 </html>
