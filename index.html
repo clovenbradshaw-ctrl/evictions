@@ -4511,10 +4511,10 @@
                 if (Array.isArray(result)) {
                     data = result;
                     console.log('📦 Data format: Direct array');
-                } else if (result?.items) {
+                } else if (result?.items && Array.isArray(result.items)) {
                     data = result.items;
                     console.log('📦 Data format: {items: [...]}');
-                } else if (result?.data) {
+                } else if (result?.data && Array.isArray(result.data)) {
                     data = result.data;
                     responseMeta = result.meta || null;
                     console.log('📦 Data format: {data: [...], meta: {...}}');
@@ -4689,9 +4689,9 @@
                 let newData;
                 if (Array.isArray(result)) {
                     newData = result;
-                } else if (result?.items) {
+                } else if (result?.items && Array.isArray(result.items)) {
                     newData = result.items;
-                } else if (result?.data) {
+                } else if (result?.data && Array.isArray(result.data)) {
                     newData = result.data;
                 } else {
                     newData = [result];
