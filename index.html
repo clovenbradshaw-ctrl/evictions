@@ -34,6 +34,95 @@
             font-weight: 600;
             color: #92400e;
         }
+
+        /* URL Filter Banner - Shows when viewing filtered data */
+        .url-filter-banner {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-bottom: 2px solid #3b82f6;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .url-filter-banner.hidden {
+            display: none;
+        }
+
+        .url-filter-banner-icon {
+            font-size: 20px;
+        }
+
+        .url-filter-banner-text {
+            font-weight: 600;
+            color: #1e40af;
+        }
+
+        .url-filter-banner-count {
+            background: #3b82f6;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .url-filter-banner-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .url-filter-banner-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: none;
+        }
+
+        .url-filter-banner-btn.primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .url-filter-banner-btn.primary:hover {
+            background: #2563eb;
+        }
+
+        .url-filter-banner-btn.secondary {
+            background: white;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .url-filter-banner-btn.secondary:hover {
+            background: #f3f4f6;
+        }
+
+        .url-filter-banner-btn.danger {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .url-filter-banner-btn.danger:hover {
+            background: #fee2e2;
+        }
+
+        .copy-success {
+            animation: copyPulse 0.3s ease;
+        }
+
+        @keyframes copyPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); background: #22c55e; }
+            100% { transform: scale(1); }
+        }
         
         .data-card {
             background: white;
@@ -2458,6 +2547,21 @@
         ⚠️ UNOFFICIAL COMMUNITY PROJECT - Not affiliated with Metro Nashville or any government agency
     </div>
 
+    <!-- URL Filter Banner - Shows when viewing filtered data via URL -->
+    <div id="urlFilterBanner" class="url-filter-banner hidden">
+        <span class="url-filter-banner-icon">🔍</span>
+        <span class="url-filter-banner-text">Viewing Filtered Data</span>
+        <span id="urlFilterCount" class="url-filter-banner-count">0 of 0 records</span>
+        <div class="url-filter-banner-actions">
+            <button onclick="copyFilterUrl()" class="url-filter-banner-btn secondary" id="copyUrlBtn" title="Copy link to share this filtered view">
+                📋 Copy Link
+            </button>
+            <button onclick="clearAllFiltersAndUrl()" class="url-filter-banner-btn danger" title="Clear all filters and show all data">
+                ✕ Clear Filters
+            </button>
+        </div>
+    </div>
+
     <!-- Header -->
     <header class="bg-white border-b border-gray-200 px-6 py-4">
         <div class="max-w-screen-2xl mx-auto">
@@ -3496,6 +3600,408 @@
             LAST_SESSION: 'eviction_last_session'
         };
 
+        // ============================================
+        // URL-BASED FILTER SYSTEM
+        // ============================================
+
+        // Track if filters were loaded from URL (to show banner)
+        let filtersLoadedFromUrl = false;
+
+        // URL parameter keys for different filter types
+        const URL_FILTER_KEYS = {
+            DISTRICT: 'd',           // District filter: ?d=5
+            CHART: 'c',              // Chart filter: ?c=2024-01 (year-month)
+            NAME: 'n',               // Name filter: ?n=Smith
+            FILTERS: 'f'             // Advanced filters: ?f=base64encoded
+        };
+
+        // Serialize current filter state to URL
+        function serializeFiltersToUrl() {
+            const params = new URLSearchParams();
+
+            // District filter
+            if (activeDistrictFilter !== null && activeDistrictFilter !== undefined) {
+                params.set(URL_FILTER_KEYS.DISTRICT, activeDistrictFilter);
+            }
+
+            // Chart filter (year-month)
+            if (chartFilter && chartFilter.year && chartFilter.month) {
+                params.set(URL_FILTER_KEYS.CHART, `${chartFilter.year}-${String(chartFilter.month).padStart(2, '0')}`);
+            }
+
+            // Name filter
+            const nameInput = document.getElementById('nameFilter');
+            if (nameInput && nameInput.value && nameInput.value.trim()) {
+                params.set(URL_FILTER_KEYS.NAME, nameInput.value.trim());
+            }
+
+            // Advanced filter groups - serialize to base64 for compactness
+            if (filterGroups && filterGroups.length > 0) {
+                const hasConditions = filterGroups.some(g =>
+                    (g.conditions && g.conditions.length > 0 && g.conditions.some(c => c.value || c.operator === 'is_empty' || c.operator === 'is_not_empty')) ||
+                    (g.nestedGroups && g.nestedGroups.length > 0)
+                );
+                if (hasConditions) {
+                    try {
+                        // Compact the filter groups for URL
+                        const compactGroups = filterGroups.map(g => compactFilterGroup(g)).filter(Boolean);
+                        if (compactGroups.length > 0) {
+                            const encoded = btoa(JSON.stringify(compactGroups));
+                            params.set(URL_FILTER_KEYS.FILTERS, encoded);
+                        }
+                    } catch (e) {
+                        console.warn('Failed to serialize filters to URL:', e);
+                    }
+                }
+            }
+
+            return params;
+        }
+
+        // Compact a filter group for URL (remove empty conditions, shorten keys)
+        function compactFilterGroup(group) {
+            const validConditions = (group.conditions || []).filter(c =>
+                c.value || c.operator === 'is_empty' || c.operator === 'is_not_empty'
+            ).map(c => ({
+                f: c.field,        // field
+                o: c.operator,     // operator
+                v: c.value,        // value
+                v2: c.value2       // value2 (for between)
+            })).filter(c => c.f && c.o);
+
+            const nestedGroups = (group.nestedGroups || [])
+                .map(ng => compactFilterGroup(ng))
+                .filter(Boolean);
+
+            if (validConditions.length === 0 && nestedGroups.length === 0) {
+                return null;
+            }
+
+            return {
+                l: group.logic,    // logic (AND/OR)
+                c: validConditions,
+                n: nestedGroups
+            };
+        }
+
+        // Expand a compact filter group back to full form
+        function expandFilterGroup(compact, parentId = null) {
+            const groupId = ++filterGroupIdCounter;
+            return {
+                id: groupId,
+                logic: compact.l || 'AND',
+                conditions: (compact.c || []).map(c => ({
+                    id: Date.now() + Math.random(),
+                    field: c.f,
+                    operator: c.o,
+                    value: c.v || '',
+                    value2: c.v2 || ''
+                })),
+                nestedGroups: (compact.n || []).map(ng => expandFilterGroup(ng, groupId)),
+                parentId: parentId
+            };
+        }
+
+        // Parse URL and extract filter state
+        function parseFiltersFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            const filters = {
+                district: null,
+                chart: null,
+                name: null,
+                advancedGroups: null,
+                hasFilters: false
+            };
+
+            // District filter
+            if (params.has(URL_FILTER_KEYS.DISTRICT)) {
+                const d = params.get(URL_FILTER_KEYS.DISTRICT);
+                filters.district = d === 'Unknown' ? 'Unknown' : (isNaN(parseInt(d)) ? d : parseInt(d));
+                filters.hasFilters = true;
+            }
+
+            // Chart filter
+            if (params.has(URL_FILTER_KEYS.CHART)) {
+                const chartValue = params.get(URL_FILTER_KEYS.CHART);
+                const match = chartValue.match(/^(\d{4})-(\d{2})$/);
+                if (match) {
+                    filters.chart = {
+                        year: parseInt(match[1]),
+                        month: parseInt(match[2])
+                    };
+                    filters.hasFilters = true;
+                }
+            }
+
+            // Name filter
+            if (params.has(URL_FILTER_KEYS.NAME)) {
+                filters.name = params.get(URL_FILTER_KEYS.NAME);
+                filters.hasFilters = true;
+            }
+
+            // Advanced filters
+            if (params.has(URL_FILTER_KEYS.FILTERS)) {
+                try {
+                    const encoded = params.get(URL_FILTER_KEYS.FILTERS);
+                    const compactGroups = JSON.parse(atob(encoded));
+                    filterGroupIdCounter = 0; // Reset counter before expanding
+                    filters.advancedGroups = compactGroups.map(cg => expandFilterGroup(cg));
+                    filters.hasFilters = true;
+                } catch (e) {
+                    console.warn('Failed to parse URL filters:', e);
+                }
+            }
+
+            return filters;
+        }
+
+        // Check if we're in an iframe/embedded context
+        function isEmbedded() {
+            try {
+                return window.self !== window.top;
+            } catch (e) {
+                return true; // If we can't access window.top, we're likely in a cross-origin iframe
+            }
+        }
+
+        // Update browser URL with current filter state (without page reload)
+        function updateUrlWithFilters() {
+            const params = serializeFiltersToUrl();
+            const newUrl = params.toString()
+                ? `${window.location.pathname}?${params.toString()}`
+                : window.location.pathname;
+
+            // Try to update URL - may fail in some embedded contexts
+            try {
+                window.history.replaceState({}, '', newUrl);
+            } catch (e) {
+                console.warn('Could not update URL (embedded mode):', e);
+            }
+
+            // Update the filter banner
+            updateUrlFilterBanner();
+
+            // If embedded, notify parent window of filter change
+            if (isEmbedded()) {
+                try {
+                    window.parent.postMessage({
+                        type: 'eviction-tracker-filters',
+                        url: window.location.origin + newUrl,
+                        filterCount: filteredData.length,
+                        totalCount: allData.length
+                    }, '*');
+                } catch (e) {
+                    // Ignore errors when posting to parent
+                }
+            }
+        }
+
+        // Clear all URL parameters
+        function clearUrlFilters() {
+            try {
+                window.history.replaceState({}, '', window.location.pathname);
+            } catch (e) {
+                console.warn('Could not clear URL (embedded mode):', e);
+            }
+            filtersLoadedFromUrl = false;
+            updateUrlFilterBanner();
+        }
+
+        // Update the URL filter banner visibility and content
+        function updateUrlFilterBanner() {
+            const banner = document.getElementById('urlFilterBanner');
+            const countSpan = document.getElementById('urlFilterCount');
+            if (!banner || !countSpan) return;
+
+            // Check if any filters are active
+            const hasDistrictFilter = activeDistrictFilter !== null && activeDistrictFilter !== undefined;
+            const hasChartFilter = chartFilter && chartFilter.year && chartFilter.month;
+            // Check both the input element and the nameFilter variable
+            const nameInput = document.getElementById('nameFilter');
+            const hasNameFilterInput = nameInput && nameInput.value && nameInput.value.trim();
+            const hasNameFilterVar = nameFilter && nameFilter.name;
+            const hasNameFilter = hasNameFilterInput || hasNameFilterVar;
+            const hasAdvancedFilter = activeAdvancedFilter && activeAdvancedFilter.length > 0;
+
+            const hasAnyFilter = hasDistrictFilter || hasChartFilter || hasNameFilter || hasAdvancedFilter;
+            const isFiltered = hasAnyFilter && filteredData.length !== allData.length;
+
+            if (isFiltered && allData.length > 0) {
+                banner.classList.remove('hidden');
+                countSpan.textContent = `${filteredData.length.toLocaleString()} of ${allData.length.toLocaleString()} records`;
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        // Copy the current filter URL to clipboard
+        function copyFilterUrl() {
+            const params = serializeFiltersToUrl();
+            const url = params.toString()
+                ? `${window.location.origin}${window.location.pathname}?${params.toString()}`
+                : `${window.location.origin}${window.location.pathname}`;
+
+            navigator.clipboard.writeText(url).then(() => {
+                const btn = document.getElementById('copyUrlBtn');
+                if (btn) {
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '✓ Copied!';
+                    btn.classList.add('copy-success');
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.classList.remove('copy-success');
+                    }, 2000);
+                }
+            }).catch(err => {
+                console.error('Failed to copy URL:', err);
+                // Fallback: show the URL in an alert
+                alert(`Copy this URL to share:\n${url}`);
+            });
+        }
+
+        // Clear all filters and URL parameters
+        function clearAllFiltersAndUrl() {
+            // Clear district filter
+            activeDistrictFilter = null;
+            updateDistrictFilterIndicator();
+
+            // Clear chart filter
+            chartFilter = null;
+            updateChartFilterIndicator();
+
+            // Clear name filter
+            const nameInput = document.getElementById('nameFilter');
+            if (nameInput) nameInput.value = '';
+            nameFilter = null;
+            updateNameFilterIndicator();
+
+            // Clear advanced filters
+            filterGroups = [];
+            filterGroupIdCounter = 0;
+            activeAdvancedFilter = null;
+            addFilterGroup(); // Add empty group
+            updateFilterSummary();
+
+            // Reset to all data
+            filteredData = allData;
+
+            // Update grid
+            if (viewMode === 'pivot') {
+                pivotData = buildPivotData(pivotDimension);
+            }
+            if (gridApi) {
+                gridApi.setRowData(viewMode === 'pivot' ? pivotData : filteredData);
+            }
+
+            updateRecordCount();
+            createDistrictMap();
+            updateDemographicsCharts();
+            updateDemoFilterIndicator();
+
+            // Clear URL
+            clearUrlFilters();
+
+            // Clear localStorage filter state
+            localStorage.removeItem(STORAGE_KEYS.NAME_FILTER);
+            localStorage.removeItem(STORAGE_KEYS.CHART_FILTER);
+            localStorage.removeItem(STORAGE_KEYS.DISTRICT_FILTER);
+            localStorage.removeItem(STORAGE_KEYS.FILTER_GROUPS);
+
+            updateStatus(`Filters cleared - showing all ${allData.length.toLocaleString()} records`, 'success');
+        }
+
+        // Apply filters from URL parameters (called after data loads)
+        function applyFiltersFromUrl() {
+            const urlFilters = parseFiltersFromUrl();
+
+            if (!urlFilters.hasFilters) {
+                return false;
+            }
+
+            console.log('Applying filters from URL:', urlFilters);
+            filtersLoadedFromUrl = true;
+            let filtersApplied = false;
+
+            // Apply chart filter (mutually exclusive priority)
+            if (urlFilters.chart) {
+                chartFilter = urlFilters.chart;
+                filteredData = allData.filter(record => {
+                    const date = new Date(record.File_Date);
+                    if (isNaN(date.getTime())) return false;
+                    return date.getFullYear() === chartFilter.year &&
+                           (date.getMonth() + 1) === chartFilter.month;
+                });
+                updateChartFilterIndicator();
+                filtersApplied = true;
+            }
+
+            // Apply district filter
+            if (!filtersApplied && urlFilters.district !== null) {
+                activeDistrictFilter = urlFilters.district;
+                if (activeDistrictFilter === 'Unknown' || activeDistrictFilter === 'unknown') {
+                    filteredData = allData.filter(r => r.District === 'Unknown' || r.District === 'unknown');
+                } else {
+                    filteredData = allData.filter(r => r.District == activeDistrictFilter);
+                }
+                updateDistrictFilterIndicator();
+                filtersApplied = true;
+            }
+
+            // Apply advanced filters
+            if (!filtersApplied && urlFilters.advancedGroups && urlFilters.advancedGroups.length > 0) {
+                filterGroups = urlFilters.advancedGroups;
+                activeAdvancedFilter = JSON.parse(JSON.stringify(filterGroups));
+
+                filteredData = allData.filter(record => {
+                    return filterGroups.every(group =>
+                        typeof evaluateGroup === 'function' ? evaluateGroup(record, group) : true
+                    );
+                });
+
+                renderFilterGroups();
+                updateFilterSummary();
+                filtersApplied = true;
+            }
+
+            // Apply name filter (can combine with advanced filters)
+            if (urlFilters.name) {
+                const nameInput = document.getElementById('nameFilter');
+                if (nameInput) {
+                    nameInput.value = urlFilters.name;
+                }
+                // If no other filter applied yet, filter from allData
+                const sourceData = filtersApplied ? filteredData : allData;
+                const searchTerm = urlFilters.name.toLowerCase();
+                filteredData = sourceData.filter(record => {
+                    const plaintiff = (record.Plaintiff || '').toLowerCase();
+                    const defendant = (record.Defendant || '').toLowerCase();
+                    const attorney = (record.Attorney || '').toLowerCase();
+                    return plaintiff.includes(searchTerm) ||
+                           defendant.includes(searchTerm) ||
+                           attorney.includes(searchTerm);
+                });
+                updateNameFilterIndicator();
+                filtersApplied = true;
+            }
+
+            // Update grid and visuals
+            if (filtersApplied && gridApi) {
+                if (viewMode === 'pivot') {
+                    pivotData = buildPivotData(pivotDimension);
+                    gridApi.setRowData(pivotData);
+                } else {
+                    gridApi.setRowData(filteredData);
+                }
+                updateRecordCount();
+                createDistrictMap();
+                updateDemographicsCharts();
+                updateUrlFilterBanner();
+                updateStatus(`URL filters applied - showing ${filteredData.length.toLocaleString()} records`, 'success');
+            }
+
+            return filtersApplied;
+        }
+
         // In-memory cache for computed data with TTL
         const dataCache = {
             _cache: new Map(),
@@ -3795,6 +4301,15 @@
 
         // Restore persisted filters after data loads
         function restorePersistedFilters() {
+            // Priority: URL params > localStorage
+            // Check if URL has filters first
+            const urlFilters = parseFiltersFromUrl();
+            if (urlFilters.hasFilters) {
+                console.log('URL filters detected - applying from URL instead of localStorage');
+                applyFiltersFromUrl();
+                return;
+            }
+
             const savedState = loadUIState();
             if (!savedState) return;
 
@@ -3870,6 +4385,8 @@
                 }
                 updateRecordCount();
                 createDistrictMap();
+                // Sync URL with restored filters
+                updateUrlWithFilters();
                 updateStatus(`Session restored with ${filteredData.length} filtered records`, 'success');
             }
         }
@@ -6661,6 +7178,9 @@
 
             // Persist chart filter state
             debouncedSaveUIState();
+
+            // Update URL with filter state
+            updateUrlWithFilters();
         }
 
         // Demographics Visualization Charts
@@ -7163,6 +7683,7 @@
             updateChartFilterIndicator();
             updateDemographicsCharts();
             updateDemoFilterIndicator();
+            updateUrlWithFilters();
             updateStatus(`Showing all ${allData.length} records`, 'success');
         }
 
@@ -7237,6 +7758,9 @@
 
             // Persist filter state
             debouncedSaveUIState();
+
+            // Update URL with filter state
+            updateUrlWithFilters();
         }
 
         function clearNameFilter() {
@@ -7267,6 +7791,7 @@
             updateNameFilterIndicator();
             updateDemographicsCharts();
             updateDemoFilterIndicator();
+            updateUrlWithFilters();
             updateStatus(`Showing all ${allData.length} records`, 'success');
         }
 
@@ -9484,6 +10009,9 @@
             // Persist state
             debouncedSaveUIState();
 
+            // Update URL with filter state
+            updateUrlWithFilters();
+
             // Update status message without exact counts
             const filterMsg = district === 'Unknown' ? 'unverified districts*' : `District ${district}*`;
             updateStatus(`Showing records for ${filterMsg}`, 'success');
@@ -9510,6 +10038,7 @@
             updateDemoFilterIndicator();
             updateDistrictFilterIndicator();
             debouncedSaveUIState();
+            updateUrlWithFilters();
             updateStatus('District filter cleared - showing all records', 'success');
         }
 
@@ -10987,6 +11516,9 @@
 
                     // Persist advanced filter state
                     debouncedSaveUIState();
+
+                    // Update URL with filter state
+                    updateUrlWithFilters();
                 } finally {
                     // Always hide loading state when done
                     setFilterLoadingState(false);
@@ -11032,6 +11564,9 @@
 
                     // Persist cleared filter state
                     debouncedSaveUIState();
+
+                    // Clear URL filter parameters
+                    updateUrlWithFilters();
                 } finally {
                     setFilterLoadingState(false);
                 }
