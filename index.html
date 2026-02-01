@@ -851,6 +851,35 @@
             border-top: 1px solid #e5e7eb;
         }
 
+        .filter-loading-indicator {
+            display: flex;
+            align-items: center;
+            padding: 6px 12px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .filter-loading-indicator.hidden {
+            display: none;
+        }
+
+        .filter-builder.loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .btn.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .btn.loading::before {
+            content: '⏳ ';
+        }
+
         .filter-preset-badge {
             display: inline-flex;
             align-items: center;
@@ -2552,6 +2581,74 @@
             </div>
         </div>
 
+        <!-- Advanced Filters Section -->
+        <div class="data-card p-6 mb-6" id="advancedFiltersSection">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Advanced Filters</h3>
+                <div id="filterLoadingIndicator" class="filter-loading-indicator hidden">
+                    <span class="animate-spin inline-block mr-2">⏳</span>
+                    <span>Applying filters...</span>
+                </div>
+            </div>
+
+            <!-- Active Filter Summary -->
+            <div id="activeFilterSummary" class="active-filter-summary hidden">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="font-semibold text-gray-700">Active Filter:</span>
+                        <span id="filterSummaryText" class="ml-2 text-gray-600"></span>
+                    </div>
+                    <button onclick="clearAdvancedFilters()" class="text-sm text-red-600 hover:text-red-800 font-medium">Clear Filter</button>
+                </div>
+            </div>
+
+            <!-- Saved Presets -->
+            <div id="savedPresetsSection" class="mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-semibold text-gray-700">Saved Filters</span>
+                </div>
+                <div id="presetsList" class="presets-list">
+                    <!-- Presets will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Filter Builder -->
+            <div class="filter-builder" id="filterBuilderContainer">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-semibold text-gray-700">Build Your Filter</span>
+                    <div class="flex gap-2">
+                        <button onclick="addFilterGroup()" class="add-condition-btn">+ Add Group</button>
+                    </div>
+                </div>
+
+                <!-- Root Filter Groups Container -->
+                <div id="filterGroupsContainer">
+                    <!-- Filter groups will be added here -->
+                </div>
+
+                <!-- Quick Date Filters -->
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Quick Filters</span>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        <button onclick="applyQuickFilter('last30')" class="add-condition-btn">Last 30 Days</button>
+                        <button onclick="applyQuickFilter('last90')" class="add-condition-btn">Last 90 Days</button>
+                        <button onclick="applyQuickFilter('lastYear')" class="add-condition-btn">Last Year</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Actions -->
+            <div class="filter-actions">
+                <button id="applyFilterBtn" onclick="applyAdvancedFilters()" class="btn btn-primary">Apply Filter</button>
+                <button onclick="saveFilterPreset()" class="btn btn-secondary">Save as Preset</button>
+                <button onclick="clearAdvancedFilters()" class="btn btn-secondary">Clear All</button>
+            </div>
+
+            <!-- Hidden legacy inputs for compatibility -->
+            <input type="date" id="dateFrom" class="hidden">
+            <input type="date" id="dateTo" class="hidden">
+        </div>
+
         <!-- Demographics Visualization Section -->
         <div class="data-card p-6 mb-6" id="demographicsVizSection">
             <!-- Collapsible Header -->
@@ -2639,68 +2736,6 @@
                 </div>
             </div>
             </div> <!-- End demographicsContent -->
-        </div>
-
-        <!-- Advanced Filters Section -->
-        <div class="data-card p-6 mb-6" id="advancedFiltersSection">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Advanced Filters</h3>
-
-            <!-- Active Filter Summary -->
-            <div id="activeFilterSummary" class="active-filter-summary hidden">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <span class="font-semibold text-gray-700">Active Filter:</span>
-                        <span id="filterSummaryText" class="ml-2 text-gray-600"></span>
-                    </div>
-                    <button onclick="clearAdvancedFilters()" class="text-sm text-red-600 hover:text-red-800 font-medium">Clear Filter</button>
-                </div>
-            </div>
-
-            <!-- Saved Presets -->
-            <div id="savedPresetsSection" class="mb-4">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-semibold text-gray-700">Saved Filters</span>
-                </div>
-                <div id="presetsList" class="presets-list">
-                    <!-- Presets will be loaded here -->
-                </div>
-            </div>
-
-            <!-- Filter Builder -->
-            <div class="filter-builder">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-sm font-semibold text-gray-700">Build Your Filter</span>
-                    <div class="flex gap-2">
-                        <button onclick="addFilterGroup()" class="add-condition-btn">+ Add Group</button>
-                    </div>
-                </div>
-
-                <!-- Root Filter Groups Container -->
-                <div id="filterGroupsContainer">
-                    <!-- Filter groups will be added here -->
-                </div>
-
-                <!-- Quick Date Filters -->
-                <div class="mt-4 pt-4 border-t border-gray-200">
-                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Quick Filters</span>
-                    <div class="mt-2 flex flex-wrap gap-2">
-                        <button onclick="applyQuickFilter('last30')" class="add-condition-btn">Last 30 Days</button>
-                        <button onclick="applyQuickFilter('last90')" class="add-condition-btn">Last 90 Days</button>
-                        <button onclick="applyQuickFilter('lastYear')" class="add-condition-btn">Last Year</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Filter Actions -->
-            <div class="filter-actions">
-                <button onclick="applyAdvancedFilters()" class="btn btn-primary">Apply Filter</button>
-                <button onclick="saveFilterPreset()" class="btn btn-secondary">Save as Preset</button>
-                <button onclick="clearAdvancedFilters()" class="btn btn-secondary">Clear All</button>
-            </div>
-
-            <!-- Hidden legacy inputs for compatibility -->
-            <input type="date" id="dateFrom" class="hidden">
-            <input type="date" id="dateTo" class="hidden">
         </div>
 
         <!-- Search Section -->
@@ -10787,88 +10822,133 @@
             }
         }
 
+        // Show/hide filter loading state
+        function setFilterLoadingState(isLoading) {
+            const loadingIndicator = document.getElementById('filterLoadingIndicator');
+            const applyBtn = document.getElementById('applyFilterBtn');
+            const filterBuilder = document.getElementById('filterBuilderContainer');
+
+            if (isLoading) {
+                if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+                if (applyBtn) {
+                    applyBtn.classList.add('loading');
+                    applyBtn.disabled = true;
+                }
+                if (filterBuilder) filterBuilder.classList.add('loading');
+                updateStatus('Applying filters...', 'loading');
+            } else {
+                if (loadingIndicator) loadingIndicator.classList.add('hidden');
+                if (applyBtn) {
+                    applyBtn.classList.remove('loading');
+                    applyBtn.disabled = false;
+                }
+                if (filterBuilder) filterBuilder.classList.remove('loading');
+            }
+        }
+
         // Apply the advanced filter
         function applyAdvancedFilters() {
-            // Clear other filters
-            chartFilter = null;
-            nameFilter = null;
-            updateChartFilterIndicator();
-            updateNameFilterIndicator();
+            // Show loading state immediately
+            setFilterLoadingState(true);
 
-            // Check if there are any valid conditions
-            const hasConditions = filterGroups.some(group =>
-                group.conditions.length > 0 || group.nestedGroups.length > 0
-            );
+            // Use setTimeout to allow UI to update before heavy processing
+            setTimeout(() => {
+                try {
+                    // Clear other filters
+                    chartFilter = null;
+                    nameFilter = null;
+                    updateChartFilterIndicator();
+                    updateNameFilterIndicator();
 
-            if (!hasConditions) {
-                filteredData = allData;
-                activeAdvancedFilter = null;
-            } else {
-                // Store the active filter for display
-                activeAdvancedFilter = JSON.parse(JSON.stringify(filterGroups));
+                    // Check if there are any valid conditions
+                    const hasConditions = filterGroups.some(group =>
+                        group.conditions.length > 0 || group.nestedGroups.length > 0
+                    );
 
-                // Filter data - records must pass ALL root-level groups (implicit AND between root groups)
-                filteredData = allData.filter(record => {
-                    return filterGroups.every(group => evaluateGroup(record, group));
-                });
-            }
+                    if (!hasConditions) {
+                        filteredData = allData;
+                        activeAdvancedFilter = null;
+                    } else {
+                        // Store the active filter for display
+                        activeAdvancedFilter = JSON.parse(JSON.stringify(filterGroups));
 
-            // Update display
-            if (viewMode === 'pivot') {
-                pivotData = buildPivotData(pivotDimension);
-            }
+                        // Filter data - records must pass ALL root-level groups (implicit AND between root groups)
+                        filteredData = allData.filter(record => {
+                            return filterGroups.every(group => evaluateGroup(record, group));
+                        });
+                    }
 
-            if (gridApi) {
-                if (viewMode === 'pivot') {
-                    gridApi.setRowData(pivotData);
-                } else {
-                    gridApi.setRowData(filteredData);
+                    // Update display
+                    if (viewMode === 'pivot') {
+                        pivotData = buildPivotData(pivotDimension);
+                    }
+
+                    if (gridApi) {
+                        if (viewMode === 'pivot') {
+                            gridApi.setRowData(pivotData);
+                        } else {
+                            gridApi.setRowData(filteredData);
+                        }
+                    }
+
+                    updateRecordCount();
+                    updateFilterSummary();
+                    createDistrictMap();
+                    updateDemographicsCharts();
+                    updateDemoFilterIndicator();
+                    updateStatus(`Filter applied - showing ${filteredData.length.toLocaleString()} records`, 'success');
+
+                    // Persist advanced filter state
+                    debouncedSaveUIState();
+                } finally {
+                    // Always hide loading state when done
+                    setFilterLoadingState(false);
                 }
-            }
-
-            updateRecordCount();
-            updateFilterSummary();
-            createDistrictMap();
-            updateDemographicsCharts();
-            updateDemoFilterIndicator();
-            updateStatus(`Filter applied - showing ${filteredData.length} records`, 'success');
-
-            // Persist advanced filter state
-            debouncedSaveUIState();
+            }, 50);
         }
 
         function clearAdvancedFilters() {
-            filterGroups = [];
-            filterGroupIdCounter = 0;
-            activeAdvancedFilter = null;
+            // Show loading state
+            setFilterLoadingState(true);
+            updateStatus('Clearing filters...', 'loading');
 
-            // Reset to all data
-            filteredData = allData;
+            setTimeout(() => {
+                try {
+                    filterGroups = [];
+                    filterGroupIdCounter = 0;
+                    activeAdvancedFilter = null;
 
-            // Add a fresh group
-            addFilterGroup();
+                    // Reset to all data
+                    filteredData = allData;
 
-            if (viewMode === 'pivot') {
-                pivotData = buildPivotData(pivotDimension);
-            }
+                    // Add a fresh group
+                    addFilterGroup();
 
-            if (gridApi) {
-                if (viewMode === 'pivot') {
-                    gridApi.setRowData(pivotData);
-                } else {
-                    gridApi.setRowData(filteredData);
+                    if (viewMode === 'pivot') {
+                        pivotData = buildPivotData(pivotDimension);
+                    }
+
+                    if (gridApi) {
+                        if (viewMode === 'pivot') {
+                            gridApi.setRowData(pivotData);
+                        } else {
+                            gridApi.setRowData(filteredData);
+                        }
+                    }
+
+                    updateRecordCount();
+                    updateFilterSummary();
+                    createDistrictMap();
+                    updateDemographicsCharts();
+                    updateDemoFilterIndicator();
+                    updateStatus(`Filters cleared - showing all ${allData.length.toLocaleString()} records`, 'success');
+
+                    // Persist cleared filter state
+                    debouncedSaveUIState();
+                } finally {
+                    setFilterLoadingState(false);
                 }
-            }
-
-            updateRecordCount();
-            updateFilterSummary();
-            createDistrictMap();
-            updateDemographicsCharts();
-            updateDemoFilterIndicator();
-            updateStatus(`Filters cleared - showing all ${allData.length} records`, 'success');
-
-            // Persist cleared filter state
-            debouncedSaveUIState();
+            }, 50);
         }
 
         function updateFilterSummary() {
@@ -10934,6 +11014,10 @@
 
         // Quick filter presets
         function applyQuickFilter(preset) {
+            // Show immediate feedback
+            const presetNames = { last30: 'Last 30 Days', last90: 'Last 90 Days', lastYear: 'Last Year' };
+            updateStatus(`Applying ${presetNames[preset] || preset} filter...`, 'loading');
+
             // Clear existing groups
             filterGroups = [];
             filterGroupIdCounter = 0;
@@ -11046,6 +11130,10 @@
             if (index < 0 || index >= presets.length) return;
 
             const preset = presets[index];
+
+            // Show immediate feedback
+            updateStatus(`Loading filter preset: ${preset.name}...`, 'loading');
+
             filterGroups = JSON.parse(JSON.stringify(preset.groups));
 
             // Recalculate max ID to avoid collisions
@@ -11060,7 +11148,7 @@
 
             renderFilterGroups();
             applyAdvancedFilters();
-            updateStatus(`Loaded filter preset: ${preset.name}`, 'success');
+            // Note: applyAdvancedFilters will show success message when done
         }
 
         function deleteFilterPreset(index) {
