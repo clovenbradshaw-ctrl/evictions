@@ -3995,6 +3995,40 @@
             return [...recordColumnDefs, ...getDynamicColumnDefs()];
         }
 
+        // Scan records to discover dynamic case_data keys
+        // Called when loading from cache since reduceActivityStream isn't invoked
+        function scanForDynamicKeys(records) {
+            const knownFields = new Set([
+                // Normalized/mapped fields
+                'File_Date', 'Plaintiff', 'Defendant', 'Address', 'District', 'Case_Number',
+                'Attorney', 'Defense_Attorney', 'CouncilMember', 'individual_ll',
+                // Original case_data fields
+                'Docket_Number', 'docket_number', 'file_date', 'Status', 'status',
+                'Office', 'office', 'Description', 'description', 'Plaintiff_Petitioner',
+                'plaintiff_petitioner', 'plaintiff', 'Defendant_Respondent', 'defendant_respondent',
+                'defendant', 'attorney', 'plaintiff_attorney', 'defendant_attorney',
+                'Defendant_Attorney', 'defense_attorney', 'Address_1', 'address_1', 'address',
+                'Address_2', 'address_2', 'city_state_zip', 'City_State_Zip', 'address_formatted',
+                'formatted_address', 'latitude', 'lat', 'longitude', 'lng', 'lon',
+                'council_district', 'Council_District', 'council_district_number',
+                'Council_District_Number', 'council_member', 'Council_Member', 'Individual_LL',
+                // Metadata fields
+                '_logged_at', '_action', '_activity_id', 'id', 'logged_at', 'action'
+            ]);
+
+            for (const record of records) {
+                for (const key of Object.keys(record)) {
+                    if (!knownFields.has(key) && !key.startsWith('_')) {
+                        dynamicCaseDataKeys.add(key);
+                    }
+                }
+            }
+
+            if (dynamicCaseDataKeys.size > 0) {
+                console.log('📋 Dynamic case_data columns discovered:', Array.from(dynamicCaseDataKeys).sort());
+            }
+        }
+
         // Initialize on load
         document.addEventListener('DOMContentLoaded', async function() {
             // Restore saved UI state first
@@ -4402,6 +4436,8 @@
                         allData = cachedData;
                         filteredData = allData;
                         calculateGlobalDataRange(allData);
+                        // Scan cached data for dynamic keys since reduceActivityStream wasn't called
+                        scanForDynamicKeys(allData);
 
                         const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
                         console.log('✅ Using fresh cached data:', allData.length, 'records, cached', cacheAgeHours, 'hours ago');
@@ -4479,6 +4515,8 @@
                         allData = cachedData;
                         filteredData = allData;
                         calculateGlobalDataRange(allData);
+                        // Scan cached data for dynamic keys since reduceActivityStream wasn't called
+                        scanForDynamicKeys(allData);
 
                         const cacheAge = getCacheAgeHours();
                         const ageText = cacheAge !== null ? `${cacheAge} hours` : 'unknown time';
