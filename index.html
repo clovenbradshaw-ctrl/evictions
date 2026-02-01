@@ -3269,6 +3269,10 @@
         let allData = [];
         let filteredData = [];
         let gridApi;
+
+        // Track dynamic case_data keys that appear in the Xano payload
+        // These will be used to generate additional table columns and CSV export fields
+        let dynamicCaseDataKeys = new Set();
         let monthlyChart;
         let searchMatches = [];
         let pivotData = [];
@@ -3947,6 +3951,50 @@
             }
         ];
 
+        // Generate dynamic column definitions for any new case_data keys
+        // Converts snake_case or camelCase to Title Case for display
+        function formatDynamicColumnHeader(key) {
+            return key
+                .replace(/_/g, ' ')
+                .replace(/([a-z])([A-Z])/g, '$1 $2')
+                .replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        // Get dynamic column definitions based on discovered case_data keys
+        function getDynamicColumnDefs() {
+            const dynamicCols = [];
+            // Sort keys alphabetically for consistent column order
+            const sortedKeys = Array.from(dynamicCaseDataKeys).sort();
+
+            for (const key of sortedKeys) {
+                dynamicCols.push({
+                    field: key,
+                    headerName: formatDynamicColumnHeader(key),
+                    width: 150,
+                    cellRenderer: params => {
+                        if (params.value === null || params.value === undefined || params.value === '') {
+                            return '<span class="text-gray-400">—</span>';
+                        }
+                        // Handle boolean values
+                        if (typeof params.value === 'boolean') {
+                            return params.value ? 'Yes' : 'No';
+                        }
+                        // Handle objects/arrays - display as JSON
+                        if (typeof params.value === 'object') {
+                            return `<span title="${JSON.stringify(params.value).replace(/"/g, '&quot;')}">[Object]</span>`;
+                        }
+                        return String(params.value);
+                    }
+                });
+            }
+            return dynamicCols;
+        }
+
+        // Get full column definitions (base + dynamic)
+        function getFullRecordColumnDefs() {
+            return [...recordColumnDefs, ...getDynamicColumnDefs()];
+        }
+
         // Initialize on load
         document.addEventListener('DOMContentLoaded', async function() {
             // Restore saved UI state first
@@ -4560,6 +4608,11 @@
                 const dupeCount = normalizedData.length - allData.length;
                 const dupeMsg = dupeCount > 0 ? ` (${dupeCount} duplicates removed)` : '';
                 console.log('✅ Final record count:', allData.length, dupeMsg);
+
+                // Log any dynamic case_data fields discovered
+                if (dynamicCaseDataKeys.size > 0) {
+                    console.log('📋 Dynamic case_data columns discovered:', Array.from(dynamicCaseDataKeys).sort());
+                }
                 console.groupEnd();
 
                 updateStatus(`Loaded ${allData.length} records from public court data${dupeMsg}`, 'success');
@@ -4898,7 +4951,30 @@
                         caseData = {};
                     }
                 }
-                return {
+
+                // Known fields that we map explicitly (normalized field names)
+                const knownFields = new Set([
+                    'Docket_Number', 'docket_number', 'File_Date', 'file_date', 'Status', 'status',
+                    'Office', 'office', 'Description', 'description', 'Plaintiff_Petitioner',
+                    'plaintiff_petitioner', 'plaintiff', 'Defendant_Respondent', 'defendant_respondent',
+                    'defendant', 'Attorney', 'attorney', 'plaintiff_attorney', 'defendant_attorney',
+                    'Defendant_Attorney', 'defense_attorney', 'Address_1', 'address_1', 'address',
+                    'Address_2', 'address_2', 'city_state_zip', 'City_State_Zip', 'address_formatted',
+                    'formatted_address', 'latitude', 'lat', 'longitude', 'lng', 'lon',
+                    'council_district', 'Council_District', 'council_district_number',
+                    'Council_District_Number', 'council_member', 'Council_Member',
+                    'individual_ll', 'Individual_LL', 'id'
+                ]);
+
+                // Track any dynamic keys from case_data that are not in our known fields
+                for (const key of Object.keys(caseData)) {
+                    if (!knownFields.has(key)) {
+                        dynamicCaseDataKeys.add(key);
+                    }
+                }
+
+                // Build base record with known fields
+                const flatRecord = {
                     // Activity stream metadata
                     _logged_at: record.logged_at,
                     _action: record.action,
@@ -4926,6 +5002,15 @@
                     council_member: caseData.council_member || caseData.Council_Member,
                     individual_ll: caseData.individual_ll || caseData.Individual_LL
                 };
+
+                // Copy all dynamic fields from case_data to the flat record
+                for (const key of Object.keys(caseData)) {
+                    if (!knownFields.has(key) && caseData[key] !== undefined && caseData[key] !== null) {
+                        flatRecord[key] = caseData[key];
+                    }
+                }
+
+                return flatRecord;
             });
         }
 
@@ -4955,9 +5040,31 @@
                 console.log('🔍 Sample flat activity record keys:', Object.keys(sampleRecords[0]));
             }
 
+            // Known fields that we map explicitly (normalized field names)
+            const knownFields = new Set([
+                'Docket_Number', 'docket_number', 'File_Date', 'file_date', 'Status', 'status',
+                'Office', 'office', 'Description', 'description', 'Plaintiff_Petitioner',
+                'plaintiff_petitioner', 'plaintiff', 'Defendant_Respondent', 'defendant_respondent',
+                'defendant', 'Attorney', 'attorney', 'plaintiff_attorney', 'defendant_attorney',
+                'Defendant_Attorney', 'defense_attorney', 'Address_1', 'address_1', 'address',
+                'Address_2', 'address_2', 'city_state_zip', 'City_State_Zip', 'address_formatted',
+                'formatted_address', 'latitude', 'lat', 'longitude', 'lng', 'lon',
+                'council_district', 'Council_District', 'council_district_number',
+                'Council_District_Number', 'council_member', 'Council_Member',
+                'individual_ll', 'Individual_LL', 'id', 'logged_at', 'action'
+            ]);
+
             // Map flat records with field name fallbacks
             return Array.from(byDocket.values()).map(record => {
-                return {
+                // Track any dynamic keys that are not in our known fields
+                for (const key of Object.keys(record)) {
+                    if (!knownFields.has(key) && !key.startsWith('_')) {
+                        dynamicCaseDataKeys.add(key);
+                    }
+                }
+
+                // Build base record with known fields
+                const flatRecord = {
                     // Activity stream metadata
                     _logged_at: record.logged_at,
                     _action: record.action,
@@ -4984,6 +5091,15 @@
                     council_member: record.council_member || record.Council_Member,
                     individual_ll: record.individual_ll || record.Individual_LL
                 };
+
+                // Copy all dynamic fields from record to the flat record
+                for (const key of Object.keys(record)) {
+                    if (!knownFields.has(key) && !key.startsWith('_') && record[key] !== undefined && record[key] !== null) {
+                        flatRecord[key] = record[key];
+                    }
+                }
+
+                return flatRecord;
             });
         }
 
@@ -6654,7 +6770,7 @@
             viewMode = 'records';
 
             if (gridApi) {
-                gridApi.setColumnDefs(recordColumnDefs);
+                gridApi.setColumnDefs(getFullRecordColumnDefs());
                 gridApi.setRowData(filteredData);
             }
 
@@ -6766,7 +6882,7 @@
 
         function initGrid() {
             const gridOptions = {
-                columnDefs: recordColumnDefs,
+                columnDefs: getFullRecordColumnDefs(),
                 rowData: filteredData,
                 defaultColDef: {
                     sortable: true,
@@ -6807,7 +6923,7 @@
                     gridApi.setColumnDefs(getPivotColumnDefs());
                     gridApi.setRowData(pivotData);
                 } else {
-                    gridApi.setColumnDefs(recordColumnDefs);
+                    gridApi.setColumnDefs(getFullRecordColumnDefs());
                     gridApi.setRowData(filteredData);
                 }
             } else {
@@ -8613,7 +8729,7 @@
                     gridApi.setColumnDefs(getPivotColumnDefs());
                     gridApi.setRowData(pivotData);
                 } else {
-                    gridApi.setColumnDefs(recordColumnDefs);
+                    gridApi.setColumnDefs(getFullRecordColumnDefs());
                     gridApi.setRowData(filteredData);
                 }
             }
@@ -8676,9 +8792,29 @@
             });
         }
 
+        // Format a value for CSV export, handling special types
+        function formatCSVValue(value) {
+            if (value === null || value === undefined) return '';
+            if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+            if (typeof value === 'object') return JSON.stringify(value);
+            return String(value).replace(/"/g, '""');
+        }
+
         function exportCSV() {
             // Include all available fields, respecting redaction rules for non-logged-in users
-            let csv = 'File Date,Docket Number,Plaintiff,Defendant,Landlord Attorney,Defense Attorney,Address,Council District,Council Member,Individual Landlord\n';
+            // Get sorted list of dynamic keys for consistent column order
+            const sortedDynamicKeys = Array.from(dynamicCaseDataKeys).sort();
+
+            // Build header row with base fields + dynamic fields
+            const baseHeaders = ['File Date', 'Docket Number', 'Plaintiff', 'Defendant', 'Landlord Attorney', 'Defense Attorney', 'Address', 'Council District', 'Council Member', 'Individual Landlord'];
+            const dynamicHeaders = sortedDynamicKeys.map(formatDynamicColumnHeader);
+            const allHeaders = [...baseHeaders, ...dynamicHeaders];
+            let csv = allHeaders.join(',') + '\n';
+
+            // Log dynamic columns being exported
+            if (sortedDynamicKeys.length > 0) {
+                console.log('📊 Exporting with dynamic columns:', sortedDynamicKeys);
+            }
 
             filteredData.forEach(row => {
                 const defendantName = getDefendantDisplayName(row.Defendant).replace(/"/g, '""');
@@ -8692,7 +8828,15 @@
                 const councilMember = (row.CouncilMember || '').replace(/"/g, '""');
                 const individualLandlord = row.individual_ll ? 'Yes' : 'No';
 
-                csv += `"${fileDate}","${caseNumber}","${plaintiff}","${defendantName}","${attorney}","${defenseAttorney}","${address}","${district}","${councilMember}","${individualLandlord}"\n`;
+                // Build row with base values
+                const baseValues = [fileDate, caseNumber, plaintiff, defendantName, attorney, defenseAttorney, address, district, councilMember, individualLandlord];
+
+                // Add dynamic column values
+                const dynamicValues = sortedDynamicKeys.map(key => formatCSVValue(row[key]));
+
+                // Combine and format as CSV row
+                const allValues = [...baseValues, ...dynamicValues];
+                csv += allValues.map(v => `"${v}"`).join(',') + '\n';
             });
 
             const blob = new Blob([csv], { type: 'text/csv' });
