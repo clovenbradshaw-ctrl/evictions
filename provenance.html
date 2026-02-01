@@ -557,7 +557,7 @@
                 </a>
                 <a href="#outcomes" class="toc-item">
                     <span class="toc-icon">📋</span>
-                    <span>Case Outcomes</span>
+                    <span>Outcomes & Displacement</span>
                 </a>
                 <a href="#demographics" class="toc-item">
                     <span class="toc-icon">👥</span>
@@ -612,15 +612,60 @@
                         <div class="source-item">
                             <span class="source-icon">🔗</span>
                             <div class="source-info">
-                                <div class="source-name">API Data Feed</div>
-                                <div class="source-detail">Structured data retrieved via court records API with activity stream format</div>
+                                <div class="source-name">Xano API Data Feed</div>
+                                <div class="source-detail">Structured data retrieved via Xano backend API (detainer_case endpoint)</div>
                             </div>
                         </div>
+                    </div>
+                    <div class="methodology-box" style="margin-top: 16px;">
+                        <div class="methodology-label">Event-Oriented (EO) Data Format</div>
+                        <div class="methodology-text">
+                            Data arrives in an <strong>event sourcing</strong> format where each case can have multiple
+                            temporal records showing changes over time. Each activity record includes:
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>logged_at</code></td>
+                                <td>timestamp</td>
+                                <td>When the change was recorded (ISO format)</td>
+                            </tr>
+                            <tr>
+                                <td><code>action</code></td>
+                                <td>string</td>
+                                <td>Type of change (e.g., 'new_case', 'address_update')</td>
+                            </tr>
+                            <tr>
+                                <td><code>docket_number</code></td>
+                                <td>string</td>
+                                <td>Unique case identifier (primary key for deduplication)</td>
+                            </tr>
+                            <tr>
+                                <td><code>case_data</code></td>
+                                <td>object</td>
+                                <td>Nested case information (parties, dates, pleadings, judgments)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="formula-box">
+                        // Event sourcing reduction: multiple records → current state<br>
+                        records.groupBy('docket_number')<br>
+                        &nbsp;&nbsp;.map(group => group.sortBy('logged_at').last())<br>
+                        &nbsp;&nbsp;.mergeFields()  // Concatenate arrays like pleadings, judgments
                     </div>
                     <div class="limitation-box">
                         <div class="limitation-label">⚠️ Limitations</div>
                         <div class="limitation-text">
                             • Informal evictions (landlord threats, utility shutoffs) not captured in court data<br>
+                            • <strong>Court records track legal proceedings, not actual departures</strong>—a tenant may leave voluntarily before sheriff removal, or agree to move in exchange for dismissal<br>
                             • Records appear when filed; outcomes may update over time<br>
                             • Some historic records may have incomplete address or party information
                         </div>
@@ -1162,73 +1207,220 @@
                 <div class="claim-header-left">
                     <span class="claim-icon">📋</span>
                     <div>
-                        <div class="claim-title">Case Outcomes</div>
-                        <div class="claim-subtitle">What happens after an eviction is filed?</div>
+                        <div class="claim-title">Case Outcomes & Displacement Classification</div>
+                        <div class="claim-subtitle">Understanding what docket entries mean for actual displacement</div>
                     </div>
                 </div>
                 <span class="expand-icon">▼</span>
             </div>
             <div class="claim-content">
+                <!-- Critical Context Box -->
+                <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 2px solid #f59e0b; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <div style="font-weight: 700; color: #92400e; font-size: 16px; margin-bottom: 8px;">
+                        ⚠️ Critical Methodological Note
+                    </div>
+                    <div style="color: #78350f; font-size: 14px; line-height: 1.6;">
+                        <strong>Court records track legal proceedings, not actual departures.</strong> Some tenants leave voluntarily
+                        after receiving eviction judgments to avoid sheriff removal. Others settle cases by agreeing to move in
+                        exchange for dismissal—displacement that appears in court records as a "win" for the tenant. We use a
+                        tiered classification system to indicate certainty levels for displacement.
+                    </div>
+                </div>
+
                 <div class="claim-item">
                     <div class="claim-item-header">
-                        <div class="claim-item-title">Case Status Categories</div>
-                        <span class="claim-status status-verified">From Court Records</span>
+                        <div class="claim-item-title">Displacement Certainty Classification</div>
+                        <span class="claim-status status-verified">Tiered System</span>
                     </div>
                     <div class="methodology-box">
-                        <div class="methodology-label">How We Categorize Outcomes</div>
+                        <div class="methodology-label">6-Tier Classification System</div>
                         <div class="methodology-text">
-                            Court records include a status field that we map to outcome categories. The progression
-                            from filing to physical eviction involves multiple stages tracked in the docket.
+                            We classify case outcomes by certainty of displacement, from definitive physical eviction
+                            to ambiguous dismissals. This system was developed with input from eviction defense attorneys.
                         </div>
                     </div>
-                    <table class="data-table">
+                </div>
+
+                <!-- TIER 1 -->
+                <div class="claim-item" style="border-left: 4px solid #dc2626;">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">TIER 1: Physically Evicted (Confirmed)</div>
+                        <span class="claim-status" style="background: #fecaca; color: #991b1b;">100% Certainty</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">What to Look For</div>
+                        <div class="methodology-text">
+                            <code>DC SHERIFF PAPER RETURN WRIT</code> or similar text indicating "executed writ"
+                        </div>
+                    </div>
+                    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 14px; margin-top: 12px;">
+                        <div style="font-weight: 600; color: #991b1b; margin-bottom: 6px;">What This Means</div>
+                        <div style="color: #7f1d1d; font-size: 14px;">
+                            The sheriff physically removed the tenant and their belongings. This is the only outcome where
+                            we can confirm with 100% certainty that displacement occurred on a specific date.
+                        </div>
+                    </div>
+                    <div class="formula-box">
+                        WHERE docket_text LIKE '%SHERIFF%RETURN%WRIT%'<br>
+                        &nbsp;&nbsp;&nbsp;OR docket_text LIKE '%EXECUTED%WRIT%'<br>
+                        &nbsp;&nbsp;&nbsp;OR docket_text LIKE '%WRIT%EXECUTED%'
+                    </div>
+                </div>
+
+                <!-- TIER 2 -->
+                <div class="claim-item" style="border-left: 4px solid #ea580c;">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">TIER 2: Eviction Authorized (Writ Issued)</div>
+                        <span class="claim-status" style="background: #ffedd5; color: #9a3412;">80-90% Likely</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">What to Look For</div>
+                        <div class="methodology-text">
+                            <code>WRIT OF RESTITUTION-D1</code> or <code>WRIT OF POSSESSION</code> <strong>without</strong> a subsequent sheriff return
+                        </div>
+                    </div>
+                    <div style="background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 14px; margin-top: 12px;">
+                        <div style="font-weight: 600; color: #9a3412; margin-bottom: 6px;">What This Means</div>
+                        <div style="color: #7c2d12; font-size: 14px;">
+                            Judge authorized sheriff to remove tenant, but no record of sheriff actually executing it.
+                            Tenant likely moved voluntarily to avoid sheriff removal. <em>However, writs can be cancelled,
+                            so just the existence of a writ doesn't guarantee displacement.</em>
+                        </div>
+                    </div>
+                    <div class="formula-box">
+                        -- Cases with writ issued but no sheriff return<br>
+                        WHERE EXISTS (pleading LIKE '%WRIT%RESTITUTION%')<br>
+                        &nbsp;&nbsp;AND NOT EXISTS (pleading LIKE '%SHERIFF%RETURN%')
+                    </div>
+                </div>
+
+                <!-- TIER 3 -->
+                <div class="claim-item" style="border-left: 4px solid #f59e0b;">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">TIER 3: Court-Ordered Eviction (Judgment, No Writ)</div>
+                        <span class="claim-status" style="background: #fef3c7; color: #92400e;">60-70% Likely</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">What to Look For</div>
+                        <div class="methodology-text">
+                            <code>JUDGMENT-D1 POSSESSION</code> <strong>without</strong> a writ being issued
+                        </div>
+                    </div>
+                    <div style="background: #fefce8; border: 1px solid #fef08a; border-radius: 8px; padding: 14px; margin-top: 12px;">
+                        <div style="font-weight: 600; color: #854d0e; margin-bottom: 6px;">What This Means</div>
+                        <div style="color: #713f12; font-size: 14px;">
+                            Landlord won at trial and judge ruled tenant must leave, but no writ was issued (yet).
+                            Tenant may have left voluntarily, or case may have settled post-judgment. Judgment creates
+                            legal obligation but doesn't confirm actual departure.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TIER 4 -->
+                <div class="claim-item" style="border-left: 4px solid #eab308;">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">TIER 4: Default Judgment (Tenant Did Not Appear)</div>
+                        <span class="claim-status" style="background: #fef9c3; color: #854d0e;">65-75% Likely</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">What to Look For</div>
+                        <div class="methodology-text">
+                            <code>DEFAULT</code> in docket entries or <code>DEFAULT JUDGMENT</code>
+                        </div>
+                    </div>
+                    <div style="background: #fefce8; border: 1px solid #fef08a; border-radius: 8px; padding: 14px; margin-top: 12px;">
+                        <div style="font-weight: 600; color: #854d0e; margin-bottom: 6px;">What This Means</div>
+                        <div style="color: #713f12; font-size: 14px;">
+                            Tenant didn't appear at hearing and landlord won by default. High correlation with
+                            eventual displacement, but some tenants settle before sheriff arrival. National data
+                            shows 84% of tenants don't appear at hearings.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TIER 5 -->
+                <div class="claim-item" style="border-left: 4px solid #84cc16;">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">TIER 5: Dismissed (Displacement Possible)</div>
+                        <span class="claim-status" style="background: #ecfccb; color: #3f6212;">20-60% Likely</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">What to Look For</div>
+                        <div class="methodology-text">
+                            <code>NON SUIT</code>, <code>DISMISS</code>, <code>DISMISSAL</code>
+                        </div>
+                    </div>
+                    <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 14px; margin-top: 12px;">
+                        <div style="font-weight: 600; color: #92400e; margin-bottom: 6px;">⚠️ This is Tricky</div>
+                        <div style="color: #78350f; font-size: 14px;">
+                            <strong>Dismissal can mean either outcome:</strong><br><br>
+                            <strong>1. Tenant stayed:</strong> Landlord dropped case, tenant paid arrears, or settlement allowed tenant to remain.<br><br>
+                            <strong>2. Tenant agreed to move:</strong> Per eviction defense attorneys: <em>"We often represent renters in
+                            conduct evictions... Often the tenant will agree to move in exchange for dismissing the eviction. That shows
+                            up in CaseLink as a non-suit (plaintiff requests dismissal) <strong>even though the renter had to move.</strong>"</em>
+                        </div>
+                    </div>
+                    <table class="data-table" style="margin-top: 16px;">
                         <thead>
                             <tr>
-                                <th>Status</th>
-                                <th>Description</th>
-                                <th>Meaning</th>
+                                <th>Dismissal Type</th>
+                                <th>Pattern</th>
+                                <th>Est. Displacement</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td>SUMMONS SERVED</td>
-                                <td>Tenant notified</td>
-                                <td>Case initiated, hearing scheduled</td>
+                                <td>With settlement language</td>
+                                <td>DISMISS + SETTLEMENT/AGREEMENT</td>
+                                <td>50-60%</td>
                             </tr>
                             <tr>
-                                <td>PAPER WRIT DATE</td>
-                                <td>Judgment entered</td>
-                                <td>Court ruled for landlord</td>
+                                <td>Voluntary non-suit</td>
+                                <td>NON SUIT, PLAINTIFF DISMISS</td>
+                                <td>40-50%</td>
                             </tr>
                             <tr>
-                                <td>WRIT OF RESTITUTION</td>
-                                <td>Eviction ordered</td>
-                                <td>Sheriff authorized to remove tenant</td>
-                            </tr>
-                            <tr>
-                                <td>DISMISSED</td>
-                                <td>Case closed</td>
-                                <td>Settled, withdrawn, or ruled for tenant</td>
+                                <td>General dismissal</td>
+                                <td>DISMISS (no context)</td>
+                                <td>20-30%</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <div class="claim-item">
+                <!-- TIER 6 -->
+                <div class="claim-item" style="border-left: 4px solid #22c55e;">
                     <div class="claim-item-header">
-                        <div class="claim-item-title">Judgment Rate</div>
-                        <span class="claim-status status-estimated">Estimated</span>
+                        <div class="claim-item-title">TIER 6: Judgment for Tenant</div>
+                        <span class="claim-status" style="background: #dcfce7; color: #166534;">5-10% Likely</span>
                     </div>
                     <div class="methodology-box">
-                        <div class="methodology-label">Calculation Method</div>
+                        <div class="methodology-label">What to Look For</div>
+                        <div class="methodology-text">
+                            <code>JUDGMENT FOR DEFENDANT</code> or similar language
+                        </div>
+                    </div>
+                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; margin-top: 12px;">
+                        <div style="font-weight: 600; color: #166534; margin-bottom: 6px;">What This Means</div>
+                        <div style="color: #14532d; font-size: 14px;">
+                            Tenant won the case—landlord's eviction claim was rejected. Tenant likely stayed, though
+                            some may have moved anyway for other reasons. This is rare (Memphis: 2% tenant win rate).
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Judgment Rate Comparison -->
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Judgment Rate Comparison</div>
+                        <span class="claim-status status-verified">Benchmark Data</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">What Percentage of Filings Result in Eviction Orders?</div>
                         <div class="methodology-text">
                             The judgment rate represents what percentage of filed evictions result in a court order
                             for eviction. Nashville's 2019 judgment rate was 67%, above the national average of 50%.
                         </div>
-                    </div>
-                    <div class="formula-box">
-                        judgment_rate = eviction_judgments / eviction_filings × 100<br>
-                        Nashville 2024 estimate: 14,346 filings × 67% = ~9,612 judgments
                     </div>
                     <table class="data-table">
                         <thead>
@@ -1242,7 +1434,7 @@
                             <tr>
                                 <td>Memphis</td>
                                 <td>98%</td>
-                                <td>81.7% of hearings under 1 minute</td>
+                                <td>81.7% of hearings under 1 minute; 2% tenant win rate</td>
                             </tr>
                             <tr>
                                 <td>San Antonio</td>
@@ -1268,17 +1460,28 @@
                     </table>
                 </div>
 
+                <!-- Recommended Reporting Language -->
                 <div class="claim-item">
                     <div class="claim-item-header">
-                        <div class="claim-item-title">Default Judgment Rate</div>
-                        <span class="claim-status status-estimated">Estimated</span>
+                        <div class="claim-item-title">Recommended Reporting Language</div>
+                        <span class="claim-status status-calculated">Best Practice</span>
                     </div>
                     <div class="methodology-box">
-                        <div class="methodology-label">Understanding Defaults</div>
+                        <div class="methodology-label">How We Report Outcomes</div>
                         <div class="methodology-text">
-                            When tenants don't appear at their hearing, the court typically enters a default judgment
-                            for the landlord. National data suggests 84% of tenants don't show (Charlotte).
+                            Instead of saying "X people were evicted," we use precise language that reflects
+                            our certainty level:
                         </div>
+                    </div>
+                    <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-top: 12px; font-size: 14px;">
+                        <p style="margin-bottom: 12px;"><strong>Example reporting format:</strong></p>
+                        <p style="color: #374151; line-height: 1.7; font-style: italic;">
+                            "Of [X] eviction filings in 2024:<br>
+                            • <strong>[Y] cases</strong> resulted in sheriff-executed physical evictions (confirmed displacement)<br>
+                            • <strong>[Z] cases</strong> had writs authorizing eviction but no sheriff execution record (likely displacement through voluntary departure)<br>
+                            • <strong>[A] cases</strong> ended in default judgments (high likelihood of displacement)<br>
+                            • <strong>[B] cases</strong> were dismissed, including settlements where tenants may have agreed to move in exchange for dismissal"
+                        </p>
                     </div>
                 </div>
             </div>
@@ -1556,7 +1759,7 @@
                     <span class="claim-icon">🔬</span>
                     <div>
                         <div class="claim-title">Technical Methodology</div>
-                        <div class="claim-subtitle">Data processing, deduplication, and validation</div>
+                        <div class="claim-subtitle">Event sourcing, data processing, and validation</div>
                     </div>
                 </div>
                 <span class="expand-icon">▼</span>
@@ -1564,23 +1767,117 @@
             <div class="claim-content">
                 <div class="claim-item">
                     <div class="claim-item-header">
-                        <div class="claim-item-title">Activity Stream Deduplication</div>
+                        <div class="claim-item-title">Event-Oriented (EO) Architecture</div>
+                        <span class="claim-status status-verified">System Design</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Event Sourcing Pattern</div>
+                        <div class="methodology-text">
+                            Data is retrieved from a Xano backend API that implements <strong>event sourcing</strong>.
+                            Rather than storing just the current state, the system stores a log of all changes
+                            (events) that have occurred to each case. This provides a complete audit trail and
+                            enables reconstruction of case state at any point in time.
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>API Endpoint</td>
+                                <td><code>xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case</code></td>
+                            </tr>
+                            <tr>
+                                <td>Event Types</td>
+                                <td><code>new_case</code>, <code>address_update</code>, <code>status_change</code>, <code>pleading_added</code></td>
+                            </tr>
+                            <tr>
+                                <td>Temporal Key</td>
+                                <td><code>logged_at</code> (ISO 8601 timestamp)</td>
+                            </tr>
+                            <tr>
+                                <td>Entity Key</td>
+                                <td><code>docket_number</code> (unique case identifier)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Activity Stream Reduction</div>
                         <span class="claim-status status-calculated">Calculated</span>
                     </div>
                     <div class="methodology-box">
-                        <div class="methodology-label">Handling Multiple Records Per Case</div>
+                        <div class="methodology-label">Reducing Events to Current State</div>
                         <div class="methodology-text">
-                            Court records arrive in an "activity stream" format where each case can have multiple
-                            records showing data changes over time. We deduplicate by taking the most recent record
-                            per docket number to get the current state of each case.
+                            Each case can have multiple event records showing changes over time. We reduce these
+                            to the current state by grouping by <code>docket_number</code>, sorting by <code>logged_at</code>,
+                            and taking the most recent values while intelligently merging array fields.
                         </div>
                     </div>
                     <div class="formula-box">
-                        current_state = SELECT * FROM records<br>
-                        &nbsp;&nbsp;WHERE (docket_id, created_at) IN (<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;SELECT docket_id, MAX(created_at)<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;FROM records GROUP BY docket_id<br>
-                        &nbsp;&nbsp;)
+                        // Step 1: Group events by case<br>
+                        events.groupBy('docket_number')<br><br>
+                        // Step 2: Sort each group by timestamp<br>
+                        &nbsp;&nbsp;.map(group => group.sortBy('logged_at'))<br><br>
+                        // Step 3: Reduce to current state<br>
+                        &nbsp;&nbsp;.map(group => {<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;// Take latest scalar values<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;// Concatenate + dedupe array fields (pleadings, judgments)<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;// Deep merge nested case_data objects<br>
+                        &nbsp;&nbsp;})
+                    </div>
+                    <table class="data-table" style="margin-top: 16px;">
+                        <thead>
+                            <tr>
+                                <th>Field Type</th>
+                                <th>Merge Strategy</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Scalar (status, address)</td>
+                                <td>Take most recent non-null value</td>
+                            </tr>
+                            <tr>
+                                <td>Arrays (pleadings, judgments)</td>
+                                <td>Concatenate and deduplicate by ID</td>
+                            </tr>
+                            <tr>
+                                <td>Nested objects (case_data)</td>
+                                <td>Deep merge with newer values overwriting</td>
+                            </tr>
+                            <tr>
+                                <td>Timestamps</td>
+                                <td>Preserve <code>_logged_at</code> for audit trail</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Incremental Sync</div>
+                        <span class="claim-status status-calculated">Performance</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Smart Data Fetching</div>
+                        <div class="methodology-text">
+                            Instead of fetching all records on each load, we use the <code>logged_at.gt</code>
+                            query parameter to fetch only records updated since the last sync. This reduces
+                            API calls and improves load times.
+                        </div>
+                    </div>
+                    <div class="formula-box">
+                        // First load: fetch all records<br>
+                        GET /detainer_case?per_page=100<br><br>
+                        // Subsequent loads: fetch only updates<br>
+                        GET /detainer_case?logged_at.gt=2026-01-15T10:30:00Z
                     </div>
                 </div>
 
