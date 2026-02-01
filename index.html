@@ -4071,13 +4071,8 @@
                   return '<span class="text-gray-400">—</span>';
               }
             },
-            { field: 'eviction_executed', headerName: 'Eviction Executed', width: 130,
-              cellRenderer: params => {
-                  if (params.value === true) return '<span class="text-red-600 font-medium">Yes</span>';
-                  if (params.value === false) return '<span class="text-gray-400">No</span>';
-                  return '<span class="text-gray-400">—</span>';
-              }
-            },
+            // eviction_executed, eviction_date, eviction_method removed - these were derived/interpreted fields
+            // Raw data is in pleadings[] and writ_issued_date/writ_served_date
             { field: 'judge', headerName: 'Judge', width: 150,
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
@@ -7734,33 +7729,8 @@
             ], { icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>' });
             if (judgmentSection) sectionsContainer.appendChild(judgmentSection);
 
-            // 5. EVICTION EXECUTION SECTION (HIGHLIGHTED IF EXECUTED)
-            const evictionExecuted = getFieldValue(record, 'eviction_executed', 'Eviction_Executed');
-            const evictionDate = getFieldValue(record, 'eviction_date', 'Eviction_Date');
-            const evictionMethod = getFieldValue(record, 'eviction_method', 'Eviction_Method');
-
-            const hasEvictionData = evictionExecuted === true || evictionDate || evictionMethod;
-            const evictionSection = createSection('Eviction Execution', [
-                {
-                    label: 'Eviction Executed',
-                    value: formatBoolean(evictionExecuted),
-                    valueClass: evictionExecuted === true ? 'text-red-700 font-bold' : 'text-gray-900'
-                },
-                {
-                    label: 'Eviction Date',
-                    value: formatDate(evictionDate),
-                    valueClass: evictionDate ? 'text-red-600 font-semibold' : 'text-gray-900'
-                },
-                { label: 'Eviction Method', value: evictionMethod }
-            ], {
-                icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>',
-                headerBg: evictionExecuted === true ? 'bg-red-50' : 'bg-gray-50',
-                borderColor: evictionExecuted === true ? 'border-red-200' : 'border-gray-200',
-                titleColor: evictionExecuted === true ? 'text-red-800' : 'text-gray-700',
-                showEmpty: true,
-                emptyText: 'No eviction execution data recorded'
-            });
-            if (evictionSection) sectionsContainer.appendChild(evictionSection);
+            // EVICTION EXECUTION SECTION REMOVED - eviction_executed, eviction_date, eviction_method were derived/interpreted
+            // Raw data is available in pleadings[] timeline and writ_issued_date/writ_served_date fields
 
             // 6. FINANCIAL SECTION
             const financialSection = createSection('Financial', [
@@ -9577,7 +9547,7 @@
                 'Address', 'Council District', 'Council Member', 'Individual Landlord',
                 // Backfill data fields
                 'Status', 'Judge', 'Service Date', 'Judgment Date', 'Judgment For', 'Judgment Type',
-                'Case Dismissed', 'Dismissal Date', 'Eviction Date', 'Eviction Method', 'Eviction Executed',
+                'Case Dismissed', 'Dismissal Date',
                 'Writ Issued Date', 'Writ Served Date', 'Pleadings Count', 'Pleadings', 'Judgments Count', 'Judgments'
             ];
             const dynamicHeaders = sortedDynamicKeys.map(formatDynamicColumnHeader);
@@ -9610,9 +9580,7 @@
                 const judgmentType = (row.judgment_type || '').replace(/"/g, '""');
                 const caseDismissed = row.case_dismissed === true ? 'Yes' : row.case_dismissed === false ? 'No' : '';
                 const dismissalDate = row.dismissal_date ? new Date(row.dismissal_date).toLocaleDateString() : '';
-                const evictionDate = row.eviction_date ? new Date(row.eviction_date).toLocaleDateString() : '';
-                const evictionMethod = (row.eviction_method || '').replace(/"/g, '""');
-                const evictionExecuted = row.eviction_executed === true ? 'Yes' : row.eviction_executed === false ? 'No' : '';
+                // evictionDate, evictionMethod, evictionExecuted removed - derived/interpreted fields
                 const writIssuedDate = row.writ_issued_date ? new Date(row.writ_issued_date).toLocaleDateString() : '';
                 const writServedDate = row.writ_served_date ? new Date(row.writ_served_date).toLocaleDateString() : '';
                 const pleadingsCount = Array.isArray(row.pleadings) ? row.pleadings.length : 0;
@@ -9630,7 +9598,7 @@
                     address, district, councilMember, individualLandlord,
                     // Backfill values
                     status, judge, serviceDate, judgmentDate, judgmentFor, judgmentType,
-                    caseDismissed, dismissalDate, evictionDate, evictionMethod, evictionExecuted,
+                    caseDismissed, dismissalDate,
                     writIssuedDate, writServedDate, pleadingsCount, pleadingsJson, judgmentsCount, judgmentsJson
                 ];
 
@@ -10469,11 +10437,8 @@
             { key: 'judgment_date', label: 'Judgment Date', type: 'date' },
             { key: 'judgment_for', label: 'Judgment For', type: 'select', options: ['Plaintiff', 'Defendant'] },
             { key: 'case_dismissed', label: 'Case Dismissed', type: 'boolean' },
-            { key: 'dismissal_date', label: 'Dismissal Date', type: 'date' },
-            // Eviction Execution
-            { key: 'eviction_executed', label: 'Eviction Executed', type: 'boolean' },
-            { key: 'eviction_date', label: 'Eviction Date', type: 'date' },
-            { key: 'eviction_method', label: 'Eviction Method', type: 'text' }
+            { key: 'dismissal_date', label: 'Dismissal Date', type: 'date' }
+            // eviction_executed, eviction_date, eviction_method removed - derived/interpreted fields
         ];
 
         // Available operators by field type
