@@ -488,7 +488,20 @@
             background: var(--primary);
             color: white;
         }
-        
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        .nav-link {
+            text-decoration: none;
+        }
+
         #dataGrid {
             height: 800px;
             border: 1px solid #e5e7eb;
@@ -2646,35 +2659,19 @@
                     </p>
                 </div>
                 <div class="flex items-center gap-4">
-                    <a href="map.html" class="btn btn-secondary" style="text-decoration: none; display: none;">
-                        🗺️ Hotspot Map
-                    </a>
-                    <a href="cm-rankings.html" class="btn btn-secondary" style="text-decoration: none;">
-                        📊 CM Rankings
-                    </a>
-                    <a href="provenance.html" class="btn btn-secondary" style="text-decoration: none;">
-                        📋 Methodology
-                    </a>
-                    <a href="event-log.html" class="btn btn-secondary" style="text-decoration: none;">
-                        📜 Event Log
-                    </a>
+                    <a href="map.html" class="btn btn-secondary nav-link hidden">🗺️ Hotspot Map</a>
+                    <a href="cm-rankings.html" class="btn btn-secondary nav-link">📊 CM Rankings</a>
+                    <a href="provenance.html" class="btn btn-secondary nav-link">📋 Methodology</a>
+                    <a href="event-log.html" class="btn btn-secondary nav-link">📜 Event Log</a>
                     <div class="flex items-center gap-2">
                         <span id="pollStatusDot" class="poll-status-dot active" title="Auto-refresh active"></span>
                         <span class="text-sm text-gray-500">Last Updated: <span id="lastUpdate">Loading...</span></span>
                         <span id="pollCountdown" class="text-xs text-gray-400"></span>
                     </div>
-                    <button id="refreshBtn" onclick="manualRefresh()" class="btn btn-secondary">
-                        🔄 Refresh
-                    </button>
-                    <button onclick="togglePolling()" class="btn btn-secondary text-xs" title="Toggle auto-refresh">
-                        ⏱️
-                    </button>
-                    <button id="loginBtn" onclick="showLoginModal()" class="btn btn-primary" style="background: #dc2626; padding: 10px 24px;">
-                        🔒 Login to View Tenant Names
-                    </button>
-                    <button id="logoutBtn" onclick="logout()" class="btn btn-secondary hidden">
-                        🔓 Logout
-                    </button>
+                    <button id="refreshBtn" onclick="manualRefresh()" class="btn btn-secondary">🔄 Refresh</button>
+                    <button onclick="togglePolling()" class="btn btn-secondary text-xs" title="Toggle auto-refresh">⏱️</button>
+                    <button id="loginBtn" onclick="showLoginModal()" class="btn btn-danger">🔒 Login to View Tenant Names</button>
+                    <button id="logoutBtn" onclick="logout()" class="btn btn-secondary hidden">🔓 Logout</button>
                 </div>
             </div>
         </div>
