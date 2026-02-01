@@ -2641,13 +2641,74 @@
             </div> <!-- End demographicsContent -->
         </div>
 
+        <!-- Advanced Filters Section -->
+        <div class="data-card p-6 mb-6" id="advancedFiltersSection">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Advanced Filters</h3>
+
+            <!-- Active Filter Summary -->
+            <div id="activeFilterSummary" class="active-filter-summary hidden">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <span class="font-semibold text-gray-700">Active Filter:</span>
+                        <span id="filterSummaryText" class="ml-2 text-gray-600"></span>
+                    </div>
+                    <button onclick="clearAdvancedFilters()" class="text-sm text-red-600 hover:text-red-800 font-medium">Clear Filter</button>
+                </div>
+            </div>
+
+            <!-- Saved Presets -->
+            <div id="savedPresetsSection" class="mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-semibold text-gray-700">Saved Filters</span>
+                </div>
+                <div id="presetsList" class="presets-list">
+                    <!-- Presets will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Filter Builder -->
+            <div class="filter-builder">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-semibold text-gray-700">Build Your Filter</span>
+                    <div class="flex gap-2">
+                        <button onclick="addFilterGroup()" class="add-condition-btn">+ Add Group</button>
+                    </div>
+                </div>
+
+                <!-- Root Filter Groups Container -->
+                <div id="filterGroupsContainer">
+                    <!-- Filter groups will be added here -->
+                </div>
+
+                <!-- Quick Date Filters -->
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Quick Filters</span>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        <button onclick="applyQuickFilter('last30')" class="add-condition-btn">Last 30 Days</button>
+                        <button onclick="applyQuickFilter('last90')" class="add-condition-btn">Last 90 Days</button>
+                        <button onclick="applyQuickFilter('lastYear')" class="add-condition-btn">Last Year</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Actions -->
+            <div class="filter-actions">
+                <button onclick="applyAdvancedFilters()" class="btn btn-primary">Apply Filter</button>
+                <button onclick="saveFilterPreset()" class="btn btn-secondary">Save as Preset</button>
+                <button onclick="clearAdvancedFilters()" class="btn btn-secondary">Clear All</button>
+            </div>
+
+            <!-- Hidden legacy inputs for compatibility -->
+            <input type="date" id="dateFrom" class="hidden">
+            <input type="date" id="dateTo" class="hidden">
+        </div>
+
         <!-- Search Section -->
         <div class="data-card p-6 mb-6">
             <div class="border-b border-gray-200 mb-4">
                 <div class="flex gap-2 flex-wrap">
                     <button onclick="setSearchTab('quick')" class="tab-btn active" id="quickTab">Quick Search</button>
                     <button onclick="setSearchTab('bulk')" class="tab-btn" id="bulkTab">Bulk Search</button>
-                    <button onclick="setSearchTab('filter')" class="tab-btn" id="filterTab">Advanced Filters</button>
                     <button onclick="setSearchTab('grouping')" class="tab-btn" id="groupingTab">Custom Grouping</button>
                     <button onclick="setSearchTab('demographics')" class="tab-btn demographics-tab-btn" id="demographicsTab">📊 District Demographics</button>
                     <button onclick="setSearchTab('benchmarks')" class="tab-btn" id="benchmarksTab" style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: white; border-radius: 6px;">🏙️ Metro Benchmarks</button>
@@ -2723,66 +2784,6 @@
                     </div>
                     <div id="bulkResults" class="mt-4 hidden max-h-96 overflow-y-auto border rounded-lg"></div>
                 </div>
-            </div>
-
-            <!-- Advanced Filters -->
-            <div id="filterSearch" class="search-panel hidden">
-                <!-- Active Filter Summary -->
-                <div id="activeFilterSummary" class="active-filter-summary hidden">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <span class="font-semibold text-gray-700">Active Filter:</span>
-                            <span id="filterSummaryText" class="ml-2 text-gray-600"></span>
-                        </div>
-                        <button onclick="clearAdvancedFilters()" class="text-sm text-red-600 hover:text-red-800 font-medium">Clear Filter</button>
-                    </div>
-                </div>
-
-                <!-- Saved Presets -->
-                <div id="savedPresetsSection" class="mb-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-sm font-semibold text-gray-700">Saved Filters</span>
-                    </div>
-                    <div id="presetsList" class="presets-list">
-                        <!-- Presets will be loaded here -->
-                    </div>
-                </div>
-
-                <!-- Filter Builder -->
-                <div class="filter-builder">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-sm font-semibold text-gray-700">Build Your Filter</span>
-                        <div class="flex gap-2">
-                            <button onclick="addFilterGroup()" class="add-condition-btn">+ Add Group</button>
-                        </div>
-                    </div>
-
-                    <!-- Root Filter Groups Container -->
-                    <div id="filterGroupsContainer">
-                        <!-- Filter groups will be added here -->
-                    </div>
-
-                    <!-- Quick Date Filters -->
-                    <div class="mt-4 pt-4 border-t border-gray-200">
-                        <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Quick Filters</span>
-                        <div class="mt-2 flex flex-wrap gap-2">
-                            <button onclick="applyQuickFilter('last30')" class="add-condition-btn">Last 30 Days</button>
-                            <button onclick="applyQuickFilter('last90')" class="add-condition-btn">Last 90 Days</button>
-                            <button onclick="applyQuickFilter('lastYear')" class="add-condition-btn">Last Year</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Filter Actions -->
-                <div class="filter-actions">
-                    <button onclick="applyAdvancedFilters()" class="btn btn-primary">Apply Filter</button>
-                    <button onclick="saveFilterPreset()" class="btn btn-secondary">Save as Preset</button>
-                    <button onclick="clearAdvancedFilters()" class="btn btn-secondary">Clear All</button>
-                </div>
-
-                <!-- Hidden legacy inputs for compatibility -->
-                <input type="date" id="dateFrom" class="hidden">
-                <input type="date" id="dateTo" class="hidden">
             </div>
 
             <!-- Custom Grouping Tab -->
@@ -4150,6 +4151,7 @@
             initCharts();  // Initialize charts before loading data
             await loadData();
             updatePivotControls();
+            initializeFilterBuilder();  // Initialize filter builder since it's always visible
 
             // Start auto-refresh polling (every 5 minutes)
             startPolling();
@@ -9031,15 +9033,9 @@
             // Show/hide panels
             document.getElementById('quickSearch').classList.toggle('hidden', tab !== 'quick');
             document.getElementById('bulkSearch').classList.toggle('hidden', tab !== 'bulk');
-            document.getElementById('filterSearch').classList.toggle('hidden', tab !== 'filter');
             document.getElementById('groupingSearch').classList.toggle('hidden', tab !== 'grouping');
             document.getElementById('demographicsSearch').classList.toggle('hidden', tab !== 'demographics');
             document.getElementById('benchmarksSearch').classList.toggle('hidden', tab !== 'benchmarks');
-
-            // Initialize filter builder when opening advanced filters tab
-            if (tab === 'filter') {
-                initializeFilterBuilder();
-            }
 
             // Load saved groupings when opening grouping tab
             if (tab === 'grouping') {
