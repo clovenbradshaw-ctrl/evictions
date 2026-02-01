@@ -3072,23 +3072,23 @@
     </div>
 
     <!-- Case Detail Modal -->
-    <div id="caseModal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-start md:items-center justify-center px-4 py-10 z-50 hidden" onclick="if (event.target === this) hideCaseModal()">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden transform transition-all">
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+    <div id="caseModal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-start justify-center px-4 py-6 z-50 hidden overflow-y-auto" onclick="if (event.target === this) hideCaseModal()">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-all my-auto">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
                 <div>
-                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Case Detail</p>
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Full Case Record</p>
                     <h3 id="caseModalTitle" class="text-xl font-bold text-gray-900">Docket #</h3>
                 </div>
-                <button class="text-gray-400 hover:text-gray-600 text-xl leading-none" onclick="hideCaseModal()" aria-label="Close case detail">
+                <button class="text-gray-400 hover:text-gray-600 text-2xl leading-none p-2" onclick="hideCaseModal()" aria-label="Close case detail">
                     &times;
                 </button>
             </div>
-            <div id="caseModalContent" class="p-6">
-                <div id="caseModalMeta" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"></div>
-                <div>
-                    <h4 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Parties &amp; Details</h4>
-                    <div id="caseModalDetails" class="space-y-3"></div>
-                </div>
+            <div id="caseModalContent" class="p-6 max-h-[80vh] overflow-y-auto">
+                <!-- Case Overview Meta Cards -->
+                <div id="caseModalMeta" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
+
+                <!-- Sections Container -->
+                <div id="caseModalSections" class="space-y-6"></div>
             </div>
         </div>
     </div>
@@ -7457,136 +7457,410 @@
 
             const title = document.getElementById('caseModalTitle');
             const metaContainer = document.getElementById('caseModalMeta');
-            const detailContainer = document.getElementById('caseModalDetails');
+            const sectionsContainer = document.getElementById('caseModalSections');
 
+            // Helper functions
             const formatDate = value => {
-                if (!value) return 'Not available';
+                if (!value) return null;
                 const date = new Date(value);
-                if (Number.isNaN(date.getTime())) return formatModalValue(value);
-                return date.toLocaleDateString();
+                if (Number.isNaN(date.getTime())) return String(value);
+                return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
             };
 
+            const formatCurrency = value => {
+                const numeric = Number(value);
+                return Number.isFinite(numeric) ? `$${numeric.toLocaleString()}` : value;
+            };
+
+            const formatBoolean = value => {
+                if (value === true) return 'Yes';
+                if (value === false) return 'No';
+                return null;
+            };
+
+            const getFieldValue = (record, ...keys) => {
+                for (const key of keys) {
+                    if (record[key] !== undefined && record[key] !== null && record[key] !== '') {
+                        return record[key];
+                    }
+                }
+                return null;
+            };
+
+            // Set title
             title.textContent = record.Case_Number ? `Docket #${record.Case_Number}` : 'Case Detail';
 
+            // Build meta cards (key stats at top)
+            const statusValue = getFieldValue(record, 'Status', 'status');
+            const statusColors = {
+                'PENDING': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+                'CLOSED': 'bg-gray-100 text-gray-800 border-gray-200',
+                'DISMISSED': 'bg-green-100 text-green-800 border-green-200',
+                'JUDGMENT': 'bg-red-100 text-red-800 border-red-200'
+            };
+            const statusColor = statusValue ? (statusColors[statusValue.toUpperCase()] || 'bg-blue-100 text-blue-800 border-blue-200') : null;
+
             const metaEntries = [
-                {
-                    label: 'Filed',
-                    value: formatDate(record.File_Date)
-                }
-            ];
+                { label: 'Filed', value: formatDate(getFieldValue(record, 'File_Date', 'file_date', 'filing_date')) },
+                { label: 'Status', value: statusValue, className: statusColor },
+                { label: 'District', value: getFieldValue(record, 'District', 'council_district_number', 'council_district'), isDistrict: true },
+                { label: 'Judge', value: getFieldValue(record, 'Judge', 'judge') }
+            ].filter(e => e.value);
 
             metaContainer.innerHTML = '';
             metaEntries.forEach(entry => {
                 const card = document.createElement('div');
-                card.className = 'p-4 bg-gray-50 rounded-lg border border-gray-100';
+                card.className = `p-3 rounded-lg border ${entry.className || 'bg-gray-50 border-gray-100'}`;
 
                 const labelEl = document.createElement('p');
                 labelEl.className = 'text-xs font-semibold text-gray-500 uppercase tracking-wide';
                 labelEl.textContent = entry.label;
 
                 const valueEl = document.createElement('p');
-                valueEl.className = `mt-1 text-base font-semibold ${entry.className || 'text-gray-900'}`;
-                valueEl.textContent = entry.value;
+                valueEl.className = 'mt-1 text-sm font-semibold text-gray-900';
+
+                if (entry.isDistrict && entry.value && entry.value !== 'Unknown') {
+                    const linkEl = document.createElement('span');
+                    linkEl.className = 'district-link cursor-pointer text-indigo-600 hover:text-indigo-800';
+                    linkEl.textContent = `District ${entry.value}`;
+                    linkEl.onclick = () => openDistrictModal(entry.value);
+                    linkEl.title = 'Click to view district demographics';
+                    valueEl.appendChild(linkEl);
+                } else {
+                    valueEl.textContent = entry.value;
+                }
 
                 card.appendChild(labelEl);
                 card.appendChild(valueEl);
                 metaContainer.appendChild(card);
             });
 
-            const defendantName = record.Defendant || record.defendant;
-            const districtValue = record.District || record.council_district_number || null;
-            const details = [
-                { label: 'Docket #', value: record.Case_Number || record.case_number || record.id },
-                {
-                    label: 'Council District',
-                    value: districtValue && districtValue !== 'Unknown' ? `District ${districtValue}` : null,
-                    isClickable: true,
-                    onClick: () => openDistrictModal(districtValue)
-                },
-                { label: 'Plaintiff / Landlord', value: record.Plaintiff || record.plaintiff },
-                { label: 'Defendant / Tenant', value: getDefendantDisplayName(defendantName) },
-                { label: 'Attorney of Record', value: record.Attorney || record.attorney },
-                { label: 'Case Notes', value: record.Notes || record.notes }
-            ];
+            // Helper to create a section
+            const createSection = (title, fields, options = {}) => {
+                const validFields = fields.filter(f => f.value !== null && f.value !== undefined && f.value !== '');
+                if (validFields.length === 0 && !options.showEmpty) return null;
 
-            const supplementalFields = [
-                { key: 'Disposition', label: 'Disposition' },
-                { key: 'Disposition_Date', label: 'Disposition Date', formatter: formatDate },
-                { key: 'Hearing_Date', label: 'Hearing Date', formatter: formatDate },
-                {
-                    key: 'Amount_Claimed',
-                    label: 'Amount Claimed',
-                    formatter: value => {
-                        const numeric = Number(value);
-                        return Number.isFinite(numeric) ? `$${numeric.toLocaleString()}` : formatModalValue(value);
-                    }
-                },
-                {
-                    key: 'Amount_Judgment',
-                    label: 'Judgment Amount',
-                    formatter: value => {
-                        const numeric = Number(value);
-                        return Number.isFinite(numeric) ? `$${numeric.toLocaleString()}` : formatModalValue(value);
-                    }
-                },
-            ];
+                const section = document.createElement('div');
+                section.className = `rounded-lg border ${options.borderColor || 'border-gray-200'} overflow-hidden`;
 
-            supplementalFields.forEach(field => {
-                const possibleKeys = typeof field.key === 'string'
-                    ? [field.key, field.key.toLowerCase()]
-                    : [field.key];
-
-                let fieldValue;
-                for (const key of possibleKeys) {
-                    if (key in record && record[key] !== undefined && record[key] !== null) {
-                        fieldValue = record[key];
-                        break;
-                    }
+                if (options.bgColor) {
+                    section.classList.add(options.bgColor);
                 }
 
-                if (fieldValue !== undefined && fieldValue !== null && String(fieldValue).trim() !== '') {
-                    details.push({
-                        label: field.label,
-                        value: typeof field.formatter === 'function' ? field.formatter(fieldValue) : fieldValue
+                const header = document.createElement('div');
+                header.className = `px-4 py-3 ${options.headerBg || 'bg-gray-50'} border-b ${options.borderColor || 'border-gray-200'}`;
+
+                const titleEl = document.createElement('h4');
+                titleEl.className = `text-sm font-semibold ${options.titleColor || 'text-gray-700'} uppercase tracking-wide flex items-center gap-2`;
+                if (options.icon) {
+                    titleEl.innerHTML = `${options.icon} ${title}`;
+                } else {
+                    titleEl.textContent = title;
+                }
+                header.appendChild(titleEl);
+                section.appendChild(header);
+
+                const content = document.createElement('div');
+                content.className = 'p-4 bg-white';
+
+                if (validFields.length === 0) {
+                    const emptyEl = document.createElement('p');
+                    emptyEl.className = 'text-sm text-gray-400 italic';
+                    emptyEl.textContent = options.emptyText || 'No data available';
+                    content.appendChild(emptyEl);
+                } else {
+                    const grid = document.createElement('div');
+                    grid.className = options.singleColumn ? 'space-y-3' : 'grid grid-cols-1 md:grid-cols-2 gap-3';
+
+                    validFields.forEach(field => {
+                        const item = document.createElement('div');
+                        item.className = field.fullWidth ? 'md:col-span-2' : '';
+
+                        const label = document.createElement('p');
+                        label.className = 'text-xs font-medium text-gray-500 uppercase tracking-wide';
+                        label.textContent = field.label;
+
+                        const value = document.createElement('p');
+                        value.className = `mt-1 text-sm ${field.valueClass || 'text-gray-900'} break-words`;
+
+                        if (field.isClickable && field.onClick) {
+                            const link = document.createElement('span');
+                            link.className = 'text-indigo-600 hover:text-indigo-800 cursor-pointer hover:underline';
+                            link.textContent = field.value;
+                            link.onclick = field.onClick;
+                            value.appendChild(link);
+                        } else if (field.isHtml) {
+                            value.innerHTML = field.value;
+                        } else {
+                            value.textContent = field.value;
+                        }
+
+                        item.appendChild(label);
+                        item.appendChild(value);
+                        grid.appendChild(item);
                     });
+                    content.appendChild(grid);
                 }
-            });
 
-            detailContainer.innerHTML = '';
-            details
-                .filter(detail => detail.value !== undefined && detail.value !== null && String(detail.value).trim() !== '')
-                .forEach(detail => {
+                section.appendChild(content);
+                return section;
+            };
+
+            // Helper to create timeline section for pleadings/judgments
+            const createTimelineSection = (title, items, options = {}) => {
+                if (!items || !Array.isArray(items) || items.length === 0) return null;
+
+                const section = document.createElement('div');
+                section.className = `rounded-lg border ${options.borderColor || 'border-gray-200'} overflow-hidden`;
+
+                const header = document.createElement('div');
+                header.className = `px-4 py-3 ${options.headerBg || 'bg-gray-50'} border-b ${options.borderColor || 'border-gray-200'}`;
+
+                const titleEl = document.createElement('h4');
+                titleEl.className = `text-sm font-semibold ${options.titleColor || 'text-gray-700'} uppercase tracking-wide flex items-center gap-2`;
+                titleEl.innerHTML = `${options.icon || ''} ${title} <span class="text-xs font-normal text-gray-500">(${items.length})</span>`;
+                header.appendChild(titleEl);
+                section.appendChild(header);
+
+                const content = document.createElement('div');
+                content.className = 'p-4 bg-white';
+
+                const timeline = document.createElement('div');
+                timeline.className = 'space-y-2';
+
+                items.forEach((item, index) => {
                     const row = document.createElement('div');
-                    row.className = 'border border-gray-100 rounded-lg p-4';
+                    row.className = `flex items-start gap-3 ${index < items.length - 1 ? 'pb-2 border-b border-gray-100' : ''}`;
 
-                    const labelEl = document.createElement('p');
-                    labelEl.className = 'text-xs font-semibold text-gray-500 uppercase tracking-wide';
-                    labelEl.textContent = detail.label;
+                    const dateEl = document.createElement('span');
+                    dateEl.className = 'text-xs font-medium text-gray-500 min-w-[80px]';
+                    dateEl.textContent = item.date ? formatDate(item.date) : '—';
 
-                    const valueEl = document.createElement('p');
-                    valueEl.className = 'mt-2 text-sm text-gray-900 leading-relaxed break-words';
-
-                    if (detail.isClickable && detail.onClick) {
-                        const linkEl = document.createElement('span');
-                        linkEl.className = 'district-link';
-                        linkEl.textContent = typeof detail.value === 'string' ? detail.value.trim() : detail.value;
-                        linkEl.onclick = detail.onClick;
-                        linkEl.title = 'Click to view district demographics';
-                        valueEl.appendChild(linkEl);
-                    } else {
-                        valueEl.textContent = typeof detail.value === 'string' ? detail.value.trim() : detail.value;
+                    const descEl = document.createElement('span');
+                    descEl.className = `text-sm ${options.itemClass || 'text-gray-700'}`;
+                    descEl.textContent = item.description || item.code || item.type || '';
+                    if (item.for) {
+                        descEl.textContent += ` (${item.for})`;
                     }
 
-                    row.appendChild(labelEl);
-                    row.appendChild(valueEl);
-                    detailContainer.appendChild(row);
+                    row.appendChild(dateEl);
+                    row.appendChild(descEl);
+                    timeline.appendChild(row);
                 });
 
-            if (!detailContainer.childElementCount) {
+                content.appendChild(timeline);
+                section.appendChild(content);
+                return section;
+            };
+
+            // Clear sections container
+            sectionsContainer.innerHTML = '';
+
+            // 1. PARTIES SECTION
+            const defendantName = getFieldValue(record, 'Defendant', 'defendant', 'Defendant_Respondent', 'defendant_respondent');
+            const partiesSection = createSection('Parties', [
+                { label: 'Plaintiff / Landlord', value: getFieldValue(record, 'Plaintiff', 'plaintiff', 'Plaintiff_Petitioner', 'plaintiff_petitioner'), fullWidth: true },
+                { label: 'Defendant / Tenant', value: defendantName ? getDefendantDisplayName(defendantName) : null, fullWidth: true },
+                { label: 'Landlord Attorney', value: getFieldValue(record, 'Attorney', 'attorney', 'plaintiff_attorney') },
+                { label: 'Defense Attorney', value: getFieldValue(record, 'Defense_Attorney', 'defense_attorney') },
+                { label: 'Individual Landlord', value: formatBoolean(getFieldValue(record, 'individual_ll', 'Individual_LL')) }
+            ], { icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>' });
+            if (partiesSection) sectionsContainer.appendChild(partiesSection);
+
+            // 2. PROPERTY SECTION
+            const address = getFieldValue(record, 'Address', 'address', 'Address_1', 'address_1');
+            const address2 = getFieldValue(record, 'Address_2', 'address_2');
+            const cityStateZip = getFieldValue(record, 'city_state_zip', 'City_State_Zip');
+            const formattedAddress = getFieldValue(record, 'address_formatted', 'formatted_address');
+            const lat = getFieldValue(record, 'latitude', 'lat');
+            const lng = getFieldValue(record, 'longitude', 'lng', 'lon');
+
+            const propertySection = createSection('Property', [
+                { label: 'Street Address', value: formattedAddress || address, fullWidth: true },
+                { label: 'Address Line 2', value: address2 },
+                { label: 'City, State, ZIP', value: cityStateZip },
+                { label: 'Coordinates', value: lat && lng ? `${lat}, ${lng}` : null },
+                { label: 'Council Member', value: getFieldValue(record, 'council_member', 'Council_Member') }
+            ], { icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>' });
+            if (propertySection) sectionsContainer.appendChild(propertySection);
+
+            // 3. WRIT & SHERIFF SERVICE SECTION (HIGHLIGHTED)
+            const writIssued = getFieldValue(record, 'writ_issued_date', 'Writ_Issued_Date');
+            const writServed = getFieldValue(record, 'writ_served_date', 'Writ_Served_Date');
+            const serviceDate = getFieldValue(record, 'service_date', 'Service_Date');
+
+            const hasWritData = writIssued || writServed;
+            const writSection = createSection('Writ & Sheriff Execution', [
+                { label: 'Summons Served', value: formatDate(serviceDate) },
+                {
+                    label: 'Writ of Restitution Issued',
+                    value: formatDate(writIssued),
+                    valueClass: writIssued ? 'text-orange-700 font-semibold' : 'text-gray-900'
+                },
+                {
+                    label: 'Sheriff Paper Return (Physical Removal)',
+                    value: formatDate(writServed),
+                    valueClass: writServed ? 'text-red-700 font-bold' : 'text-gray-900'
+                }
+            ], {
+                icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>',
+                headerBg: hasWritData ? 'bg-orange-50' : 'bg-gray-50',
+                borderColor: hasWritData ? 'border-orange-200' : 'border-gray-200',
+                titleColor: hasWritData ? 'text-orange-800' : 'text-gray-700',
+                showEmpty: true,
+                emptyText: 'No writ or sheriff execution data recorded'
+            });
+            if (writSection) sectionsContainer.appendChild(writSection);
+
+            // 4. JUDGMENT & OUTCOME SECTION
+            const judgmentFor = getFieldValue(record, 'judgment_for', 'Judgment_For');
+            const judgmentSection = createSection('Judgment & Outcome', [
+                { label: 'Hearing Date', value: formatDate(getFieldValue(record, 'Hearing_Date', 'hearing_date')) },
+                { label: 'Judgment Date', value: formatDate(getFieldValue(record, 'judgment_date', 'Judgment_Date')) },
+                {
+                    label: 'Judgment For',
+                    value: judgmentFor,
+                    valueClass: judgmentFor ? (judgmentFor.toLowerCase().includes('plaintiff') ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold') : 'text-gray-900'
+                },
+                { label: 'Judgment Type', value: getFieldValue(record, 'judgment_type', 'Judgment_Type') },
+                { label: 'Disposition', value: getFieldValue(record, 'Disposition', 'disposition') },
+                { label: 'Disposition Date', value: formatDate(getFieldValue(record, 'Disposition_Date', 'disposition_date')) },
+                {
+                    label: 'Case Dismissed',
+                    value: formatBoolean(getFieldValue(record, 'case_dismissed', 'Case_Dismissed')),
+                    valueClass: record.case_dismissed === true ? 'text-green-600 font-semibold' : 'text-gray-900'
+                },
+                { label: 'Dismissal Date', value: formatDate(getFieldValue(record, 'dismissal_date', 'Dismissal_Date')) }
+            ], { icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>' });
+            if (judgmentSection) sectionsContainer.appendChild(judgmentSection);
+
+            // 5. EVICTION EXECUTION SECTION (HIGHLIGHTED IF EXECUTED)
+            const evictionExecuted = getFieldValue(record, 'eviction_executed', 'Eviction_Executed');
+            const evictionDate = getFieldValue(record, 'eviction_date', 'Eviction_Date');
+            const evictionMethod = getFieldValue(record, 'eviction_method', 'Eviction_Method');
+
+            const hasEvictionData = evictionExecuted === true || evictionDate || evictionMethod;
+            const evictionSection = createSection('Eviction Execution', [
+                {
+                    label: 'Eviction Executed',
+                    value: formatBoolean(evictionExecuted),
+                    valueClass: evictionExecuted === true ? 'text-red-700 font-bold' : 'text-gray-900'
+                },
+                {
+                    label: 'Eviction Date',
+                    value: formatDate(evictionDate),
+                    valueClass: evictionDate ? 'text-red-600 font-semibold' : 'text-gray-900'
+                },
+                { label: 'Eviction Method', value: evictionMethod }
+            ], {
+                icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>',
+                headerBg: evictionExecuted === true ? 'bg-red-50' : 'bg-gray-50',
+                borderColor: evictionExecuted === true ? 'border-red-200' : 'border-gray-200',
+                titleColor: evictionExecuted === true ? 'text-red-800' : 'text-gray-700',
+                showEmpty: true,
+                emptyText: 'No eviction execution data recorded'
+            });
+            if (evictionSection) sectionsContainer.appendChild(evictionSection);
+
+            // 6. FINANCIAL SECTION
+            const financialSection = createSection('Financial', [
+                { label: 'Amount Claimed', value: getFieldValue(record, 'Amount_Claimed', 'amount_claimed') ? formatCurrency(getFieldValue(record, 'Amount_Claimed', 'amount_claimed')) : null },
+                { label: 'Judgment Amount', value: getFieldValue(record, 'Amount_Judgment', 'amount_judgment') ? formatCurrency(getFieldValue(record, 'Amount_Judgment', 'amount_judgment')) : null }
+            ], { icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>' });
+            if (financialSection) sectionsContainer.appendChild(financialSection);
+
+            // 7. PLEADINGS TIMELINE
+            const pleadings = record.pleadings;
+            const pleadingsSection = createTimelineSection('Court Filings (Pleadings)', pleadings, {
+                icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
+                itemClass: 'text-gray-700'
+            });
+            if (pleadingsSection) sectionsContainer.appendChild(pleadingsSection);
+
+            // 8. JUDGMENTS TIMELINE
+            const judgments = record.judgments;
+            const judgmentsSection = createTimelineSection('Judgments', judgments, {
+                icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>',
+                headerBg: 'bg-red-50',
+                borderColor: 'border-red-200',
+                titleColor: 'text-red-800',
+                itemClass: 'text-red-700'
+            });
+            if (judgmentsSection) sectionsContainer.appendChild(judgmentsSection);
+
+            // 9. CASE NOTES
+            const notes = getFieldValue(record, 'Notes', 'notes');
+            if (notes) {
+                const notesSection = createSection('Notes', [
+                    { label: 'Case Notes', value: notes, fullWidth: true }
+                ], {
+                    icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>',
+                    singleColumn: true
+                });
+                if (notesSection) sectionsContainer.appendChild(notesSection);
+            }
+
+            // 10. ALL OTHER DATA (catch-all for any fields we haven't explicitly handled)
+            const handledKeys = new Set([
+                'Case_Number', 'case_number', 'id', 'File_Date', 'file_date', 'filing_date',
+                'Status', 'status', 'District', 'council_district_number', 'council_district',
+                'Judge', 'judge', 'Plaintiff', 'plaintiff', 'Plaintiff_Petitioner', 'plaintiff_petitioner',
+                'Defendant', 'defendant', 'Defendant_Respondent', 'defendant_respondent',
+                'Attorney', 'attorney', 'plaintiff_attorney', 'Defense_Attorney', 'defense_attorney',
+                'individual_ll', 'Individual_LL', 'Address', 'address', 'Address_1', 'address_1',
+                'Address_2', 'address_2', 'city_state_zip', 'City_State_Zip',
+                'address_formatted', 'formatted_address', 'latitude', 'lat', 'longitude', 'lng', 'lon',
+                'council_member', 'Council_Member', 'writ_issued_date', 'Writ_Issued_Date',
+                'writ_served_date', 'Writ_Served_Date', 'service_date', 'Service_Date',
+                'Hearing_Date', 'hearing_date', 'judgment_date', 'Judgment_Date',
+                'judgment_for', 'Judgment_For', 'judgment_type', 'Judgment_Type',
+                'Disposition', 'disposition', 'Disposition_Date', 'disposition_date',
+                'case_dismissed', 'Case_Dismissed', 'dismissal_date', 'Dismissal_Date',
+                'eviction_executed', 'Eviction_Executed', 'eviction_date', 'Eviction_Date',
+                'eviction_method', 'Eviction_Method', 'Amount_Claimed', 'amount_claimed',
+                'Amount_Judgment', 'amount_judgment', 'pleadings', 'judgments', 'Notes', 'notes',
+                'Office', 'office', 'Description', 'description', 'logged_at', 'action', 'case_data'
+            ]);
+
+            const otherFields = [];
+            for (const [key, value] of Object.entries(record)) {
+                if (handledKeys.has(key)) continue;
+                if (value === null || value === undefined || value === '') continue;
+                if (typeof value === 'object' && !Array.isArray(value)) continue; // Skip nested objects
+
+                // Format the key nicely
+                const label = key
+                    .replace(/_/g, ' ')
+                    .replace(/([A-Z])/g, ' $1')
+                    .replace(/\s+/g, ' ')
+                    .trim()
+                    .split(' ')
+                    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                    .join(' ');
+
+                let displayValue = value;
+                if (Array.isArray(value)) {
+                    displayValue = JSON.stringify(value);
+                } else if (typeof value === 'boolean') {
+                    displayValue = value ? 'Yes' : 'No';
+                }
+
+                otherFields.push({ label, value: String(displayValue) });
+            }
+
+            if (otherFields.length > 0) {
+                const otherSection = createSection('Additional Data', otherFields, {
+                    icon: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>'
+                });
+                if (otherSection) sectionsContainer.appendChild(otherSection);
+            }
+
+            // Show if no sections were added
+            if (sectionsContainer.childElementCount === 0) {
                 const emptyEl = document.createElement('p');
-                emptyEl.className = 'text-sm text-gray-500';
+                emptyEl.className = 'text-sm text-gray-500 text-center py-8';
                 emptyEl.textContent = 'No additional details available for this record.';
-                detailContainer.appendChild(emptyEl);
+                sectionsContainer.appendChild(emptyEl);
             }
 
             modal.classList.remove('hidden');
@@ -10179,11 +10453,27 @@
         const filterableFields = [
             { key: 'Plaintiff', label: 'Plaintiff/Landlord', type: 'text' },
             { key: 'Defendant', label: 'Defendant/Tenant', type: 'text' },
-            { key: 'Attorney', label: 'Attorney', type: 'text' },
+            { key: 'Attorney', label: 'Landlord Attorney', type: 'text' },
+            { key: 'Defense_Attorney', label: 'Defense Attorney', type: 'text' },
             { key: 'Case_Number', label: 'Case Number', type: 'text' },
             { key: 'District', label: 'Council District', type: 'text' },
             { key: 'File_Date', label: 'File Date', type: 'date' },
-            { key: 'Address', label: 'Address', type: 'text' }
+            { key: 'Address', label: 'Address', type: 'text' },
+            { key: 'Status', label: 'Status', type: 'select', options: ['PENDING', 'CLOSED', 'DISMISSED', 'JUDGMENT'] },
+            { key: 'Judge', label: 'Judge', type: 'text' },
+            // Service & Writ
+            { key: 'service_date', label: 'Service Date', type: 'date' },
+            { key: 'writ_issued_date', label: 'Writ of Restitution Issued', type: 'date' },
+            { key: 'writ_served_date', label: 'Sheriff Paper Return (Physical Removal)', type: 'date' },
+            // Judgment
+            { key: 'judgment_date', label: 'Judgment Date', type: 'date' },
+            { key: 'judgment_for', label: 'Judgment For', type: 'select', options: ['Plaintiff', 'Defendant'] },
+            { key: 'case_dismissed', label: 'Case Dismissed', type: 'boolean' },
+            { key: 'dismissal_date', label: 'Dismissal Date', type: 'date' },
+            // Eviction Execution
+            { key: 'eviction_executed', label: 'Eviction Executed', type: 'boolean' },
+            { key: 'eviction_date', label: 'Eviction Date', type: 'date' },
+            { key: 'eviction_method', label: 'Eviction Method', type: 'text' }
         ];
 
         // Available operators by field type
@@ -10208,7 +10498,13 @@
                 { key: 'before', label: 'Before' },
                 { key: 'after', label: 'After' },
                 { key: 'between', label: 'Between' },
-                { key: 'last_n_days', label: 'In last N days' }
+                { key: 'last_n_days', label: 'In last N days' },
+                { key: 'is_empty', label: 'Has no date' },
+                { key: 'is_not_empty', label: 'Has a date' }
+            ],
+            boolean: [
+                { key: 'equals', label: 'Is' },
+                { key: 'is_empty', label: 'Not recorded' }
             ]
         };
 
@@ -10397,8 +10693,14 @@
 
             if (needsNoValue) {
                 valueInput = '<span class="text-gray-400 text-sm italic">No value needed</span>';
+            } else if (fieldDef.type === 'boolean') {
+                valueInput = `<select onchange="updateCondition(${groupId}, ${condition.id}, 'value', this.value)">
+                    <option value="">Select...</option>
+                    <option value="true" ${condition.value === 'true' ? 'selected' : ''}>Yes</option>
+                    <option value="false" ${condition.value === 'false' ? 'selected' : ''}>No</option>
+                </select>`;
             } else if (fieldDef.type === 'select') {
-                const selectOptions = fieldDef.options.map(opt =>
+                const selectOptions = (fieldDef.options || []).map(opt =>
                     `<option value="${opt}" ${condition.value === opt ? 'selected' : ''}>${opt}</option>`
                 ).join('');
                 valueInput = `<select onchange="updateCondition(${groupId}, ${condition.id}, 'value', this.value)">
@@ -10457,11 +10759,24 @@
                 case 'not_contains':
                     return !strValue.includes(compareValue);
                 case 'equals':
+                    if (fieldDef?.type === 'boolean') {
+                        // Handle boolean comparison - condition.value is 'true' or 'false' string
+                        const boolValue = condition.value === 'true';
+                        return recordValue === boolValue;
+                    }
                     if (fieldDef?.type === 'date') {
                         return recordValue === condition.value;
                     }
+                    if (fieldDef?.type === 'select') {
+                        // Case-insensitive match for select fields
+                        return strValue === compareValue;
+                    }
                     return strValue === compareValue;
                 case 'not_equals':
+                    if (fieldDef?.type === 'boolean') {
+                        const boolValue = condition.value === 'true';
+                        return recordValue !== boolValue;
+                    }
                     if (fieldDef?.type === 'date') {
                         return recordValue !== condition.value;
                     }
@@ -10622,15 +10937,20 @@
 
                     let conditionText = `<code>${fieldLabel}</code> `;
 
+                    // Format value for display (convert boolean strings to Yes/No)
+                    const displayValue = fieldDef?.type === 'boolean'
+                        ? (condition.value === 'true' ? 'Yes' : 'No')
+                        : condition.value;
+
                     switch (condition.operator) {
                         case 'contains': conditionText += `contains "${condition.value}"`; break;
                         case 'not_contains': conditionText += `doesn't contain "${condition.value}"`; break;
-                        case 'equals': conditionText += `= "${condition.value}"`; break;
-                        case 'not_equals': conditionText += `≠ "${condition.value}"`; break;
+                        case 'equals': conditionText += `= "${displayValue}"`; break;
+                        case 'not_equals': conditionText += `≠ "${displayValue}"`; break;
                         case 'starts_with': conditionText += `starts with "${condition.value}"`; break;
                         case 'ends_with': conditionText += `ends with "${condition.value}"`; break;
-                        case 'is_empty': conditionText += 'is empty'; break;
-                        case 'is_not_empty': conditionText += 'is not empty'; break;
+                        case 'is_empty': conditionText += fieldDef?.type === 'date' ? 'has no date' : 'is empty'; break;
+                        case 'is_not_empty': conditionText += fieldDef?.type === 'date' ? 'has a date' : 'is not empty'; break;
                         case 'before': conditionText += `before ${condition.value}`; break;
                         case 'after': conditionText += `after ${condition.value}`; break;
                         case 'between': conditionText += `between ${condition.value} and ${condition.value2}`; break;
