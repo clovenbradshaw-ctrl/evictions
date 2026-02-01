@@ -4546,6 +4546,7 @@
                         updateMetrics();
                         updateCharts();
                         createDistrictMap();
+                        await loadDistrictDemographics();
                         initDemographicsCharts();
                         initGrid();
                         document.getElementById('lastUpdate').textContent = storedTimestamp
@@ -7101,6 +7102,9 @@
                         pivotData = buildPivotData(pivotDimension);
                         gridApi.setColumnDefs(getPivotColumnDefs());
                         gridApi.setRowData(pivotData);
+                    } else {
+                        // Ensure records mode has correct data after grid is ready
+                        gridApi.setRowData(filteredData);
                     }
                     updateRecordCount();
                 }
