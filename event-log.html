@@ -97,7 +97,7 @@
         }
 
         .main-container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
             padding: 32px 24px;
         }
@@ -107,7 +107,7 @@
             border: 1px solid #86efac;
             border-radius: 12px;
             padding: 24px;
-            margin-bottom: 32px;
+            margin-bottom: 24px;
         }
 
         .page-intro h2 {
@@ -158,7 +158,7 @@
 
         .controls-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 16px;
         }
 
@@ -194,7 +194,7 @@
 
         .stats-bar {
             display: flex;
-            gap: 24px;
+            gap: 16px;
             flex-wrap: wrap;
             margin-bottom: 24px;
         }
@@ -203,83 +203,32 @@
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 10px;
-            padding: 16px 20px;
-            min-width: 140px;
+            padding: 14px 18px;
+            min-width: 120px;
         }
 
         .stat-label {
-            font-size: 12px;
+            font-size: 11px;
             color: #6b7280;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
 
         .stat-value {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: 700;
             color: #111827;
-            margin-top: 4px;
-        }
-
-        .event-list {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        .event-list-header {
-            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-            padding: 16px 20px;
-            border-bottom: 1px solid #e5e7eb;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .event-list-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #111827;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .event-item {
-            padding: 16px 20px;
-            border-bottom: 1px solid #f3f4f6;
-            transition: background 0.2s;
-        }
-
-        .event-item:last-child {
-            border-bottom: none;
-        }
-
-        .event-item:hover {
-            background: #f9fafb;
-        }
-
-        .event-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 10px;
-        }
-
-        .event-header-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            margin-top: 2px;
         }
 
         .event-op {
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            display: inline-block;
         }
 
         .op-INS { background: #dcfce7; color: #166534; }
@@ -292,51 +241,74 @@
         .op-DES { background: #f3f4f6; color: #374151; }
         .op-REC { background: #fce7f3; color: #9d174d; }
 
-        .event-entity {
-            font-size: 14px;
+        .table-container {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .table-header {
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            padding: 16px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .table-title {
+            font-size: 16px;
             font-weight: 600;
             color: #111827;
-            font-family: 'Monaco', 'Consolas', monospace;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .event-time {
+        .event-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .event-table thead {
+            background: #f9fafb;
+            position: sticky;
+            top: 0;
+        }
+
+        .event-table th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+            white-space: nowrap;
+        }
+
+        .event-table td {
+            padding: 10px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            color: #374151;
+            vertical-align: top;
+        }
+
+        .event-table tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .entity-id {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-weight: 600;
+            color: #111827;
+            font-size: 12px;
+        }
+
+        .timestamp {
             font-size: 12px;
             color: #6b7280;
-        }
-
-        .event-meaning {
-            font-size: 13px;
-            color: #6b7280;
-            margin-bottom: 10px;
-        }
-
-        .event-details {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 12px;
-        }
-
-        .event-detail-row {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 6px;
-            font-size: 13px;
-        }
-
-        .event-detail-row:last-child {
-            margin-bottom: 0;
-        }
-
-        .detail-label {
-            font-weight: 600;
-            color: #6b7280;
-            min-width: 100px;
-        }
-
-        .detail-value {
-            color: #374151;
-            word-break: break-word;
+            white-space: nowrap;
         }
 
         .redacted {
@@ -344,35 +316,34 @@
             color: #991b1b;
             padding: 2px 6px;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 11px;
             font-style: italic;
         }
 
-        .changes-list {
-            margin-top: 8px;
+        .details-cell {
+            max-width: 400px;
         }
 
-        .change-item {
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            padding: 8px 10px;
-            margin-bottom: 6px;
+        .detail-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 4px;
             font-size: 12px;
         }
 
-        .change-item:last-child {
+        .detail-row:last-child {
             margin-bottom: 0;
         }
 
-        .change-field {
+        .detail-key {
             font-weight: 600;
-            color: #111827;
+            color: #6b7280;
+            min-width: 80px;
         }
 
-        .change-arrow {
-            color: #6b7280;
-            margin: 0 6px;
+        .detail-value {
+            color: #374151;
+            word-break: break-word;
         }
 
         .change-old {
@@ -382,6 +353,18 @@
 
         .change-new {
             color: #166534;
+        }
+
+        .change-arrow {
+            color: #9ca3af;
+        }
+
+        .source-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            background: #f3f4f6;
+            color: #6b7280;
+            border-radius: 4px;
         }
 
         .loading-state {
@@ -415,12 +398,13 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
-            padding: 20px;
+            padding: 16px;
             border-top: 1px solid #e5e7eb;
+            background: #f9fafb;
         }
 
         .pagination-btn {
-            padding: 8px 14px;
+            padding: 6px 12px;
             border: 1px solid #e5e7eb;
             border-radius: 6px;
             background: white;
@@ -443,6 +427,16 @@
         .pagination-info {
             font-size: 13px;
             color: #6b7280;
+            margin: 0 12px;
+        }
+
+        .per-page-select {
+            padding: 6px 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+            margin-left: 12px;
         }
 
         .footer {
@@ -461,15 +455,15 @@
             background: white;
             border: 1px solid #e5e7eb;
             border-radius: 12px;
-            padding: 20px;
+            padding: 16px 20px;
             margin-bottom: 24px;
         }
 
         .legend-title {
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             color: #111827;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
 
         .legend-grid {
@@ -481,9 +475,24 @@
         .legend-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 12px;
+            gap: 6px;
+            font-size: 11px;
             color: #6b7280;
+        }
+
+        .progress-bar {
+            width: 200px;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.3s;
         }
 
         @media (max-width: 768px) {
@@ -513,10 +522,12 @@
                 width: 100%;
             }
 
-            .event-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 8px;
+            .event-table {
+                font-size: 11px;
+            }
+
+            .event-table th, .event-table td {
+                padding: 8px;
             }
         }
     </style>
@@ -565,42 +576,15 @@
         <div class="legend">
             <div class="legend-title">Event Operators</div>
             <div class="legend-grid">
-                <div class="legend-item">
-                    <span class="event-op op-INS">INS</span>
-                    <span>New case filed</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-ALT">ALT</span>
-                    <span>Case updated</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-NUL">NUL</span>
-                    <span>Case deleted/archived</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-CON">CON</span>
-                    <span>Cases linked</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-SYN">SYN</span>
-                    <span>Cases merged</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-SEG">SEG</span>
-                    <span>Case categorized</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-SUP">SUP</span>
-                    <span>Context added</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-DES">DES</span>
-                    <span>Entity defined</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-REC">REC</span>
-                    <span>Pattern learned</span>
-                </div>
+                <div class="legend-item"><span class="event-op op-INS">INS</span><span>New case filed</span></div>
+                <div class="legend-item"><span class="event-op op-ALT">ALT</span><span>Case updated</span></div>
+                <div class="legend-item"><span class="event-op op-NUL">NUL</span><span>Deleted/archived</span></div>
+                <div class="legend-item"><span class="event-op op-CON">CON</span><span>Cases linked</span></div>
+                <div class="legend-item"><span class="event-op op-SYN">SYN</span><span>Cases merged</span></div>
+                <div class="legend-item"><span class="event-op op-SEG">SEG</span><span>Categorized</span></div>
+                <div class="legend-item"><span class="event-op op-SUP">SUP</span><span>Context added</span></div>
+                <div class="legend-item"><span class="event-op op-DES">DES</span><span>Defined</span></div>
+                <div class="legend-item"><span class="event-op op-REC">REC</span><span>Reconfigured</span></div>
             </div>
         </div>
 
@@ -627,16 +611,16 @@
                     <input type="text" id="entitySearch" class="control-input" placeholder="e.g., 24GC1234">
                 </div>
                 <div class="control-group">
-                    <label class="control-label">Date Range Start</label>
+                    <label class="control-label">Date Start</label>
                     <input type="date" id="dateStart" class="control-input">
                 </div>
                 <div class="control-group">
-                    <label class="control-label">Date Range End</label>
+                    <label class="control-label">Date End</label>
                     <input type="date" id="dateEnd" class="control-input">
                 </div>
                 <div class="control-group" style="justify-content: flex-end;">
                     <button id="refreshBtn" class="btn btn-primary">
-                        <span>🔄</span> Refresh Events
+                        🔄 Refresh
                     </button>
                 </div>
             </div>
@@ -662,10 +646,10 @@
             </div>
         </div>
 
-        <!-- Event List -->
-        <div class="event-list">
-            <div class="event-list-header">
-                <div class="event-list-title">
+        <!-- Event Table -->
+        <div class="table-container">
+            <div class="table-header">
+                <div class="table-title">
                     <span>📋</span>
                     Event History
                 </div>
@@ -674,17 +658,49 @@
                 </div>
             </div>
 
-            <div id="eventContainer">
-                <div class="loading-state">
-                    <div class="spinner"></div>
-                    <div>Loading events...</div>
-                </div>
+            <div id="tableWrapper" style="overflow-x: auto;">
+                <table class="event-table" id="eventTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 70px;">Op</th>
+                            <th style="width: 120px;">Entity ID</th>
+                            <th style="width: 160px;">Timestamp</th>
+                            <th style="width: 180px;">Description</th>
+                            <th>Details</th>
+                            <th style="width: 80px;">Source</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eventTableBody">
+                        <tr>
+                            <td colspan="6">
+                                <div class="loading-state">
+                                    <div class="spinner"></div>
+                                    <div>Loading all events...</div>
+                                    <div class="progress-bar" id="loadProgressBar" style="display: none; margin: 12px auto 0;">
+                                        <div class="progress-fill" id="loadProgressFill" style="width: 0%"></div>
+                                    </div>
+                                    <div id="loadProgressText" style="font-size: 12px; margin-top: 8px;"></div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
             <div class="pagination" id="pagination" style="display: none;">
-                <button class="pagination-btn" id="prevBtn" disabled>← Previous</button>
-                <span class="pagination-info">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+                <button class="pagination-btn" id="firstBtn">« First</button>
+                <button class="pagination-btn" id="prevBtn">← Prev</button>
+                <span class="pagination-info">
+                    Page <span id="currentPage">1</span> of <span id="totalPages">1</span>
+                </span>
                 <button class="pagination-btn" id="nextBtn">Next →</button>
+                <button class="pagination-btn" id="lastBtn">Last »</button>
+                <select class="per-page-select" id="perPageSelect">
+                    <option value="50">50 / page</option>
+                    <option value="100" selected>100 / page</option>
+                    <option value="250">250 / page</option>
+                    <option value="500">500 / page</option>
+                </select>
             </div>
         </div>
     </main>
@@ -694,7 +710,7 @@
             <strong>Nashville Eviction Tracker</strong> — Community Project (UNOFFICIAL)
         </p>
         <p style="font-size: 13px;">
-            Event sourcing powered by <a href="https://epistemic-operators.org" target="_blank">Epistemic Operators</a> |
+            Event sourcing powered by <a href="provenance.html">Epistemic Operators</a> |
             <a href="provenance.html">Data Provenance</a>
         </p>
         <p style="font-size: 12px; margin-top: 12px; color: #6b7280;">
@@ -710,94 +726,33 @@
         // REDACTION UTILITIES
         // =============================================================================
 
-        // Fields that contain sensitive tenant information to redact
         const SENSITIVE_FIELDS = [
-            'Defendant_Respondent',
-            'defendant_respondent',
-            'defendant',
-            'Defendant',
-            'Address_1',
-            'Address_2',
-            'address_1',
-            'address_2',
-            'address',
-            'Address',
-            'address_formatted',
-            'city_state_zip'
+            'Defendant_Respondent', 'defendant_respondent', 'defendant', 'Defendant',
+            'Address_1', 'Address_2', 'address_1', 'address_2', 'address', 'Address',
+            'address_formatted', 'city_state_zip'
         ];
 
-        // Fields that are always safe to show
-        const SAFE_FIELDS = [
-            'Docket_Number',
-            'docket_number',
-            'Status',
-            'status',
-            'File_Date',
-            'file_date',
-            'Plaintiff_Petitioner',
-            'plaintiff_petitioner',
-            'plaintiff',
-            'Attorney',
-            'attorney',
-            'council_district',
-            'council_district_number',
-            'judge',
-            'judgment_for',
-            'judgment_date',
-            'judgment_type',
-            'case_dismissed',
-            'dismissal_date',
-            'eviction_date',
-            'eviction_method',
-            'eviction_executed',
-            'writ_issued_date',
-            'writ_served_date',
-            'individual_ll',
-            'latitude',
-            'longitude'
-        ];
-
-        /**
-         * Deterministic name scrambling (same input always produces same output)
-         */
         function scrambleName(name) {
             if (!name || typeof name !== 'string') return '[REDACTED]';
-
-            // Simple hash-based approach for consistent scrambling
             let hash = 0;
             for (let i = 0; i < name.length; i++) {
                 hash = ((hash << 5) - hash) + name.charCodeAt(i);
-                hash = hash & hash; // Convert to 32bit integer
+                hash = hash & hash;
             }
-
             const firstNames = ['J.', 'M.', 'R.', 'S.', 'A.', 'D.', 'K.', 'T.', 'L.', 'C.'];
             const lastParts = ['***', '****', '*****', '******'];
-
-            const firstIdx = Math.abs(hash) % firstNames.length;
-            const lastIdx = Math.abs(hash >> 4) % lastParts.length;
-
-            return `${firstNames[firstIdx]} ${lastParts[lastIdx]}`;
+            return `${firstNames[Math.abs(hash) % firstNames.length]} ${lastParts[Math.abs(hash >> 4) % lastParts.length]}`;
         }
 
-        /**
-         * Redact address to show only general area
-         */
         function redactAddress(address) {
             if (!address || typeof address !== 'string') return '[ADDRESS REDACTED]';
-
-            // Try to extract just the city/state portion
             const parts = address.split(',');
             if (parts.length > 1) {
-                // Return last part (usually city/state/zip)
                 return `[REDACTED], ${parts[parts.length - 1].trim()}`;
             }
-
             return '[ADDRESS REDACTED]';
         }
 
-        /**
-         * Check if a field name is sensitive
-         */
         function isSensitiveField(fieldName) {
             const normalized = fieldName.toLowerCase();
             return SENSITIVE_FIELDS.some(f => f.toLowerCase() === normalized) ||
@@ -806,70 +761,10 @@
                    normalized.includes('tenant');
         }
 
-        /**
-         * Redact a value based on field name
-         */
-        function redactValue(fieldName, value) {
-            if (!isSensitiveField(fieldName)) {
-                return formatValue(value);
-            }
-
-            const normalized = fieldName.toLowerCase();
-
-            if (normalized.includes('defendant') || normalized.includes('tenant')) {
-                return `<span class="redacted">${scrambleName(value)}</span>`;
-            }
-
-            if (normalized.includes('address')) {
-                return `<span class="redacted">${redactAddress(value)}</span>`;
-            }
-
-            return `<span class="redacted">[REDACTED]</span>`;
-        }
-
-        /**
-         * Format any value for display
-         */
-        function formatValue(value) {
-            if (value === null || value === undefined) return '<em>null</em>';
-            if (typeof value === 'object') {
-                return `<code>${escapeHtml(JSON.stringify(value))}</code>`;
-            }
-            return escapeHtml(String(value));
-        }
-
-        /**
-         * Escape HTML entities
-         */
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
-        }
-
-        /**
-         * Redact an entire data object
-         */
-        function redactObject(obj) {
-            if (!obj || typeof obj !== 'object') return obj;
-
-            const redacted = {};
-            for (const [key, value] of Object.entries(obj)) {
-                if (isSensitiveField(key)) {
-                    if (key.toLowerCase().includes('defendant') || key.toLowerCase().includes('tenant')) {
-                        redacted[key] = scrambleName(value);
-                    } else if (key.toLowerCase().includes('address')) {
-                        redacted[key] = redactAddress(value);
-                    } else {
-                        redacted[key] = '[REDACTED]';
-                    }
-                } else if (typeof value === 'object' && value !== null) {
-                    redacted[key] = redactObject(value);
-                } else {
-                    redacted[key] = value;
-                }
-            }
-            return redacted;
         }
 
         // =============================================================================
@@ -877,251 +772,226 @@
         // =============================================================================
 
         const OPERATOR_MEANINGS = {
-            INS: 'New eviction case filed',
-            ALT: 'Case data updated',
-            NUL: 'Case deleted/archived',
-            CON: 'Cases linked (same property/plaintiff)',
-            SYN: 'Cases merged (duplicates)',
-            SEG: 'Case filtered/categorized',
-            SUP: 'Context overlay added',
-            DES: 'Field/entity defined',
-            REC: 'Pattern learned/reconfigured'
+            INS: 'New case filed',
+            ALT: 'Case updated',
+            NUL: 'Case deleted',
+            CON: 'Cases linked',
+            SYN: 'Cases merged',
+            SEG: 'Case categorized',
+            SUP: 'Context added',
+            DES: 'Entity defined',
+            REC: 'Reconfigured'
         };
 
-        // Pagination state
         let allEvents = [];
         let filteredEvents = [];
         let currentPage = 1;
-        const EVENTS_PER_PAGE = 50;
+        let eventsPerPage = 100;
 
-        /**
-         * Render a single event item
-         */
-        function renderEvent(event) {
+        function renderEventRow(event) {
             const timestamp = new Date(event.ts).toLocaleString();
             const meaning = OPERATOR_MEANINGS[event.op] || event.op;
+            const entityId = event.entity_id || event.target?.id || 'N/A';
+            const source = event.frame?.source || '-';
 
-            let detailsHtml = '';
+            let details = '';
 
-            // Handle different event types
-            if (event.op === 'INS' && event.context && event.context.data) {
-                // Insert event - show redacted case data
-                const redactedData = redactObject(event.context.data);
-                detailsHtml = renderInsertDetails(redactedData);
+            if (event.op === 'INS' && event.context?.data) {
+                details = renderInsertDetails(event.context.data);
             } else if (event.op === 'ALT' && event.context) {
-                // Update event - show changes with redaction
                 if (event.context.changes) {
-                    detailsHtml = renderChangeDetails(event.context.changes);
-                } else if (event.target && event.target.field) {
-                    detailsHtml = renderSingleFieldChange(event.target.field, event.context.old, event.context.new);
+                    details = renderChangeDetails(event.context.changes);
+                } else if (event.target?.field) {
+                    details = renderSingleChange(event.target.field, event.context.old, event.context.new);
                 }
             } else if (event.op === 'NUL') {
-                // Delete event
-                const reason = event.context && event.context.reason ? event.context.reason : 'deleted';
-                detailsHtml = `<div class="event-detail-row">
-                    <span class="detail-label">Reason:</span>
-                    <span class="detail-value">${escapeHtml(reason)}</span>
-                </div>`;
-            } else if (event.op === 'CON' && event.context) {
-                // Connection event
-                detailsHtml = `<div class="event-detail-row">
-                    <span class="detail-label">Related To:</span>
-                    <span class="detail-value">${escapeHtml(event.context.related || 'N/A')}</span>
-                </div>
-                <div class="event-detail-row">
-                    <span class="detail-label">Relationship:</span>
-                    <span class="detail-value">${escapeHtml(event.context.relationship || 'N/A')}</span>
-                </div>`;
-            } else if (event.op === 'SYN' && event.context && event.context.merged) {
-                // Merge event
-                detailsHtml = `<div class="event-detail-row">
-                    <span class="detail-label">Merged:</span>
-                    <span class="detail-value">${escapeHtml(event.context.merged.join(', '))}</span>
-                </div>`;
-            }
-
-            // Frame info (source, actor)
-            let frameHtml = '';
-            if (event.frame) {
-                const frameParts = [];
-                if (event.frame.source) frameParts.push(`Source: ${event.frame.source}`);
-                if (event.frame.actor) frameParts.push(`Actor: ${event.frame.actor}`);
-                if (event.frame.version) frameParts.push(`v${event.frame.version}`);
-                if (frameParts.length > 0) {
-                    frameHtml = `<div class="event-detail-row" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
-                        <span class="detail-label">Frame:</span>
-                        <span class="detail-value" style="color: #9ca3af; font-size: 12px;">${escapeHtml(frameParts.join(' | '))}</span>
-                    </div>`;
-                }
+                details = `Reason: ${escapeHtml(event.context?.reason || 'deleted')}`;
+            } else if (event.op === 'CON') {
+                details = `Linked to: ${escapeHtml(event.context?.related || 'N/A')}`;
+            } else if (event.op === 'SYN' && event.context?.merged) {
+                details = `Merged: ${escapeHtml(event.context.merged.join(', '))}`;
             }
 
             return `
-                <div class="event-item">
-                    <div class="event-header">
-                        <div class="event-header-left">
-                            <span class="event-op op-${event.op}">${event.op}</span>
-                            <span class="event-entity">${escapeHtml(event.entity_id || event.target?.id || 'N/A')}</span>
-                        </div>
-                        <span class="event-time">${timestamp}</span>
-                    </div>
-                    <div class="event-meaning">${meaning}</div>
-                    ${detailsHtml || frameHtml ? `<div class="event-details">${detailsHtml}${frameHtml}</div>` : ''}
-                </div>
+                <tr>
+                    <td><span class="event-op op-${event.op}">${event.op}</span></td>
+                    <td><span class="entity-id">${escapeHtml(entityId)}</span></td>
+                    <td><span class="timestamp">${timestamp}</span></td>
+                    <td>${meaning}</td>
+                    <td class="details-cell">${details}</td>
+                    <td><span class="source-badge">${escapeHtml(source)}</span></td>
+                </tr>
             `;
         }
 
-        /**
-         * Render insert event details
-         */
         function renderInsertDetails(data) {
-            const importantFields = ['Docket_Number', 'File_Date', 'Status', 'Plaintiff_Petitioner', 'Defendant_Respondent', 'Address_1', 'council_district'];
+            const fields = ['Docket_Number', 'File_Date', 'Status', 'Plaintiff_Petitioner', 'Defendant_Respondent', 'council_district'];
             let html = '';
 
-            for (const field of importantFields) {
+            for (const field of fields) {
                 if (data[field] !== undefined && data[field] !== null) {
-                    const displayField = field.replace(/_/g, ' ');
-                    let displayValue;
+                    const key = field.replace(/_/g, ' ');
+                    let value;
 
                     if (isSensitiveField(field)) {
-                        displayValue = `<span class="redacted">${escapeHtml(String(data[field]))}</span>`;
+                        if (field.toLowerCase().includes('defendant')) {
+                            value = `<span class="redacted">${escapeHtml(scrambleName(data[field]))}</span>`;
+                        } else {
+                            value = `<span class="redacted">${escapeHtml(redactAddress(data[field]))}</span>`;
+                        }
                     } else {
-                        displayValue = escapeHtml(String(data[field]));
+                        value = escapeHtml(String(data[field]));
                     }
 
-                    html += `<div class="event-detail-row">
-                        <span class="detail-label">${escapeHtml(displayField)}:</span>
-                        <span class="detail-value">${displayValue}</span>
-                    </div>`;
+                    html += `<div class="detail-row"><span class="detail-key">${escapeHtml(key)}:</span><span class="detail-value">${value}</span></div>`;
                 }
             }
 
             return html;
         }
 
-        /**
-         * Render change details for ALT events
-         */
         function renderChangeDetails(changes) {
-            let html = '<div class="changes-list">';
+            let html = '';
 
             for (const [field, change] of Object.entries(changes)) {
-                const displayField = field.replace(/_/g, ' ');
+                const key = field.replace(/_/g, ' ');
                 let oldVal, newVal;
 
                 if (isSensitiveField(field)) {
-                    if (field.toLowerCase().includes('defendant') || field.toLowerCase().includes('tenant')) {
-                        oldVal = scrambleName(change.old);
-                        newVal = scrambleName(change.new);
-                    } else if (field.toLowerCase().includes('address')) {
-                        oldVal = redactAddress(change.old);
-                        newVal = redactAddress(change.new);
+                    if (field.toLowerCase().includes('defendant')) {
+                        oldVal = `<span class="redacted">${escapeHtml(scrambleName(change.old))}</span>`;
+                        newVal = `<span class="redacted">${escapeHtml(scrambleName(change.new))}</span>`;
                     } else {
-                        oldVal = '[REDACTED]';
-                        newVal = '[REDACTED]';
+                        oldVal = `<span class="redacted">[REDACTED]</span>`;
+                        newVal = `<span class="redacted">[REDACTED]</span>`;
                     }
-
-                    html += `<div class="change-item">
-                        <span class="change-field">${escapeHtml(displayField)}</span>
-                        <span class="change-arrow">:</span>
-                        <span class="redacted">${escapeHtml(oldVal)}</span>
-                        <span class="change-arrow">→</span>
-                        <span class="redacted">${escapeHtml(newVal)}</span>
-                    </div>`;
                 } else {
-                    oldVal = change.old !== null && change.old !== undefined ? String(change.old) : '(empty)';
-                    newVal = change.new !== null && change.new !== undefined ? String(change.new) : '(empty)';
-
-                    html += `<div class="change-item">
-                        <span class="change-field">${escapeHtml(displayField)}</span>
-                        <span class="change-arrow">:</span>
-                        <span class="change-old">${escapeHtml(oldVal)}</span>
-                        <span class="change-arrow">→</span>
-                        <span class="change-new">${escapeHtml(newVal)}</span>
-                    </div>`;
+                    oldVal = `<span class="change-old">${escapeHtml(String(change.old ?? '(empty)'))}</span>`;
+                    newVal = `<span class="change-new">${escapeHtml(String(change.new ?? '(empty)'))}</span>`;
                 }
+
+                html += `<div class="detail-row">
+                    <span class="detail-key">${escapeHtml(key)}:</span>
+                    <span class="detail-value">${oldVal} <span class="change-arrow">→</span> ${newVal}</span>
+                </div>`;
             }
 
-            html += '</div>';
             return html;
         }
 
-        /**
-         * Render single field change
-         */
-        function renderSingleFieldChange(field, oldVal, newVal) {
-            const displayField = field.replace(/_/g, ' ');
-            let html = '<div class="changes-list">';
+        function renderSingleChange(field, oldVal, newVal) {
+            const key = field.replace(/_/g, ' ');
 
             if (isSensitiveField(field)) {
-                html += `<div class="change-item">
-                    <span class="change-field">${escapeHtml(displayField)}</span>
-                    <span class="change-arrow">:</span>
-                    <span class="redacted">[REDACTED]</span>
-                    <span class="change-arrow">→</span>
-                    <span class="redacted">[REDACTED]</span>
-                </div>`;
-            } else {
-                const oldDisplay = oldVal !== null && oldVal !== undefined ? String(oldVal) : '(empty)';
-                const newDisplay = newVal !== null && newVal !== undefined ? String(newVal) : '(empty)';
-
-                html += `<div class="change-item">
-                    <span class="change-field">${escapeHtml(displayField)}</span>
-                    <span class="change-arrow">:</span>
-                    <span class="change-old">${escapeHtml(oldDisplay)}</span>
-                    <span class="change-arrow">→</span>
-                    <span class="change-new">${escapeHtml(newDisplay)}</span>
+                return `<div class="detail-row">
+                    <span class="detail-key">${escapeHtml(key)}:</span>
+                    <span class="detail-value"><span class="redacted">[REDACTED]</span> <span class="change-arrow">→</span> <span class="redacted">[REDACTED]</span></span>
                 </div>`;
             }
 
-            html += '</div>';
-            return html;
+            return `<div class="detail-row">
+                <span class="detail-key">${escapeHtml(key)}:</span>
+                <span class="detail-value">
+                    <span class="change-old">${escapeHtml(String(oldVal ?? '(empty)'))}</span>
+                    <span class="change-arrow">→</span>
+                    <span class="change-new">${escapeHtml(String(newVal ?? '(empty)'))}</span>
+                </span>
+            </div>`;
         }
 
         // =============================================================================
-        // MAIN FUNCTIONALITY
+        // DATA LOADING
         // =============================================================================
 
-        /**
-         * Fetch and display events
-         */
-        async function loadEvents() {
-            const container = document.getElementById('eventContainer');
-            container.innerHTML = `<div class="loading-state">
-                <div class="spinner"></div>
-                <div>Loading events...</div>
-            </div>`;
+        async function loadAllEvents() {
+            const tbody = document.getElementById('eventTableBody');
+            const progressBar = document.getElementById('loadProgressBar');
+            const progressFill = document.getElementById('loadProgressFill');
+            const progressText = document.getElementById('loadProgressText');
+
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6">
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <div>Loading all events...</div>
+                            <div class="progress-bar" style="margin: 12px auto 0; width: 200px;">
+                                <div class="progress-fill" id="loadProgressFill" style="width: 0%"></div>
+                            </div>
+                            <div id="loadProgressText" style="font-size: 12px; margin-top: 8px;">Fetching page 1...</div>
+                        </div>
+                    </td>
+                </tr>
+            `;
 
             document.getElementById('pagination').style.display = 'none';
+            allEvents = [];
 
             try {
-                // Fetch events from EO system
-                const events = await EOMigration.fetchEvents({
-                    per_page: 1000 // Get up to 1000 events
-                });
+                let page = 1;
+                let hasMore = true;
+                const perPage = 1000;
 
-                allEvents = Array.isArray(events) ? events : (events.items || events.data || []);
+                while (hasMore) {
+                    document.getElementById('loadProgressText').textContent = `Fetching page ${page}... (${allEvents.length} events loaded)`;
 
-                // Sort by timestamp descending (most recent first)
+                    const response = await EOMigration.fetchEvents({
+                        per_page: perPage,
+                        page: page
+                    });
+
+                    const events = Array.isArray(response) ? response : (response.items || response.data || []);
+
+                    if (events.length === 0) {
+                        hasMore = false;
+                    } else {
+                        allEvents = allEvents.concat(events);
+                        page++;
+
+                        // Update progress (estimate based on typical dataset)
+                        const estimatedTotal = Math.max(allEvents.length * 1.1, 10000);
+                        const progress = Math.min(95, (allEvents.length / estimatedTotal) * 100);
+                        document.getElementById('loadProgressFill').style.width = `${progress}%`;
+
+                        // Safety limit
+                        if (page > 100) {
+                            console.warn('Reached page limit');
+                            hasMore = false;
+                        }
+
+                        // Small delay to avoid rate limiting
+                        if (hasMore) {
+                            await new Promise(r => setTimeout(r, 50));
+                        }
+                    }
+                }
+
+                document.getElementById('loadProgressFill').style.width = '100%';
+                document.getElementById('loadProgressText').textContent = `Loaded ${allEvents.length} events`;
+
+                // Sort by timestamp descending
                 allEvents.sort((a, b) => b.ts - a.ts);
 
-                // Apply filters and render
                 applyFilters();
                 updateStats();
 
             } catch (error) {
                 console.error('Failed to load events:', error);
-                container.innerHTML = `<div class="empty-state">
-                    <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
-                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Failed to Load Events</div>
-                    <div>${escapeHtml(error.message)}</div>
-                    <button class="btn btn-primary" style="margin-top: 16px;" onclick="loadEvents()">Try Again</button>
-                </div>`;
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-state">
+                                <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                                <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">Failed to Load Events</div>
+                                <div>${escapeHtml(error.message)}</div>
+                                <button class="btn btn-primary" style="margin-top: 16px;" onclick="loadAllEvents()">Try Again</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
             }
         }
 
-        /**
-         * Apply filters and update display
-         */
         function applyFilters() {
             const opFilter = document.getElementById('opFilter').value;
             const entitySearch = document.getElementById('entitySearch').value.trim().toLowerCase();
@@ -1129,20 +999,18 @@
             const dateEnd = document.getElementById('dateEnd').value;
 
             filteredEvents = allEvents.filter(event => {
-                // Operator filter
                 if (opFilter && event.op !== opFilter) return false;
 
-                // Entity search
                 if (entitySearch) {
                     const entityId = (event.entity_id || event.target?.id || '').toLowerCase();
                     if (!entityId.includes(entitySearch)) return false;
                 }
 
-                // Date filters
                 if (dateStart) {
                     const startTs = new Date(dateStart).getTime();
                     if (event.ts < startTs) return false;
                 }
+
                 if (dateEnd) {
                     const endTs = new Date(dateEnd).setHours(23, 59, 59, 999);
                     if (event.ts > endTs) return false;
@@ -1152,50 +1020,49 @@
             });
 
             currentPage = 1;
-            renderEvents();
+            renderTable();
         }
 
-        /**
-         * Render filtered events with pagination
-         */
-        function renderEvents() {
-            const container = document.getElementById('eventContainer');
+        function renderTable() {
+            const tbody = document.getElementById('eventTableBody');
             const pagination = document.getElementById('pagination');
 
             if (filteredEvents.length === 0) {
-                container.innerHTML = `<div class="empty-state">
-                    <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
-                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">No Events Found</div>
-                    <div>Try adjusting your filters or refreshing the data.</div>
-                </div>`;
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-state">
+                                <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+                                <div style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">No Events Found</div>
+                                <div>Try adjusting your filters.</div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
                 pagination.style.display = 'none';
                 document.getElementById('showingCount').textContent = '0';
                 return;
             }
 
-            // Calculate pagination
-            const totalPages = Math.ceil(filteredEvents.length / EVENTS_PER_PAGE);
-            const startIdx = (currentPage - 1) * EVENTS_PER_PAGE;
-            const endIdx = Math.min(startIdx + EVENTS_PER_PAGE, filteredEvents.length);
+            const totalPages = Math.ceil(filteredEvents.length / eventsPerPage);
+            const startIdx = (currentPage - 1) * eventsPerPage;
+            const endIdx = Math.min(startIdx + eventsPerPage, filteredEvents.length);
             const pageEvents = filteredEvents.slice(startIdx, endIdx);
 
-            // Render events
-            container.innerHTML = pageEvents.map(renderEvent).join('');
+            tbody.innerHTML = pageEvents.map(renderEventRow).join('');
 
-            // Update pagination
             document.getElementById('currentPage').textContent = currentPage;
             document.getElementById('totalPages').textContent = totalPages;
+            document.getElementById('firstBtn').disabled = currentPage === 1;
             document.getElementById('prevBtn').disabled = currentPage === 1;
             document.getElementById('nextBtn').disabled = currentPage >= totalPages;
-            pagination.style.display = totalPages > 1 ? 'flex' : 'none';
+            document.getElementById('lastBtn').disabled = currentPage >= totalPages;
+            pagination.style.display = 'flex';
 
             document.getElementById('showingCount').textContent =
-                `${startIdx + 1}-${endIdx} of ${filteredEvents.length}`;
+                `${startIdx + 1}-${endIdx} of ${filteredEvents.length.toLocaleString()}`;
         }
 
-        /**
-         * Update statistics display
-         */
         function updateStats() {
             const total = allEvents.length;
             const inserts = allEvents.filter(e => e.op === 'INS').length;
@@ -1208,61 +1075,51 @@
             document.getElementById('entityCount').textContent = entities.toLocaleString();
         }
 
+        function goToPage(page) {
+            const totalPages = Math.ceil(filteredEvents.length / eventsPerPage);
+            currentPage = Math.max(1, Math.min(page, totalPages));
+            renderTable();
+            document.querySelector('.table-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
         // =============================================================================
         // EVENT LISTENERS
         // =============================================================================
 
         document.addEventListener('DOMContentLoaded', function() {
-            // Set last updated date
             document.getElementById('last-updated').textContent = new Date().toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
             });
 
-            // Load initial events
-            loadEvents();
+            loadAllEvents();
 
-            // Filter change handlers
+            // Filters
             document.getElementById('opFilter').addEventListener('change', applyFilters);
             document.getElementById('entitySearch').addEventListener('input', debounce(applyFilters, 300));
             document.getElementById('dateStart').addEventListener('change', applyFilters);
             document.getElementById('dateEnd').addEventListener('change', applyFilters);
+            document.getElementById('refreshBtn').addEventListener('click', loadAllEvents);
 
-            // Refresh button
-            document.getElementById('refreshBtn').addEventListener('click', loadEvents);
+            // Pagination
+            document.getElementById('firstBtn').addEventListener('click', () => goToPage(1));
+            document.getElementById('prevBtn').addEventListener('click', () => goToPage(currentPage - 1));
+            document.getElementById('nextBtn').addEventListener('click', () => goToPage(currentPage + 1));
+            document.getElementById('lastBtn').addEventListener('click', () => goToPage(Math.ceil(filteredEvents.length / eventsPerPage)));
 
-            // Pagination buttons
-            document.getElementById('prevBtn').addEventListener('click', () => {
-                if (currentPage > 1) {
-                    currentPage--;
-                    renderEvents();
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-            });
-
-            document.getElementById('nextBtn').addEventListener('click', () => {
-                const totalPages = Math.ceil(filteredEvents.length / EVENTS_PER_PAGE);
-                if (currentPage < totalPages) {
-                    currentPage++;
-                    renderEvents();
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
+            document.getElementById('perPageSelect').addEventListener('change', function() {
+                eventsPerPage = parseInt(this.value);
+                currentPage = 1;
+                renderTable();
             });
         });
 
-        /**
-         * Debounce utility
-         */
         function debounce(func, wait) {
             let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
+            return function(...args) {
                 clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
+                timeout = setTimeout(() => func(...args), wait);
             };
         }
     </script>
