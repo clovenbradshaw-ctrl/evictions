@@ -32,9 +32,7 @@ const EOIntegration = (function() {
     MAX_EVENTS_IN_MEMORY: 50000,
 
     // Feature flags
-    EO_ENABLED: true,
-    DUAL_WRITE: true, // Write to both legacy and EO during transition
-    EO_READ_PRIORITY: false // When true, prefer EO state over legacy
+    EO_ENABLED: true
   };
 
   // =============================================================================
@@ -268,7 +266,7 @@ const EOIntegration = (function() {
       version: '1.0'
     });
 
-    // Push to Xano
+    // Push to Xano EO operations table
     if (CONFIG.EO_ENABLED) {
       await EOMigration.pushEvent(event);
     }
@@ -277,11 +275,6 @@ const EOIntegration = (function() {
     eventsCache.push(event);
     applyEventToStateCache(event);
     saveEventsToCache();
-
-    // Dual write to legacy if enabled
-    if (CONFIG.DUAL_WRITE && options.legacyUpload !== false) {
-      await legacyUpsert(caseData);
-    }
 
     return event;
   }
@@ -317,7 +310,7 @@ const EOIntegration = (function() {
       version: '1.0'
     });
 
-    // Push to Xano
+    // Push to Xano EO operations table
     if (CONFIG.EO_ENABLED) {
       await EOMigration.pushEvent(event);
     }
@@ -326,12 +319,6 @@ const EOIntegration = (function() {
     eventsCache.push(event);
     applyEventToStateCache(event);
     saveEventsToCache();
-
-    // Dual write to legacy if enabled
-    if (CONFIG.DUAL_WRITE && options.legacyUpload !== false) {
-      const updatedCase = { ...currentState, ...changes };
-      await legacyUpsert(updatedCase);
-    }
 
     return event;
   }
@@ -363,25 +350,6 @@ const EOIntegration = (function() {
     saveEventsToCache();
 
     return event;
-  }
-
-  /**
-   * Legacy upsert for dual-write mode
-   */
-  async function legacyUpsert(caseData) {
-    try {
-      const response = await fetch(EOMigration.CONFIG.LEGACY_UPLOAD_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(caseData)
-      });
-
-      if (!response.ok) {
-        console.warn('Legacy upsert failed:', response.status);
-      }
-    } catch (e) {
-      console.warn('Legacy upsert error:', e);
-    }
   }
 
   // =============================================================================

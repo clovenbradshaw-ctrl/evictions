@@ -5126,10 +5126,10 @@
             return null;
         }
 
-        // API query builder for detainer_case endpoint with pagination, filtering, and sorting
-        // Supports: page, per_page, docket_number, action, file_date_start, file_date_end, sort_by, sort_order
-        function buildDetainerCaseApiUrl(options = {}) {
-            const API_BASE = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case';
+        // API query builder for EO eviction_operations endpoint with pagination and filtering
+        // Uses event sourcing - fetches events and reconstructs state
+        function buildEOApiUrl(options = {}) {
+            const API_BASE = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_operations';
             const params = new URLSearchParams();
 
             // Pagination parameters
@@ -5140,33 +5140,27 @@
                 params.append('per_page', options.per_page);
             }
 
-            // Filter parameters
-            if (options.docket_number) {
-                params.append('docket_number', options.docket_number);
-            }
-            if (options.action) {
-                params.append('action', options.action);
-            }
-            if (options.file_date_start) {
-                // Format: MM/DD/YYYY
-                params.append('file_date_start', options.file_date_start);
-            }
-            if (options.file_date_end) {
-                // Format: MM/DD/YYYY
-                params.append('file_date_end', options.file_date_end);
+            // Filter by entity (docket number)
+            if (options.entity_id) {
+                params.append('entity_id', options.entity_id);
             }
 
-            // Sorting parameters
-            if (options.sort_by) {
-                params.append('sort_by', options.sort_by);
-            }
-            if (options.sort_order) {
-                params.append('sort_order', options.sort_order);
+            // Filter by operator type
+            if (options.op) {
+                params.append('op', options.op);
             }
 
-            // Legacy incremental sync parameter
-            if (options.logged_at_gt) {
-                params.append('logged_at.gt', options.logged_at_gt);
+            // Filter by timestamp (for incremental sync)
+            if (options.ts_gt) {
+                params.append('ts_gt', options.ts_gt);
+            }
+            if (options.ts_gte) {
+                params.append('ts_gte', options.ts_gte);
+            }
+
+            // Filter by source table
+            if (options.source_table) {
+                params.append('source_table', options.source_table);
             }
 
             const queryString = params.toString();
@@ -5183,14 +5177,14 @@
         };
 
         async function loadData() {
-            // Activity stream endpoint - returns multiple records per case showing data changes over time
-            const API_URL = buildDetainerCaseApiUrl();
+            // EO operations endpoint - fetches events and reconstructs current state
+            const API_URL = buildEOApiUrl();
 
             isLoadingData = true;
             updateRefreshUI();
 
             try {
-                console.group('🔄 Data Loading');
+                console.group('🔄 Data Loading (EO Event Sourcing)');
                 console.log('Timestamp:', new Date().toISOString());
 
                 // Check if we have fresh cached data (less than 24 hours old)
@@ -5338,43 +5332,40 @@
                     console.log('📦 Data format: Single object wrapped in array');
                 }
 
-                console.log('🔢 Raw record count:', data.length);
+                console.log('🔢 Raw event count:', data.length);
 
-                // Debug: log first record structure to help diagnose data mapping issues
+                // Debug: log first event structure
                 if (data.length > 0) {
-                    console.log('🔍 First record keys:', Object.keys(data[0]));
-                    console.log('🔍 First record sample:', JSON.stringify(data[0], null, 2).substring(0, 1000));
+                    console.log('🔍 First event keys:', Object.keys(data[0]));
+                    console.log('🔍 First event sample:', JSON.stringify(data[0], null, 2).substring(0, 1000));
                 }
 
-                // Detect if this is activity stream data (has logged_at, action, case_data fields)
-                // Also detect if case_data exists but might be named differently
-                const isActivityStream = data.length > 0 && data[0].logged_at !== undefined && data[0].case_data !== undefined;
-                const hasActivityMetadata = data.length > 0 && data[0].logged_at !== undefined;
+                // Detect if this is EO events format (has op, target, context fields)
+                const isEOFormat = data.length > 0 && data[0].op !== undefined && data[0].target !== undefined;
 
-                // Track the newest logged_at timestamp for smart incremental queries
-                let newestLoggedAt = null;
+                // Track the newest timestamp for incremental sync
+                let newestTs = null;
                 for (const record of data) {
-                    if (record.logged_at && (!newestLoggedAt || record.logged_at > newestLoggedAt)) {
-                        newestLoggedAt = record.logged_at;
+                    if (record.ts && (!newestTs || record.ts > newestTs)) {
+                        newestTs = record.ts;
                     }
                 }
-                if (newestLoggedAt) {
-                    setLastLoggedAt(newestLoggedAt);
-                    console.log('📌 Saved newest logged_at for incremental sync:', newestLoggedAt);
+                if (newestTs) {
+                    localStorage.setItem('eo_last_sync_ts', newestTs.toString());
+                    console.log('📌 Saved newest ts for incremental sync:', newestTs);
                 }
 
                 let flattenedData;
-                if (isActivityStream) {
-                    console.log('📊 Detected activity stream format with case_data, reducing to current state per docket...');
-                    flattenedData = reduceActivityStream(data);
-                    console.log('📊 Reduced', data.length, 'activity records to', flattenedData.length, 'unique cases');
-                } else if (hasActivityMetadata) {
-                    // Activity stream without case_data - data fields are at top level
-                    console.log('📊 Detected activity stream format WITHOUT case_data (fields at top level)');
-                    flattenedData = reduceActivityStreamFlat(data);
-                    console.log('📊 Reduced', data.length, 'activity records to', flattenedData.length, 'unique cases');
+                if (isEOFormat && typeof EOMigration !== 'undefined') {
+                    console.log('📊 Detected EO event format, reconstructing state from', data.length, 'events...');
+                    // Parse events from Xano format (stringified JSON fields)
+                    const events = data.map(e => EOMigration.fromXanoFormat(e));
+                    // Reconstruct current state from events
+                    flattenedData = EOMigration.reconstructAllStates(events);
+                    console.log('📊 Reconstructed', flattenedData.length, 'unique cases from', events.length, 'events');
                 } else {
-                    console.log('📊 Using legacy flat record format');
+                    // Fallback for non-EO data formats (backwards compatibility)
+                    console.log('📊 Using direct data format (no EO reconstruction)');
                     flattenedData = data;
                 }
 
@@ -11052,15 +11043,15 @@
             let success = 0;
             let failed = 0;
 
-            // Upload endpoint (upsert by Docket_Number)
-            const apiUrl = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/nashville_detainer_cases';
+            // EO operations POST endpoint
+            const apiUrl = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/evictionseoevents';
 
-            // Upload each record
+            // Upload each record as an EO event
             for (let i = 0; i < transformedData.length; i++) {
                 const record = transformedData[i];
                 const progress = Math.round(((i + 1) / total) * 100);
 
-                // Validate that Docket_Number is present (required for upsert)
+                // Validate that Docket_Number is present (required for entity_id)
                 if (!record.Docket_Number) {
                     failed++;
                     addUploadStatusItem(statusLog, 'Missing required field', 'error', {
@@ -11076,12 +11067,28 @@
                 }
 
                 try {
+                    // Create EO INS event for each record
+                    const event = typeof EOMigration !== 'undefined'
+                        ? EOMigration.toXanoFormat(EOMigration.createInsertEvent(record, { source: 'csv_upload', version: '1.0' }))
+                        : {
+                            id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                            ts: Date.now(),
+                            ts_iso: new Date().toISOString(),
+                            op: 'INS',
+                            entity_id: record.Docket_Number,
+                            entity_type: 'eviction_case',
+                            source_table: 'eviction_cases',
+                            target: JSON.stringify({ id: record.Docket_Number, type: 'eviction_case' }),
+                            context: JSON.stringify({ table: 'eviction_cases', data: record }),
+                            frame: JSON.stringify({ source: 'csv_upload', version: '1.0' })
+                        };
+
                     const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(record)
+                        body: JSON.stringify(event)
                     });
 
                     if (response.ok) {
