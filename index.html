@@ -4377,65 +4377,9 @@
             return null;
         }
 
-        // API query builder for detainer_case endpoint with pagination, filtering, and sorting
-        // Supports: page, per_page, docket_number, action, file_date_start, file_date_end, sort_by, sort_order
-        function buildDetainerCaseApiUrl(options = {}) {
-            const API_BASE = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case';
-            const params = new URLSearchParams();
-
-            // Pagination parameters
-            if (options.page !== undefined && options.page !== null) {
-                params.append('page', options.page);
-            }
-            if (options.per_page !== undefined && options.per_page !== null) {
-                params.append('per_page', options.per_page);
-            }
-
-            // Filter parameters
-            if (options.docket_number) {
-                params.append('docket_number', options.docket_number);
-            }
-            if (options.action) {
-                params.append('action', options.action);
-            }
-            if (options.file_date_start) {
-                // Format: MM/DD/YYYY
-                params.append('file_date_start', options.file_date_start);
-            }
-            if (options.file_date_end) {
-                // Format: MM/DD/YYYY
-                params.append('file_date_end', options.file_date_end);
-            }
-
-            // Sorting parameters
-            if (options.sort_by) {
-                params.append('sort_by', options.sort_by);
-            }
-            if (options.sort_order) {
-                params.append('sort_order', options.sort_order);
-            }
-
-            // Legacy incremental sync parameter
-            if (options.logged_at_gt) {
-                params.append('logged_at.gt', options.logged_at_gt);
-            }
-
-            const queryString = params.toString();
-            return queryString ? `${API_BASE}?${queryString}` : API_BASE;
-        }
-
-        // State for server-side pagination/filtering
-        let serverPaginationState = {
-            page: 1,
-            per_page: 100,  // Fetch more records per page for client-side filtering
-            total: 0,
-            has_more: false,
-            filters: {}
-        };
-
         async function loadData() {
-            // Activity stream endpoint - returns multiple records per case showing data changes over time
-            const API_URL = buildDetainerCaseApiUrl();
+            // Activity stream endpoint - returns all detainer case records
+            const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case';
 
             isLoadingData = true;
             updateRefreshUI();
@@ -4576,12 +4520,6 @@
                     console.log('📦 Data format: {data: [...], meta: {...}}');
                     if (responseMeta) {
                         console.log('📊 Response metadata:', responseMeta);
-                        // Update server pagination state from response metadata
-                        serverPaginationState.total = responseMeta.total || 0;
-                        serverPaginationState.page = responseMeta.page || 1;
-                        serverPaginationState.per_page = responseMeta.limit || serverPaginationState.per_page;
-                        serverPaginationState.has_more = responseMeta.has_more || false;
-                        console.log('📄 Server pagination state updated:', serverPaginationState);
                     }
                 } else {
                     data = [result];
@@ -4708,6 +4646,8 @@
         // Incremental data loading - fetch only new records since last sync
         // This is the "smart query" approach for fast refreshes
         async function loadDataIncremental() {
+            const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case';
+
             // If no data loaded yet, do a full load
             if (!allData || allData.length === 0) {
                 return loadData();
@@ -4722,17 +4662,18 @@
 
                 // Get the last logged_at timestamp to query only newer records
                 const lastLoggedAt = getLastLoggedAt();
+                let url = API_URL;
 
-                // Build URL using the query builder
-                const queryOptions = {};
+                // If we have a last timestamp, query only records newer than that
+                // The API supports filtering with logged_at.gt parameter
                 if (lastLoggedAt) {
-                    queryOptions.logged_at_gt = lastLoggedAt;
+                    const params = new URLSearchParams();
+                    params.append('logged_at.gt', lastLoggedAt);
+                    url = `${API_URL}?${params.toString()}`;
                     console.log('📊 Smart query: fetching records after', lastLoggedAt);
                 } else {
                     console.log('📊 No previous timestamp, doing full fetch');
                 }
-
-                const url = buildDetainerCaseApiUrl(queryOptions);
 
                 updateStatus('Checking for new records...', 'loading');
 
@@ -4880,137 +4821,6 @@
             } finally {
                 isLoadingData = false;
                 updateRefreshUI();
-            }
-        }
-
-        // Fetch all pages of data from the paginated API
-        // Useful when you need complete data but the API returns paginated results
-        async function fetchAllDetainerCases(options = {}) {
-            const allRecords = [];
-            let currentPage = 1;
-            let hasMore = true;
-            const perPage = options.per_page || 100;
-
-            console.group('📥 Fetching all detainer cases');
-            console.log('Options:', options);
-
-            while (hasMore) {
-                const url = buildDetainerCaseApiUrl({
-                    ...options,
-                    page: currentPage,
-                    per_page: perPage
-                });
-
-                console.log(`📄 Fetching page ${currentPage}...`);
-                const response = await fetch(url);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-                }
-
-                const result = await response.json();
-
-                // Handle different response formats
-                let pageData;
-                let meta = null;
-
-                if (Array.isArray(result)) {
-                    pageData = result;
-                    // No pagination metadata, assume this is all the data
-                    hasMore = false;
-                } else if (result?.data && Array.isArray(result.data)) {
-                    pageData = result.data;
-                    meta = result.meta;
-                    hasMore = meta?.has_more || false;
-                } else if (result?.items && Array.isArray(result.items)) {
-                    pageData = result.items;
-                    hasMore = false;
-                } else {
-                    pageData = [result];
-                    hasMore = false;
-                }
-
-                allRecords.push(...pageData);
-                console.log(`📊 Page ${currentPage}: ${pageData.length} records (total so far: ${allRecords.length})`);
-
-                if (meta) {
-                    console.log(`📈 Progress: ${allRecords.length} of ${meta.total} (has_more: ${meta.has_more})`);
-                }
-
-                currentPage++;
-
-                // Safety limit to prevent infinite loops
-                if (currentPage > 1000) {
-                    console.warn('⚠️ Reached page limit (1000), stopping fetch');
-                    break;
-                }
-            }
-
-            console.log(`✅ Fetched all ${allRecords.length} records`);
-            console.groupEnd();
-
-            return allRecords;
-        }
-
-        // Fetch detainer cases with specific filters (server-side filtering)
-        // Returns { data: [...], meta: {...} } with pagination info
-        async function fetchDetainerCasesFiltered(options = {}) {
-            const url = buildDetainerCaseApiUrl(options);
-            console.log('🔍 Fetching filtered detainer cases:', url);
-
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-            }
-
-            const result = await response.json();
-
-            // Normalize response to always return { data, meta }
-            if (Array.isArray(result)) {
-                return {
-                    data: result,
-                    meta: {
-                        total: result.length,
-                        page: 1,
-                        limit: result.length,
-                        offset: 0,
-                        has_more: false
-                    }
-                };
-            } else if (result?.data && Array.isArray(result.data)) {
-                return {
-                    data: result.data,
-                    meta: result.meta || {
-                        total: result.data.length,
-                        page: 1,
-                        limit: result.data.length,
-                        offset: 0,
-                        has_more: false
-                    }
-                };
-            } else if (result?.items && Array.isArray(result.items)) {
-                return {
-                    data: result.items,
-                    meta: {
-                        total: result.items.length,
-                        page: 1,
-                        limit: result.items.length,
-                        offset: 0,
-                        has_more: false
-                    }
-                };
-            } else {
-                return {
-                    data: [result],
-                    meta: {
-                        total: 1,
-                        page: 1,
-                        limit: 1,
-                        offset: 0,
-                        has_more: false
-                    }
-                };
             }
         }
 
