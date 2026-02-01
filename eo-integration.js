@@ -1,0 +1,656 @@
+/**
+ * EO Integration Helper
+ *
+ * Bridges the EO event-sourced system with the eviction tracker application.
+ * Provides a clean API for:
+ * - Syncing data from the EO operations table
+ * - Creating new events for case changes
+ * - Transitioning from legacy to EO-based operations
+ */
+
+const EOIntegration = (function() {
+  'use strict';
+
+  // Requires EOMigration to be loaded first
+  if (typeof EOMigration === 'undefined') {
+    console.error('EOIntegration requires EOMigration to be loaded first');
+    return null;
+  }
+
+  // =============================================================================
+  // CONFIGURATION
+  // =============================================================================
+
+  const CONFIG = {
+    // Local storage keys for EO state
+    LAST_SYNC_KEY: 'eo_last_sync_ts',
+    EVENTS_CACHE_KEY: 'eo_events_cache',
+    STATE_CACHE_KEY: 'eo_state_cache',
+
+    // Sync settings
+    SYNC_INTERVAL_MS: 5 * 60 * 1000, // 5 minutes
+    MAX_EVENTS_IN_MEMORY: 50000,
+
+    // Feature flags
+    EO_ENABLED: true,
+    DUAL_WRITE: true, // Write to both legacy and EO during transition
+    EO_READ_PRIORITY: false // When true, prefer EO state over legacy
+  };
+
+  // =============================================================================
+  // STATE
+  // =============================================================================
+
+  let eventsCache = [];
+  let stateCache = new Map();
+  let lastSyncTimestamp = 0;
+  let syncInterval = null;
+
+  // =============================================================================
+  // INITIALIZATION
+  // =============================================================================
+
+  /**
+   * Initialize the EO integration
+   */
+  async function initialize() {
+    console.log('🔧 Initializing EO Integration...');
+
+    // Load last sync timestamp
+    const storedTs = localStorage.getItem(CONFIG.LAST_SYNC_KEY);
+    if (storedTs) {
+      lastSyncTimestamp = parseInt(storedTs, 10);
+      console.log(`  Last sync: ${new Date(lastSyncTimestamp).toISOString()}`);
+    }
+
+    // Try to load cached events from IndexedDB
+    await loadEventsFromCache();
+
+    // Start background sync
+    if (CONFIG.EO_ENABLED) {
+      startBackgroundSync();
+    }
+
+    console.log('✅ EO Integration initialized');
+  }
+
+  /**
+   * Load events from local cache (IndexedDB)
+   */
+  async function loadEventsFromCache() {
+    try {
+      const cached = localStorage.getItem(CONFIG.EVENTS_CACHE_KEY);
+      if (cached) {
+        eventsCache = JSON.parse(cached);
+        console.log(`  Loaded ${eventsCache.length} cached events`);
+
+        // Rebuild state cache
+        rebuildStateCache();
+      }
+    } catch (e) {
+      console.warn('Failed to load events cache:', e);
+      eventsCache = [];
+    }
+  }
+
+  /**
+   * Save events to local cache
+   */
+  function saveEventsToCache() {
+    try {
+      // Limit cache size
+      if (eventsCache.length > CONFIG.MAX_EVENTS_IN_MEMORY) {
+        // Keep most recent events
+        eventsCache = eventsCache.slice(-CONFIG.MAX_EVENTS_IN_MEMORY);
+      }
+
+      localStorage.setItem(CONFIG.EVENTS_CACHE_KEY, JSON.stringify(eventsCache));
+    } catch (e) {
+      console.warn('Failed to save events cache:', e);
+    }
+  }
+
+  /**
+   * Rebuild the state cache from events
+   */
+  function rebuildStateCache() {
+    stateCache.clear();
+    const states = EOMigration.reconstructAllStates(eventsCache);
+
+    for (const state of states) {
+      const entityId = state._entity_id || state.Docket_Number;
+      if (entityId) {
+        stateCache.set(entityId, state);
+      }
+    }
+
+    console.log(`  Rebuilt state cache: ${stateCache.size} entities`);
+  }
+
+  // =============================================================================
+  // SYNC
+  // =============================================================================
+
+  /**
+   * Start background sync
+   */
+  function startBackgroundSync() {
+    if (syncInterval) {
+      clearInterval(syncInterval);
+    }
+
+    syncInterval = setInterval(async () => {
+      try {
+        await syncFromEO();
+      } catch (e) {
+        console.warn('Background sync failed:', e);
+      }
+    }, CONFIG.SYNC_INTERVAL_MS);
+
+    console.log(`  Background sync started (every ${CONFIG.SYNC_INTERVAL_MS / 1000}s)`);
+  }
+
+  /**
+   * Stop background sync
+   */
+  function stopBackgroundSync() {
+    if (syncInterval) {
+      clearInterval(syncInterval);
+      syncInterval = null;
+    }
+  }
+
+  /**
+   * Sync new events from the EO operations table
+   */
+  async function syncFromEO() {
+    console.log('🔄 Syncing from EO...');
+
+    try {
+      const response = await EOMigration.fetchEvents({
+        since_ts: lastSyncTimestamp,
+        source_table: EOMigration.CONFIG.SOURCE_TABLE
+      });
+
+      const newEvents = Array.isArray(response)
+        ? response
+        : (response.items || response.data || []);
+
+      if (newEvents.length === 0) {
+        console.log('  No new events');
+        return { synced: 0 };
+      }
+
+      console.log(`  Fetched ${newEvents.length} new events`);
+
+      // Add to cache
+      eventsCache = eventsCache.concat(newEvents);
+
+      // Update last sync timestamp
+      const maxTs = Math.max(...newEvents.map(e => e.ts));
+      lastSyncTimestamp = maxTs;
+      localStorage.setItem(CONFIG.LAST_SYNC_KEY, lastSyncTimestamp.toString());
+
+      // Update state cache incrementally
+      for (const event of newEvents) {
+        applyEventToStateCache(event);
+      }
+
+      // Save to local cache
+      saveEventsToCache();
+
+      console.log(`✅ Synced ${newEvents.length} events`);
+      return { synced: newEvents.length };
+    } catch (e) {
+      console.error('Sync failed:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * Apply a single event to the state cache
+   */
+  function applyEventToStateCache(event) {
+    const entityId = event.target.id;
+    let state = stateCache.get(entityId);
+
+    switch (event.op) {
+      case EOMigration.OPERATORS.INS:
+        // New entity
+        state = { ...event.context.data };
+        state._entity_id = entityId;
+        state._last_updated = event.ts;
+        stateCache.set(entityId, state);
+        break;
+
+      case EOMigration.OPERATORS.ALT:
+        if (state) {
+          // Apply changes
+          if (event.context.changes) {
+            for (const [field, change] of Object.entries(event.context.changes)) {
+              state[field] = change.new;
+            }
+          } else if (event.target.field) {
+            state[event.target.field] = event.context.new;
+          }
+          state._last_updated = event.ts;
+        }
+        break;
+
+      case EOMigration.OPERATORS.NUL:
+        stateCache.delete(entityId);
+        break;
+    }
+  }
+
+  // =============================================================================
+  // CRUD OPERATIONS (EO-based)
+  // =============================================================================
+
+  /**
+   * Create a new case (generates INS event)
+   */
+  async function createCase(caseData, options = {}) {
+    const docket = caseData.Docket_Number || caseData.docket_number;
+    if (!docket) {
+      throw new Error('Docket number is required');
+    }
+
+    // Check if case already exists
+    if (stateCache.has(docket)) {
+      throw new Error(`Case ${docket} already exists`);
+    }
+
+    // Create INS event
+    const event = EOMigration.createInsertEvent(caseData, {
+      source: 'application',
+      actor: options.actor || 'user',
+      version: '1.0'
+    });
+
+    // Push to Xano
+    if (CONFIG.EO_ENABLED) {
+      await EOMigration.pushEvent(event);
+    }
+
+    // Update local state
+    eventsCache.push(event);
+    applyEventToStateCache(event);
+    saveEventsToCache();
+
+    // Dual write to legacy if enabled
+    if (CONFIG.DUAL_WRITE && options.legacyUpload !== false) {
+      await legacyUpsert(caseData);
+    }
+
+    return event;
+  }
+
+  /**
+   * Update a case (generates ALT event)
+   */
+  async function updateCase(docket, changes, options = {}) {
+    // Get current state
+    const currentState = stateCache.get(docket);
+    if (!currentState) {
+      throw new Error(`Case ${docket} not found`);
+    }
+
+    // Build change object
+    const changeObj = {};
+    for (const [field, newValue] of Object.entries(changes)) {
+      const oldValue = currentState[field];
+      if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+        changeObj[field] = { old: oldValue, new: newValue };
+      }
+    }
+
+    if (Object.keys(changeObj).length === 0) {
+      console.log('No changes detected');
+      return null;
+    }
+
+    // Create ALT event
+    const event = EOMigration.createBulkUpdateEvent(docket, changeObj, {
+      source: 'application',
+      actor: options.actor || 'user',
+      version: '1.0'
+    });
+
+    // Push to Xano
+    if (CONFIG.EO_ENABLED) {
+      await EOMigration.pushEvent(event);
+    }
+
+    // Update local state
+    eventsCache.push(event);
+    applyEventToStateCache(event);
+    saveEventsToCache();
+
+    // Dual write to legacy if enabled
+    if (CONFIG.DUAL_WRITE && options.legacyUpload !== false) {
+      const updatedCase = { ...currentState, ...changes };
+      await legacyUpsert(updatedCase);
+    }
+
+    return event;
+  }
+
+  /**
+   * Delete a case (generates NUL event)
+   */
+  async function deleteCase(docket, reason = null, options = {}) {
+    // Check if case exists
+    if (!stateCache.has(docket)) {
+      throw new Error(`Case ${docket} not found`);
+    }
+
+    // Create NUL event
+    const event = EOMigration.createDeleteEvent(docket, reason, {
+      source: 'application',
+      actor: options.actor || 'user',
+      reversible: true
+    });
+
+    // Push to Xano
+    if (CONFIG.EO_ENABLED) {
+      await EOMigration.pushEvent(event);
+    }
+
+    // Update local state
+    eventsCache.push(event);
+    applyEventToStateCache(event);
+    saveEventsToCache();
+
+    return event;
+  }
+
+  /**
+   * Legacy upsert for dual-write mode
+   */
+  async function legacyUpsert(caseData) {
+    try {
+      const response = await fetch(EOMigration.CONFIG.LEGACY_UPLOAD_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(caseData)
+      });
+
+      if (!response.ok) {
+        console.warn('Legacy upsert failed:', response.status);
+      }
+    } catch (e) {
+      console.warn('Legacy upsert error:', e);
+    }
+  }
+
+  // =============================================================================
+  // QUERY OPERATIONS
+  // =============================================================================
+
+  /**
+   * Get a case by docket number
+   */
+  function getCase(docket) {
+    return stateCache.get(docket) || null;
+  }
+
+  /**
+   * Get all cases (current state)
+   */
+  function getAllCases() {
+    return Array.from(stateCache.values());
+  }
+
+  /**
+   * Get cases matching a filter
+   */
+  function getCases(filterFn) {
+    return getAllCases().filter(filterFn);
+  }
+
+  /**
+   * Get audit trail for a case
+   */
+  function getCaseAuditTrail(docket) {
+    return EOMigration.getAuditTrail(docket, eventsCache);
+  }
+
+  /**
+   * Get operator pattern for a case (for causal analysis)
+   */
+  function getCasePattern(docket) {
+    return EOMigration.getOperatorPattern(docket, eventsCache);
+  }
+
+  /**
+   * Get cases created in a date range
+   */
+  function getCasesCreatedInRange(startDate, endDate) {
+    const startTs = new Date(startDate).getTime();
+    const endTs = new Date(endDate).getTime();
+
+    const dockets = EOMigration.getCreatedInRange(eventsCache, startTs, endTs);
+    return dockets.map(d => stateCache.get(d)).filter(Boolean);
+  }
+
+  /**
+   * Get cases with recent changes
+   */
+  function getRecentlyUpdatedCases(sinceTs) {
+    const recentEvents = eventsCache.filter(e =>
+      e.ts >= sinceTs && e.op === EOMigration.OPERATORS.ALT
+    );
+
+    const dockets = [...new Set(recentEvents.map(e => e.target.id))];
+    return dockets.map(d => stateCache.get(d)).filter(Boolean);
+  }
+
+  // =============================================================================
+  // STATISTICS
+  // =============================================================================
+
+  /**
+   * Get EO system statistics
+   */
+  function getStats() {
+    const opCounts = {};
+    for (const event of eventsCache) {
+      opCounts[event.op] = (opCounts[event.op] || 0) + 1;
+    }
+
+    return {
+      totalEvents: eventsCache.length,
+      activeEntities: stateCache.size,
+      operationCounts: opCounts,
+      lastSyncTimestamp: lastSyncTimestamp,
+      lastSyncDate: new Date(lastSyncTimestamp).toISOString(),
+      config: { ...CONFIG }
+    };
+  }
+
+  // =============================================================================
+  // MIGRATION HELPERS
+  // =============================================================================
+
+  /**
+   * Bootstrap EO from existing application data
+   */
+  async function bootstrapFromLegacy(legacyData) {
+    console.log('🔧 Bootstrapping EO from legacy data...');
+
+    // Convert to events
+    const events = EOMigration.convertSnapshotToEvents(legacyData);
+    console.log(`  Generated ${events.length} INS events`);
+
+    // Push to Xano
+    const results = await EOMigration.pushEventsBatch(events, (progress) => {
+      console.log(`  Progress: ${progress.processed}/${progress.total}`);
+    });
+
+    console.log(`  Push complete: ${results.success} success, ${results.failed} failed`);
+
+    // Update local cache
+    eventsCache = eventsCache.concat(events);
+    rebuildStateCache();
+    saveEventsToCache();
+
+    return results;
+  }
+
+  /**
+   * Verify EO state matches legacy data
+   */
+  function verifyStateConsistency(legacyData) {
+    const issues = [];
+
+    for (const legacyRecord of legacyData) {
+      const docket = legacyRecord.Docket_Number || legacyRecord.docket_number;
+      if (!docket) continue;
+
+      const eoState = stateCache.get(docket);
+
+      if (!eoState) {
+        issues.push({ docket, issue: 'missing_in_eo' });
+        continue;
+      }
+
+      // Check key fields
+      const fieldsToCheck = ['Status', 'Plaintiff_Petitioner', 'Defendant_Respondent', 'File_Date'];
+      for (const field of fieldsToCheck) {
+        const legacyVal = legacyRecord[field];
+        const eoVal = eoState[field];
+
+        if (legacyVal && eoVal && legacyVal !== eoVal) {
+          issues.push({
+            docket,
+            issue: 'field_mismatch',
+            field,
+            legacy: legacyVal,
+            eo: eoVal
+          });
+        }
+      }
+    }
+
+    return {
+      totalChecked: legacyData.length,
+      issueCount: issues.length,
+      issues: issues.slice(0, 100) // Limit for display
+    };
+  }
+
+  // =============================================================================
+  // CONFIGURATION
+  // =============================================================================
+
+  /**
+   * Update configuration
+   */
+  function configure(updates) {
+    Object.assign(CONFIG, updates);
+
+    // Restart sync if interval changed
+    if (updates.SYNC_INTERVAL_MS && CONFIG.EO_ENABLED) {
+      stopBackgroundSync();
+      startBackgroundSync();
+    }
+  }
+
+  /**
+   * Enable/disable EO
+   */
+  function setEnabled(enabled) {
+    CONFIG.EO_ENABLED = enabled;
+    if (enabled) {
+      startBackgroundSync();
+    } else {
+      stopBackgroundSync();
+    }
+  }
+
+  // =============================================================================
+  // PUBLIC API
+  // =============================================================================
+
+  return {
+    // Initialization
+    initialize,
+
+    // Sync
+    syncFromEO,
+    startBackgroundSync,
+    stopBackgroundSync,
+
+    // CRUD operations
+    createCase,
+    updateCase,
+    deleteCase,
+
+    // Query operations
+    getCase,
+    getAllCases,
+    getCases,
+    getCaseAuditTrail,
+    getCasePattern,
+    getCasesCreatedInRange,
+    getRecentlyUpdatedCases,
+
+    // Statistics
+    getStats,
+
+    // Migration
+    bootstrapFromLegacy,
+    verifyStateConsistency,
+
+    // Configuration
+    configure,
+    setEnabled,
+    CONFIG
+  };
+})();
+
+// Export for Node.js environments
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = EOIntegration;
+}
+
+// Usage examples (commented out for reference):
+/*
+
+// Initialize the integration
+await EOIntegration.initialize();
+
+// Get stats
+console.log(EOIntegration.getStats());
+
+// Create a new case
+const event = await EOIntegration.createCase({
+  Docket_Number: '24GC9999',
+  File_Date: '01/15/2024',
+  Status: 'Active',
+  Plaintiff_Petitioner: 'ABC Properties LLC',
+  Defendant_Respondent: 'John Doe'
+});
+
+// Update a case
+const updateEvent = await EOIntegration.updateCase('24GC9999', {
+  Status: 'Disposed',
+  judgment_for: 'Plaintiff'
+});
+
+// Get case with audit trail
+const caseData = EOIntegration.getCase('24GC9999');
+const auditTrail = EOIntegration.getCaseAuditTrail('24GC9999');
+console.log('Case:', caseData);
+console.log('Audit trail:', auditTrail);
+
+// Get operator pattern (for understanding case lifecycle)
+const pattern = EOIntegration.getCasePattern('24GC9999');
+console.log('Pattern:', pattern.pattern); // e.g., "INS→ALT→ALT"
+
+// Bootstrap EO from existing data in the app
+const allData = window.allData; // Existing application data
+await EOIntegration.bootstrapFromLegacy(allData);
+
+*/
