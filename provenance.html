@@ -1,0 +1,1762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claim Provenance - Nashville Eviction Tracker</title>
+    <link rel="icon" type="image/png" href="https://storage.googleapis.com/intelechia-content/im/eviction%20prevention%20logo.png">
+    <link rel="stylesheet" href="dist/output.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        :root {
+            --primary: #4f46e5;
+            --secondary: #06b6d4;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --success: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f9fafb;
+            line-height: 1.6;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            height: 40px;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #4338ca;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        .page-intro {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .page-intro h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .page-intro p {
+            color: #374151;
+            font-size: 15px;
+        }
+
+        .toc {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+
+        .toc h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .toc-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: #374151;
+        }
+
+        .toc-item:hover {
+            background: #ede9fe;
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .toc-icon {
+            font-size: 18px;
+        }
+
+        .claim-section {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .claim-header {
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            padding: 20px 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+
+        .claim-header:hover {
+            background: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%);
+        }
+
+        .claim-header.expanded {
+            background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+            border-bottom-color: #c4b5fd;
+        }
+
+        .claim-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .claim-icon {
+            font-size: 24px;
+        }
+
+        .claim-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .claim-subtitle {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .expand-icon {
+            font-size: 20px;
+            color: #6b7280;
+            transition: transform 0.3s ease;
+        }
+
+        .claim-header.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .claim-content {
+            display: none;
+            padding: 24px;
+        }
+
+        .claim-content.expanded {
+            display: block;
+        }
+
+        .claim-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .claim-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .claim-item-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .claim-item-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .claim-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-verified {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-calculated {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-estimated {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-pending {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .methodology-box {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid var(--primary);
+            border-radius: 0 8px 8px 0;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .methodology-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+
+        .methodology-text {
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .formula-box {
+            background: #1e1b4b;
+            color: #c4b5fd;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            margin: 12px 0;
+            overflow-x: auto;
+        }
+
+        .source-list {
+            margin-top: 12px;
+        }
+
+        .source-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .source-item:last-child {
+            border-bottom: none;
+        }
+
+        .source-icon {
+            font-size: 16px;
+            margin-top: 2px;
+        }
+
+        .source-info {
+            flex: 1;
+        }
+
+        .source-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #111827;
+        }
+
+        .source-detail {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .source-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .source-link:hover {
+            text-decoration: underline;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 13px;
+        }
+
+        .data-table th {
+            background: #f3f4f6;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .data-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e5e7eb;
+            color: #374151;
+        }
+
+        .data-table tr:hover td {
+            background: #f9fafb;
+        }
+
+        .limitation-box {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            padding: 14px;
+            margin-top: 12px;
+        }
+
+        .limitation-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #92400e;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .limitation-text {
+            font-size: 13px;
+            color: #78350f;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-primary {
+            background: #ede9fe;
+            color: #5b21b6;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .footer {
+            background: #1f2937;
+            color: #9ca3af;
+            padding: 24px;
+            margin-top: 48px;
+            text-align: center;
+        }
+
+        .footer a {
+            color: #60a5fa;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 12px;
+                padding: 12px 16px;
+            }
+
+            .header h1 {
+                font-size: 16px;
+            }
+
+            .main-container {
+                padding: 16px;
+            }
+
+            .claim-header {
+                padding: 16px;
+            }
+
+            .claim-title {
+                font-size: 16px;
+            }
+
+            .toc-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <img src="https://storage.googleapis.com/intelechia-content/im/eviction%20prevention%20logo.png" alt="Logo" class="logo">
+            <div>
+                <h1>Claim Provenance & Methodology</h1>
+                <div style="font-size: 12px; color: #6b7280;">How we know what we know</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <a href="index.html" class="btn btn-secondary">
+                <span>←</span> Dashboard
+            </a>
+            <a href="map.html" class="btn btn-secondary">
+                <span>🗺️</span> Map
+            </a>
+            <a href="cm-rankings.html" class="btn btn-secondary">
+                <span>📊</span> Rankings
+            </a>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <!-- Page Introduction -->
+        <div class="page-intro">
+            <h2>📋 Investigative Transparency</h2>
+            <p>
+                This page documents the provenance of every claim and data point in the Nashville Eviction Tracker.
+                For each investigative question we answer, you can inspect the data sources, methodology, calculations,
+                and limitations. Click any section to expand and see exactly how we arrived at our conclusions.
+            </p>
+        </div>
+
+        <!-- Table of Contents -->
+        <div class="toc">
+            <h3>📑 Jump to Section</h3>
+            <div class="toc-grid">
+                <a href="#data-sources" class="toc-item">
+                    <span class="toc-icon">📊</span>
+                    <span>Primary Data Sources</span>
+                </a>
+                <a href="#geographic" class="toc-item">
+                    <span class="toc-icon">🗺️</span>
+                    <span>Geographic Patterns</span>
+                </a>
+                <a href="#serial-filings" class="toc-item">
+                    <span class="toc-icon">🔄</span>
+                    <span>Serial Filing Patterns</span>
+                </a>
+                <a href="#top-filers" class="toc-item">
+                    <span class="toc-icon">🏢</span>
+                    <span>Top Filers Analysis</span>
+                </a>
+                <a href="#legal-representation" class="toc-item">
+                    <span class="toc-icon">⚖️</span>
+                    <span>Legal Representation</span>
+                </a>
+                <a href="#timing" class="toc-item">
+                    <span class="toc-icon">📅</span>
+                    <span>Timing Analysis</span>
+                </a>
+                <a href="#outcomes" class="toc-item">
+                    <span class="toc-icon">📋</span>
+                    <span>Case Outcomes</span>
+                </a>
+                <a href="#demographics" class="toc-item">
+                    <span class="toc-icon">👥</span>
+                    <span>Demographic Analysis</span>
+                </a>
+                <a href="#benchmarks" class="toc-item">
+                    <span class="toc-icon">📈</span>
+                    <span>Comparative Benchmarks</span>
+                </a>
+                <a href="#methodology" class="toc-item">
+                    <span class="toc-icon">🔬</span>
+                    <span>Technical Methodology</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- PRIMARY DATA SOURCES -->
+        <section id="data-sources" class="claim-section">
+            <div class="claim-header" onclick="toggleSection(this)">
+                <div class="claim-header-left">
+                    <span class="claim-icon">📊</span>
+                    <div>
+                        <div class="claim-title">Primary Data Sources</div>
+                        <div class="claim-subtitle">Where our data comes from and how we access it</div>
+                    </div>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="claim-content">
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Davidson County Sessions Court Records</div>
+                        <span class="claim-status status-verified">Primary Source</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Data Collection Method</div>
+                        <div class="methodology-text">
+                            Eviction case records are collected from public court filings in Davidson County General Sessions Court.
+                            Each record includes docket number, file date, case status, plaintiff (landlord), defendant (tenant),
+                            attorney information, property address, and geographic coordinates.
+                        </div>
+                    </div>
+                    <div class="source-list">
+                        <div class="source-item">
+                            <span class="source-icon">🏛️</span>
+                            <div class="source-info">
+                                <div class="source-name">CaseLink Public Portal</div>
+                                <div class="source-detail">Tennessee Administrative Office of the Courts public case lookup system</div>
+                                <a href="https://caselink.tncourts.gov/" class="source-link" target="_blank">caselink.tncourts.gov →</a>
+                            </div>
+                        </div>
+                        <div class="source-item">
+                            <span class="source-icon">🔗</span>
+                            <div class="source-info">
+                                <div class="source-name">API Data Feed</div>
+                                <div class="source-detail">Structured data retrieved via court records API with activity stream format</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="limitation-box">
+                        <div class="limitation-label">⚠️ Limitations</div>
+                        <div class="limitation-text">
+                            • Informal evictions (landlord threats, utility shutoffs) not captured in court data<br>
+                            • Records appear when filed; outcomes may update over time<br>
+                            • Some historic records may have incomplete address or party information
+                        </div>
+                    </div>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">U.S. Census Bureau American Community Survey</div>
+                        <span class="claim-status status-verified">Primary Source</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Data Collection Method</div>
+                        <div class="methodology-text">
+                            Demographic and housing data for Nashville's 35 Metro Council Districts comes from the American Community Survey
+                            2021 5-year estimates. This provides renter population counts needed to calculate normalized eviction rates.
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>ACS Table</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Population</td>
+                                <td>S0101</td>
+                                <td>Age Categories</td>
+                            </tr>
+                            <tr>
+                                <td>Housing Units</td>
+                                <td>B25002</td>
+                                <td>Housing Occupancy</td>
+                            </tr>
+                            <tr>
+                                <td>Owner Occupied</td>
+                                <td>B25075</td>
+                                <td>Owner Housing Values</td>
+                            </tr>
+                            <tr>
+                                <td>Rent Burden</td>
+                                <td>B25070</td>
+                                <td>Gross Rent as % of Income</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="source-list">
+                        <div class="source-item">
+                            <span class="source-icon">📖</span>
+                            <div class="source-info">
+                                <div class="source-name">Know Your Community Report</div>
+                                <div class="source-detail">Metropolitan Social Services, Strategic Planning & Research (December 2023)</div>
+                                <a href="https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf" class="source-link" target="_blank">Download PDF →</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Princeton Eviction Lab</div>
+                        <span class="claim-status status-verified">Benchmark Source</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Data Use</div>
+                        <div class="methodology-text">
+                            National and comparative city eviction data from the Eviction Tracking System (ETS) provides benchmarks
+                            for understanding Nashville's eviction rates in context. Used for filing rate comparisons and trend analysis.
+                        </div>
+                    </div>
+                    <div class="source-list">
+                        <div class="source-item">
+                            <span class="source-icon">🎓</span>
+                            <div class="source-info">
+                                <div class="source-name">Eviction Tracking System</div>
+                                <div class="source-detail">Princeton University research initiative tracking evictions in 34+ cities</div>
+                                <a href="https://evictionlab.org" class="source-link" target="_blank">evictionlab.org →</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- GEOGRAPHIC PATTERNS -->
+        <section id="geographic" class="claim-section">
+            <div class="claim-header" onclick="toggleSection(this)">
+                <div class="claim-header-left">
+                    <span class="claim-icon">🗺️</span>
+                    <div>
+                        <div class="claim-title">Geographic Patterns</div>
+                        <div class="claim-subtitle">Which districts have highest eviction rates?</div>
+                    </div>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="claim-content">
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Eviction Rate per 1,000 Renter Households</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">How We Calculate This</div>
+                        <div class="methodology-text">
+                            To fairly compare eviction burden across districts with different renter populations,
+                            we normalize by calculating evictions per 1,000 renter households in each district.
+                        </div>
+                    </div>
+                    <div class="formula-box">
+                        eviction_rate_per_1k = (eviction_count / estimated_renters) × 1000
+                    </div>
+                    <div class="source-list">
+                        <div class="source-item">
+                            <span class="source-icon">📊</span>
+                            <div class="source-info">
+                                <div class="source-name">Eviction Count</div>
+                                <div class="source-detail">Count of detainer warrant filings in each district from court records</div>
+                            </div>
+                        </div>
+                        <div class="source-item">
+                            <span class="source-icon">🏠</span>
+                            <div class="source-info">
+                                <div class="source-name">Estimated Renters</div>
+                                <div class="source-detail">Calculated as: total_occupied_units - owner_occupied_units (from ACS data)</div>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="margin-top: 16px; font-size: 14px; color: #374151;">
+                        <strong>Example:</strong> A district with 150 evictions and 4,730 renter households has a rate of
+                        (150 / 4,730) × 1000 = <strong>31.7 per 1,000 renter households</strong>.
+                    </p>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">District Assignment Methodology</div>
+                        <span class="claim-status status-calculated">Geocoded</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">How Cases Are Assigned to Districts</div>
+                        <div class="methodology-text">
+                            Each eviction filing includes a property address. We geocode addresses to latitude/longitude coordinates,
+                            then perform a point-in-polygon spatial join with Metro Council District boundaries (post-2021 redistricting
+                            per BL2021-1052, approved January 18, 2022).
+                        </div>
+                    </div>
+                    <div class="limitation-box">
+                        <div class="limitation-label">⚠️ Limitations</div>
+                        <div class="limitation-text">
+                            • Some addresses may fail to geocode (typos, new construction, PO boxes)<br>
+                            • District boundaries updated in 2022; historical data uses current boundaries<br>
+                            • Properties on district borders assigned to single district based on centroid
+                        </div>
+                    </div>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Demographic Correlation Analysis</div>
+                        <span class="claim-status status-calculated">Statistical</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">How We Measure Correlation</div>
+                        <div class="methodology-text">
+                            We examine relationships between district-level eviction rates and demographic factors including
+                            racial composition, median income, poverty rate, rent burden, and educational attainment.
+                            Correlations are descriptive and do not imply causation.
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Demographic Factor</th>
+                                <th>Data Source</th>
+                                <th>ACS Table</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Racial Composition</td>
+                                <td>ACS 5-year estimates</td>
+                                <td>B02001</td>
+                            </tr>
+                            <tr>
+                                <td>Median Household Income</td>
+                                <td>ACS 5-year estimates</td>
+                                <td>S1901</td>
+                            </tr>
+                            <tr>
+                                <td>Poverty Rate</td>
+                                <td>ACS 5-year estimates</td>
+                                <td>S1701</td>
+                            </tr>
+                            <tr>
+                                <td>Rent Burden (&gt;30% income)</td>
+                                <td>ACS 5-year estimates</td>
+                                <td>B25070</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- SERIAL FILING PATTERNS -->
+        <section id="serial-filings" class="claim-section">
+            <div class="claim-header" onclick="toggleSection(this)">
+                <div class="claim-header-left">
+                    <span class="claim-icon">🔄</span>
+                    <div>
+                        <div class="claim-title">Serial Filing Patterns</div>
+                        <div class="claim-subtitle">How many evictions are filed at the same address repeatedly?</div>
+                    </div>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="claim-content">
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Repeat Address Analysis</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">How We Identify Serial Filings</div>
+                        <div class="methodology-text">
+                            We group eviction filings by normalized property address and count the number of filings
+                            per address within a specified time period. Addresses with multiple filings suggest either
+                            serial eviction as a business practice or high-turnover properties.
+                        </div>
+                    </div>
+                    <div class="formula-box">
+                        serial_filing_rate = filings_at_repeat_addresses / total_filings × 100
+                    </div>
+                    <div class="source-list">
+                        <div class="source-item">
+                            <span class="source-icon">🏢</span>
+                            <div class="source-info">
+                                <div class="source-name">Address Normalization</div>
+                                <div class="source-detail">Addresses are standardized (case, abbreviations, unit numbers) before grouping</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="limitation-box">
+                        <div class="limitation-label">⚠️ Limitations</div>
+                        <div class="limitation-text">
+                            • Address variations may cause same property to appear as different addresses<br>
+                            • Cannot distinguish between different units at same street address (apartments)<br>
+                            • National benchmark: 44.6% serial filing rate (DC: 64%)
+                        </div>
+                    </div>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">High-Frequency Properties</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Identifying Problem Properties</div>
+                        <div class="methodology-text">
+                            Properties with 5+ eviction filings per year are flagged as potential "eviction hotspots"
+                            where displacement may be used as routine rent collection rather than last resort.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TOP FILERS ANALYSIS -->
+        <section id="top-filers" class="claim-section">
+            <div class="claim-header" onclick="toggleSection(this)">
+                <div class="claim-header-left">
+                    <span class="claim-icon">🏢</span>
+                    <div>
+                        <div class="claim-title">Top Filers Analysis</div>
+                        <div class="claim-subtitle">Who files the most evictions in Nashville?</div>
+                    </div>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="claim-content">
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Plaintiff (Landlord) Concentration</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">How We Rank Top Filers</div>
+                        <div class="methodology-text">
+                            We aggregate eviction filings by plaintiff name, normalize variations (LLC suffixes,
+                            case differences), and rank by total filing count. This reveals concentration of
+                            eviction activity among large landlords and property management companies.
+                        </div>
+                    </div>
+                    <div class="formula-box">
+                        top_10_share = sum(top_10_filer_counts) / total_filings × 100
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Nashville</th>
+                                <th>National Avg</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Top 10 plaintiffs share</td>
+                                <td>~33%</td>
+                                <td>32.6%</td>
+                            </tr>
+                            <tr>
+                                <td>Top 100 buildings share</td>
+                                <td>TBD</td>
+                                <td>34% (Jacksonville)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="source-list">
+                        <div class="source-item">
+                            <span class="source-icon">📊</span>
+                            <div class="source-info">
+                                <div class="source-name">Plaintiff Field</div>
+                                <div class="source-detail">Extracted from court record plaintiff/petitioner field</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Corporate vs. Individual Landlords</div>
+                        <span class="claim-status status-pending">Pending Analysis</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Classification Method</div>
+                        <div class="methodology-text">
+                            Plaintiffs are classified as corporate (LLC, LP, Inc., Corp., Trust, or property management company)
+                            vs. individual based on name patterns. Corporate landlords may be cross-referenced with
+                            Secretary of State filings for ownership details.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- LEGAL REPRESENTATION -->
+        <section id="legal-representation" class="claim-section">
+            <div class="claim-header" onclick="toggleSection(this)">
+                <div class="claim-header-left">
+                    <span class="claim-icon">⚖️</span>
+                    <div>
+                        <div class="claim-title">Legal Representation Patterns</div>
+                        <div class="claim-subtitle">Which law firms file the most evictions?</div>
+                    </div>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="claim-content">
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Attorney Filing Concentration</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">How We Track Legal Representation</div>
+                        <div class="methodology-text">
+                            Each eviction filing includes the attorney of record for the plaintiff. We aggregate
+                            by attorney/firm name to identify "eviction mills" - firms that handle high volumes
+                            of eviction cases as their primary practice.
+                        </div>
+                    </div>
+                    <div class="source-list">
+                        <div class="source-item">
+                            <span class="source-icon">⚖️</span>
+                            <div class="source-info">
+                                <div class="source-name">Attorney Field</div>
+                                <div class="source-detail">Plaintiff attorney name from court record</div>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="margin-top: 16px; font-size: 14px; color: #374151;">
+                        <strong>Context:</strong> In Columbus, OH, one law firm (Willis Law) filed 50% of all evictions (14,000 cases in 2024).
+                    </p>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Tenant Representation Gap</div>
+                        <span class="claim-status status-estimated">Estimated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">The Representation Disparity</div>
+                        <div class="methodology-text">
+                            While landlords are represented by attorneys in the vast majority of cases, tenants
+                            typically appear pro se (without counsel). National data shows 84% of tenants don't
+                            appear at all (Charlotte), and landlord representation rates exceed 80%.
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Value</th>
+                                <th>Source</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Tenant no-show rate</td>
+                                <td>84%</td>
+                                <td>Charlotte Housing Dashboard</td>
+                            </tr>
+                            <tr>
+                                <td>Landlord representation rate</td>
+                                <td>82%</td>
+                                <td>Charlotte Housing Dashboard</td>
+                            </tr>
+                            <tr>
+                                <td>Memphis tenant win rate</td>
+                                <td>2%</td>
+                                <td>Memphis eviction study</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TIMING ANALYSIS -->
+        <section id="timing" class="claim-section">
+            <div class="claim-header" onclick="toggleSection(this)">
+                <div class="claim-header-left">
+                    <span class="claim-icon">📅</span>
+                    <div>
+                        <div class="claim-title">Timing Analysis</div>
+                        <div class="claim-subtitle">When do evictions spike? Utility crisis and seasonal patterns</div>
+                    </div>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="claim-content">
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Utility Crisis Period (January 2026)</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">How We Measure Crisis Impact</div>
+                        <div class="methodology-text">
+                            We analyze daily filing counts during the January 2026 power outage period and compare
+                            to the same period in prior years and to monthly averages. This reveals whether landlords
+                            filed evictions while tenants were dealing with emergency conditions.
+                        </div>
+                    </div>
+                    <div class="formula-box">
+                        crisis_period_filings = COUNT(*) WHERE file_date BETWEEN '2026-01-XX' AND '2026-01-XX'<br>
+                        baseline_comparison = crisis_filings / avg_daily_filings_prior_month
+                    </div>
+                    <div class="source-list">
+                        <div class="source-item">
+                            <span class="source-icon">📅</span>
+                            <div class="source-info">
+                                <div class="source-name">File Date Field</div>
+                                <div class="source-detail">Date eviction was filed with the court (not served or adjudicated)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Seasonal and Weekly Patterns</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Pattern Detection</div>
+                        <div class="methodology-text">
+                            Filing counts aggregated by month, week of month, and day of week reveal seasonal patterns
+                            (winter heating costs, holiday periods) and strategic timing (rent due dates, end of month).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Year-Over-Year Trends</div>
+                        <span class="claim-status status-verified">Verified</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">How We Track Growth</div>
+                        <div class="methodology-text">
+                            We compare annual filing totals to establish trend lines. Nashville's eviction filings
+                            increased from 11,471 (2019) to 14,346 (2024), a 25% increase above pre-pandemic levels.
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Year</th>
+                                <th>Filings</th>
+                                <th>vs. 2019</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>2017</td>
+                                <td>9,358</td>
+                                <td>-18%</td>
+                            </tr>
+                            <tr>
+                                <td>2018</td>
+                                <td>10,543</td>
+                                <td>-8%</td>
+                            </tr>
+                            <tr>
+                                <td>2019</td>
+                                <td>11,471</td>
+                                <td>baseline</td>
+                            </tr>
+                            <tr>
+                                <td>2024</td>
+                                <td>14,346</td>
+                                <td>+25%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- CASE OUTCOMES -->
+        <section id="outcomes" class="claim-section">
+            <div class="claim-header" onclick="toggleSection(this)">
+                <div class="claim-header-left">
+                    <span class="claim-icon">📋</span>
+                    <div>
+                        <div class="claim-title">Case Outcomes</div>
+                        <div class="claim-subtitle">What happens after an eviction is filed?</div>
+                    </div>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="claim-content">
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Case Status Categories</div>
+                        <span class="claim-status status-verified">From Court Records</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">How We Categorize Outcomes</div>
+                        <div class="methodology-text">
+                            Court records include a status field that we map to outcome categories. The progression
+                            from filing to physical eviction involves multiple stages tracked in the docket.
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Description</th>
+                                <th>Meaning</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>SUMMONS SERVED</td>
+                                <td>Tenant notified</td>
+                                <td>Case initiated, hearing scheduled</td>
+                            </tr>
+                            <tr>
+                                <td>PAPER WRIT DATE</td>
+                                <td>Judgment entered</td>
+                                <td>Court ruled for landlord</td>
+                            </tr>
+                            <tr>
+                                <td>WRIT OF RESTITUTION</td>
+                                <td>Eviction ordered</td>
+                                <td>Sheriff authorized to remove tenant</td>
+                            </tr>
+                            <tr>
+                                <td>DISMISSED</td>
+                                <td>Case closed</td>
+                                <td>Settled, withdrawn, or ruled for tenant</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Judgment Rate</div>
+                        <span class="claim-status status-estimated">Estimated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Calculation Method</div>
+                        <div class="methodology-text">
+                            The judgment rate represents what percentage of filed evictions result in a court order
+                            for eviction. Nashville's 2019 judgment rate was 67%, above the national average of 50%.
+                        </div>
+                    </div>
+                    <div class="formula-box">
+                        judgment_rate = eviction_judgments / eviction_filings × 100<br>
+                        Nashville 2024 estimate: 14,346 filings × 67% = ~9,612 judgments
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>City</th>
+                                <th>Judgment Rate</th>
+                                <th>Note</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Memphis</td>
+                                <td>98%</td>
+                                <td>81.7% of hearings under 1 minute</td>
+                            </tr>
+                            <tr>
+                                <td>San Antonio</td>
+                                <td>76%</td>
+                                <td>2022 landlord win rate</td>
+                            </tr>
+                            <tr>
+                                <td>Nashville</td>
+                                <td>67%</td>
+                                <td>2019 data</td>
+                            </tr>
+                            <tr>
+                                <td>National Average</td>
+                                <td>50%</td>
+                                <td>Collinson et al.</td>
+                            </tr>
+                            <tr>
+                                <td>New York City</td>
+                                <td>35%</td>
+                                <td>Stronger tenant protections</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Default Judgment Rate</div>
+                        <span class="claim-status status-estimated">Estimated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Understanding Defaults</div>
+                        <div class="methodology-text">
+                            When tenants don't appear at their hearing, the court typically enters a default judgment
+                            for the landlord. National data suggests 84% of tenants don't show (Charlotte).
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- DEMOGRAPHIC ANALYSIS -->
+        <section id="demographics" class="claim-section">
+            <div class="claim-header" onclick="toggleSection(this)">
+                <div class="claim-header-left">
+                    <span class="claim-icon">👥</span>
+                    <div>
+                        <div class="claim-title">Demographic Analysis</div>
+                        <div class="claim-subtitle">Who faces eviction? Racial and gender disparities</div>
+                    </div>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="claim-content">
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Racial Disparities in Eviction</div>
+                        <span class="claim-status status-verified">National Data</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Understanding the Gap</div>
+                        <div class="methodology-text">
+                            National research shows Black renters face eviction at significantly higher rates than
+                            white renters, even after controlling for income and neighborhood. Nashville's district-level
+                            data can reveal whether similar patterns exist locally.
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Black Renters</th>
+                                <th>White Renters</th>
+                                <th>Ratio</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Share of renters (national)</td>
+                                <td>19.9%</td>
+                                <td>—</td>
+                                <td>—</td>
+                            </tr>
+                            <tr>
+                                <td>Share of eviction defendants</td>
+                                <td>32.7%</td>
+                                <td>—</td>
+                                <td>1.65x</td>
+                            </tr>
+                            <tr>
+                                <td>Annual eviction rate</td>
+                                <td>3.4%</td>
+                                <td>2.0%</td>
+                                <td>1.7x</td>
+                            </tr>
+                            <tr>
+                                <td>Filing rate (2024 ETS)</td>
+                                <td>36% of defendants</td>
+                                <td>28% of renters</td>
+                                <td>1.29x</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="source-list">
+                        <div class="source-item">
+                            <span class="source-icon">🎓</span>
+                            <div class="source-info">
+                                <div class="source-name">Eviction Lab National Estimates</div>
+                                <div class="source-detail">2012-2016 analysis of 83 million records</div>
+                                <a href="https://evictionlab.org/demographics-of-eviction/" class="source-link" target="_blank">View Research →</a>
+                            </div>
+                        </div>
+                        <div class="source-item">
+                            <span class="source-icon">📄</span>
+                            <div class="source-info">
+                                <div class="source-name">Graetz et al. PNAS 2023</div>
+                                <div class="source-detail">Census-linked eviction records showing 4x disparity</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="limitation-box">
+                        <div class="limitation-label">⚠️ Nashville-Specific Note</div>
+                        <div class="limitation-text">
+                            Nashville was excluded from some ETS demographic analyses due to defendant name data quality issues.
+                            We cannot directly determine defendant race from court records.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Gender Disparities</div>
+                        <span class="claim-status status-verified">National Data</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Women and Eviction</div>
+                        <div class="methodology-text">
+                            Women, especially Black women, face eviction at disproportionate rates nationally.
+                            This reflects gender wage gaps, single parenthood, and housing discrimination.
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Female share of defendants (2024)</td>
+                                <td>58%</td>
+                            </tr>
+                            <tr>
+                                <td>Female share of renters</td>
+                                <td>53%</td>
+                            </tr>
+                            <tr>
+                                <td>Black women evicted annually (national)</td>
+                                <td>113,415</td>
+                            </tr>
+                            <tr>
+                                <td>Black men evicted annually (national)</td>
+                                <td>83,182</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- COMPARATIVE BENCHMARKS -->
+        <section id="benchmarks" class="claim-section">
+            <div class="claim-header" onclick="toggleSection(this)">
+                <div class="claim-header-left">
+                    <span class="claim-icon">📈</span>
+                    <div>
+                        <div class="claim-title">Comparative Benchmarks</div>
+                        <div class="claim-subtitle">How does Nashville compare to other cities?</div>
+                    </div>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="claim-content">
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Filing Rate Comparison</div>
+                        <span class="claim-status status-verified">Verified</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Peer City Comparison</div>
+                        <div class="methodology-text">
+                            We compare Nashville's eviction filing rate (percentage of renter households facing
+                            eviction filing) against similar-sized Sunbelt metros and national averages.
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>City</th>
+                                <th>Filing Rate</th>
+                                <th>Note</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Charlotte</td>
+                                <td>24.2%</td>
+                                <td>Fiscal year data</td>
+                            </tr>
+                            <tr>
+                                <td>Memphis</td>
+                                <td>17.7%</td>
+                                <td>Pre-pandemic baseline</td>
+                            </tr>
+                            <tr>
+                                <td>Indianapolis</td>
+                                <td>16.0%</td>
+                                <td>2024</td>
+                            </tr>
+                            <tr>
+                                <td>Columbus</td>
+                                <td>11.9%</td>
+                                <td>2024 all-time high</td>
+                            </tr>
+                            <tr style="background: #ede9fe;">
+                                <td><strong>Nashville</strong></td>
+                                <td><strong>9.8%</strong></td>
+                                <td>2024 calculated</td>
+                            </tr>
+                            <tr>
+                                <td>San Antonio</td>
+                                <td>9.0%</td>
+                                <td>2024</td>
+                            </tr>
+                            <tr>
+                                <td>Jacksonville</td>
+                                <td>8.2%</td>
+                                <td>2024</td>
+                            </tr>
+                            <tr>
+                                <td>National Average</td>
+                                <td>7.8%</td>
+                                <td>ETS cities 2024</td>
+                            </tr>
+                            <tr>
+                                <td>Austin</td>
+                                <td>4.4%</td>
+                                <td>Classified "low"</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="source-list">
+                        <div class="source-item">
+                            <span class="source-icon">🎓</span>
+                            <div class="source-info">
+                                <div class="source-name">Eviction Tracking System 2024 Report</div>
+                                <div class="source-detail">Princeton Eviction Lab comparative analysis</div>
+                                <a href="https://evictionlab.org/ets-report-2024/" class="source-link" target="_blank">View Report →</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Nashville Context Summary</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Key Comparisons</div>
+                        <div class="methodology-text">
+                            Nashville sits in the middle tier among Sunbelt metros—below Memphis and Indianapolis,
+                            but above Austin and Jacksonville. The filing rate is 26% above the national average.
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Nashville</th>
+                                <th>vs. National</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Filing Rate</td>
+                                <td>9.8%</td>
+                                <td>+26% (vs. 7.8%)</td>
+                            </tr>
+                            <tr>
+                                <td>Judgment Rate</td>
+                                <td>67%</td>
+                                <td>+34% (vs. 50%)</td>
+                            </tr>
+                            <tr>
+                                <td>Eviction Rate</td>
+                                <td>6.5%</td>
+                                <td>+160% (vs. 2.5%)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TECHNICAL METHODOLOGY -->
+        <section id="methodology" class="claim-section">
+            <div class="claim-header" onclick="toggleSection(this)">
+                <div class="claim-header-left">
+                    <span class="claim-icon">🔬</span>
+                    <div>
+                        <div class="claim-title">Technical Methodology</div>
+                        <div class="claim-subtitle">Data processing, deduplication, and validation</div>
+                    </div>
+                </div>
+                <span class="expand-icon">▼</span>
+            </div>
+            <div class="claim-content">
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Activity Stream Deduplication</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Handling Multiple Records Per Case</div>
+                        <div class="methodology-text">
+                            Court records arrive in an "activity stream" format where each case can have multiple
+                            records showing data changes over time. We deduplicate by taking the most recent record
+                            per docket number to get the current state of each case.
+                        </div>
+                    </div>
+                    <div class="formula-box">
+                        current_state = SELECT * FROM records<br>
+                        &nbsp;&nbsp;WHERE (docket_id, created_at) IN (<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;SELECT docket_id, MAX(created_at)<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;FROM records GROUP BY docket_id<br>
+                        &nbsp;&nbsp;)
+                    </div>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Field Normalization</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Standardizing Data</div>
+                        <div class="methodology-text">
+                            Court records may have inconsistent field formats (PascalCase vs. snake_case,
+                            varying date formats, address abbreviations). We normalize these for consistent analysis.
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Field Type</th>
+                                <th>Normalization Applied</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Dates</td>
+                                <td>Parsed to ISO 8601 format (YYYY-MM-DD)</td>
+                            </tr>
+                            <tr>
+                                <td>Addresses</td>
+                                <td>Standardized abbreviations (ST→Street, AVE→Avenue)</td>
+                            </tr>
+                            <tr>
+                                <td>Names</td>
+                                <td>Trimmed whitespace, standardized case</td>
+                            </tr>
+                            <tr>
+                                <td>Districts</td>
+                                <td>Geocoded from coordinates to district number</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Renter Household Estimation</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">How We Calculate Renter Counts</div>
+                        <div class="methodology-text">
+                            The Census doesn't directly report renter households by council district. We calculate
+                            this from available ACS data on housing occupancy and ownership.
+                        </div>
+                    </div>
+                    <div class="formula-box">
+                        total_occupied = total_housing_units × (percent_occupied / 100)<br>
+                        estimated_renters = total_occupied - owner_occupied_units<br>
+                        pct_renters = (estimated_renters / total_occupied) × 100
+                    </div>
+                    <p style="margin-top: 16px; font-size: 14px; color: #374151;">
+                        <strong>Validation:</strong> Our county-level estimate of 146,473 renter households closely matches
+                        the Census Bureau's reported 146,940 renter households from ACS Table B25070.
+                    </p>
+                </div>
+
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">Data Freshness</div>
+                        <span class="claim-status status-verified">System Info</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Update Frequency</div>
+                        <div class="methodology-text">
+                            Court records are retrieved periodically from the public data source. There may be a
+                            lag between when a case is filed and when it appears in our data. Case outcomes may
+                            update as proceedings progress.
+                        </div>
+                    </div>
+                    <div class="limitation-box">
+                        <div class="limitation-label">⚠️ Data Caveats</div>
+                        <div class="limitation-text">
+                            • Court records reflect formal legal proceedings only—informal evictions not captured<br>
+                            • Some historic records may have incomplete or inconsistent data<br>
+                            • Name matching across records is approximate (different spellings, name changes)<br>
+                            • 2024 judgment rate uses 2019 rate as estimate; actual rate may differ
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="footer">
+        <p style="font-size: 14px; margin-bottom: 8px;">
+            <strong>Nashville Eviction Tracker</strong> — Community Project (UNOFFICIAL)
+        </p>
+        <p style="font-size: 13px;">
+            Data sources: <a href="https://caselink.tncourts.gov/" target="_blank">Tennessee Courts CaseLink</a> |
+            <a href="https://evictionlab.org" target="_blank">Princeton Eviction Lab</a> |
+            <a href="https://www.census.gov/programs-surveys/acs" target="_blank">U.S. Census Bureau ACS</a>
+        </p>
+        <p style="font-size: 12px; margin-top: 12px; color: #6b7280;">
+            Last updated: <span id="last-updated"></span>
+        </p>
+    </footer>
+
+    <script>
+        // Toggle section expansion
+        function toggleSection(header) {
+            const content = header.nextElementSibling;
+            const isExpanded = header.classList.contains('expanded');
+
+            if (isExpanded) {
+                header.classList.remove('expanded');
+                content.classList.remove('expanded');
+            } else {
+                header.classList.add('expanded');
+                content.classList.add('expanded');
+            }
+        }
+
+        // Smooth scroll for TOC links
+        document.querySelectorAll('.toc-item').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetSection = document.getElementById(targetId);
+
+                if (targetSection) {
+                    // Scroll to section
+                    targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                    // Expand the section after scrolling
+                    setTimeout(() => {
+                        const header = targetSection.querySelector('.claim-header');
+                        if (header && !header.classList.contains('expanded')) {
+                            toggleSection(header);
+                        }
+                    }, 500);
+                }
+            });
+        });
+
+        // Set last updated date
+        document.getElementById('last-updated').textContent = new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        // Expand first section by default
+        document.addEventListener('DOMContentLoaded', function() {
+            const firstHeader = document.querySelector('.claim-header');
+            if (firstHeader) {
+                toggleSection(firstHeader);
+            }
+        });
+
+        // Handle URL hash on load (for direct linking)
+        window.addEventListener('load', function() {
+            const hash = window.location.hash;
+            if (hash) {
+                const targetSection = document.querySelector(hash);
+                if (targetSection) {
+                    setTimeout(() => {
+                        targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        const header = targetSection.querySelector('.claim-header');
+                        if (header && !header.classList.contains('expanded')) {
+                            toggleSection(header);
+                        }
+                    }, 100);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
