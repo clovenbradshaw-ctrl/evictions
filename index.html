@@ -406,6 +406,20 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Export format button styles */
+        .export-format-btn {
+            min-width: 80px;
+        }
+
+        .export-format-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .export-format-btn:active {
+            transform: translateY(0);
+        }
+
         .benchmarks-overview {
             padding: 0.5rem;
         }
@@ -3153,50 +3167,56 @@
             <!-- Metro Benchmarks Panel -->
             <div id="benchmarksSearch" class="search-panel hidden">
                 <div class="benchmarks-overview">
+                    <!-- PROMINENT EXPORT SECTION - TOP OF PANEL -->
+                    <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 rounded-xl p-5 mb-6 shadow-lg">
+                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                            <div class="text-white">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                    <h3 class="text-xl font-bold">Export Benchmark Reports</h3>
+                                </div>
+                                <p class="text-indigo-100 text-sm">Download comprehensive benchmark data in multiple formats</p>
+                            </div>
+
+                            <!-- Export Format Buttons Grid -->
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <button onclick="exportBenchmarkPDF()" class="export-format-btn flex flex-col items-center gap-1 px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/30 rounded-lg transition-all text-white group">
+                                    <svg class="w-6 h-6 text-red-300 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10.92,12.31C10.68,11.54 10.15,9.08 11.55,9.04C12.95,9 12.03,12.16 12.03,12.16C12.42,13.65 14.05,14.72 14.05,14.72C14.55,14.57 17.4,14.24 17,15.72C16.57,17.2 13.5,15.81 13.5,15.81C11.55,15.95 10.09,16.47 10.09,16.47C8.96,18.58 7.64,19.5 7.1,18.61C6.43,17.5 9.23,16.07 9.23,16.07C10.68,13.72 10.9,12.35 10.92,12.31Z"/></svg>
+                                    <span class="text-xs font-semibold">PDF</span>
+                                    <span class="text-[10px] text-indigo-200">Visual Report</span>
+                                </button>
+                                <button onclick="exportBenchmarkCSV()" class="export-format-btn flex flex-col items-center gap-1 px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/30 rounded-lg transition-all text-white group">
+                                    <svg class="w-6 h-6 text-green-300 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,19L12,15H9V10H15V15L13,19H10Z"/></svg>
+                                    <span class="text-xs font-semibold">CSV</span>
+                                    <span class="text-[10px] text-indigo-200">Spreadsheet</span>
+                                </button>
+                                <button onclick="exportBenchmarkJSON()" class="export-format-btn flex flex-col items-center gap-1 px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/30 rounded-lg transition-all text-white group">
+                                    <svg class="w-6 h-6 text-blue-300 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M5,3H7V5H5V10A2,2 0 0,1 3,12A2,2 0 0,1 5,14V19H7V21H5C3.93,20.73 3,20.1 3,19V15A2,2 0 0,0 1,13H0V11H1A2,2 0 0,0 3,9V5A2,2 0 0,1 5,3M19,3A2,2 0 0,1 21,5V9A2,2 0 0,0 23,11H24V13H23A2,2 0 0,0 21,15V19A2,2 0 0,1 19,21H17V19H19V14A2,2 0 0,1 21,12A2,2 0 0,1 19,10V5H17V3H19Z"/></svg>
+                                    <span class="text-xs font-semibold">JSON</span>
+                                    <span class="text-[10px] text-indigo-200">Raw Data</span>
+                                </button>
+                                <button onclick="exportBenchmarkExcel()" class="export-format-btn flex flex-col items-center gap-1 px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/30 rounded-lg transition-all text-white group">
+                                    <svg class="w-6 h-6 text-emerald-300 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M21.17 3.25Q21.5 3.25 21.76 3.5 22 3.74 22 4.08V19.92Q22 20.26 21.76 20.5 21.5 20.75 21.17 20.75H7.83Q7.5 20.75 7.24 20.5 7 20.26 7 19.92V17H2.83Q2.5 17 2.24 16.76 2 16.5 2 16.17V7.83Q2 7.5 2.24 7.24 2.5 7 2.83 7H7V4.08Q7 3.74 7.24 3.5 7.5 3.25 7.83 3.25M7 13.06L8.18 15.28H9.97L8 12.06L9.93 8.89H8.22L7.13 10.9L7.09 10.96L7.06 11.03Q6.8 10.5 6.5 9.96 6.25 9.43 5.97 8.89H4.16L6.05 12.08L4 15.28H5.78M13.88 19.5V17H8.25V19.5M13.88 15.75V12.63H12V15.75M13.88 11.38V8.25H12V11.38M13.88 7V4.5H8.25V7M20.75 19.5V17H15.13V19.5M20.75 15.75V12.63H15.13V15.75M20.75 11.38V8.25H15.13V11.38M20.75 7V4.5H15.13V7Z"/></svg>
+                                    <span class="text-xs font-semibold">Excel</span>
+                                    <span class="text-[10px] text-indigo-200">Full Workbook</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Privacy/Redaction Notice -->
+                        <div class="mt-4 flex items-start gap-2 bg-white/10 rounded-lg px-3 py-2 border border-white/20">
+                            <svg class="w-4 h-4 text-green-300 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                            <div class="text-xs text-indigo-100">
+                                <span class="font-semibold text-white">Privacy Protected:</span> All exports contain aggregate statistical data only. Individual tenant names and specific addresses are automatically redacted to protect privacy. Benchmark data includes metro-level comparisons and anonymized demographic patterns.
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Header -->
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
                         <div>
                             <h3 class="text-lg font-bold text-gray-900">Nashville vs. Comparable Metro Areas</h3>
                             <p class="text-sm text-gray-600">How Nashville's eviction rates compare to similar Sunbelt metros and national averages</p>
-                        </div>
-                        <!-- Export Dropdown -->
-                        <div class="relative" id="benchmarkExportDropdown">
-                            <button onclick="toggleBenchmarkExportMenu()" class="export-dropdown-btn flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                Export Report
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                            </button>
-                            <div id="benchmarkExportMenu" class="export-dropdown-menu hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                                <div class="py-1">
-                                    <button onclick="exportBenchmarkPDF()" class="export-menu-item w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3">
-                                        <span class="text-red-500">
-                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10.92,12.31C10.68,11.54 10.15,9.08 11.55,9.04C12.95,9 12.03,12.16 12.03,12.16C12.42,13.65 14.05,14.72 14.05,14.72C14.55,14.57 17.4,14.24 17,15.72C16.57,17.2 13.5,15.81 13.5,15.81C11.55,15.95 10.09,16.47 10.09,16.47C8.96,18.58 7.64,19.5 7.1,18.61C6.43,17.5 9.23,16.07 9.23,16.07C10.68,13.72 10.9,12.35 10.92,12.31Z"/></svg>
-                                        </span>
-                                        <div>
-                                            <div class="font-medium text-gray-900">Visual Report (PDF)</div>
-                                            <div class="text-xs text-gray-500">Charts, tables & analysis</div>
-                                        </div>
-                                    </button>
-                                    <button onclick="exportBenchmarkCSV()" class="export-menu-item w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 border-t border-gray-100">
-                                        <span class="text-green-600">
-                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,19L12,15H9V10H15V15L13,19H10Z"/></svg>
-                                        </span>
-                                        <div>
-                                            <div class="font-medium text-gray-900">Spreadsheet (CSV)</div>
-                                            <div class="text-xs text-gray-500">All metrics data for Excel</div>
-                                        </div>
-                                    </button>
-                                    <button onclick="exportBenchmarkJSON()" class="export-menu-item w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-3 border-t border-gray-100">
-                                        <span class="text-blue-600">
-                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5,3H7V5H5V10A2,2 0 0,1 3,12A2,2 0 0,1 5,14V19H7V21H5C3.93,20.73 3,20.1 3,19V15A2,2 0 0,0 1,13H0V11H1A2,2 0 0,0 3,9V5A2,2 0 0,1 5,3M19,3A2,2 0 0,1 21,5V9A2,2 0 0,0 23,11H24V13H23A2,2 0 0,0 21,15V19A2,2 0 0,1 19,21H17V19H19V14A2,2 0 0,1 21,12A2,2 0 0,1 19,10V5H17V3H19M12,15A1,1 0 0,1 13,16A1,1 0 0,1 12,17A1,1 0 0,1 11,16A1,1 0 0,1 12,15M8,15A1,1 0 0,1 9,16A1,1 0 0,1 8,17A1,1 0 0,1 7,16A1,1 0 0,1 8,15M16,15A1,1 0 0,1 17,16A1,1 0 0,1 16,17A1,1 0 0,1 15,16A1,1 0 0,1 16,15Z"/></svg>
-                                        </span>
-                                        <div>
-                                            <div class="font-medium text-gray-900">Raw Data (JSON)</div>
-                                            <div class="text-xs text-gray-500">Full benchmark dataset</div>
-                                        </div>
-                                    </button>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -7528,6 +7548,91 @@
             updateUrlWithFilters();
         }
 
+        function downloadChart(chartType) {
+            if (chartType === 'monthly') {
+                downloadMonthlyChartData();
+            }
+        }
+
+        function downloadMonthlyChartData() {
+            if (!monthlyChart || !monthlyChart.data) {
+                alert('Chart data not available. Please wait for data to load.');
+                return;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+
+            // Build CSV from chart data
+            let csv = 'Nashville Eviction Filings by Month - Export\n';
+            csv += `Generated: ${new Date().toLocaleString()}\n`;
+            csv += 'Privacy Notice: This export contains aggregate statistical data only. Individual tenant information is redacted.\n\n';
+
+            // Get labels (months) and datasets (years)
+            const labels = monthlyChart.data.labels;
+            const datasets = monthlyChart.data.datasets;
+
+            // Header row with years
+            csv += 'Month';
+            datasets.forEach(ds => {
+                csv += `,${ds.label}`;
+            });
+            csv += ',Total\n';
+
+            // Data rows
+            labels.forEach((month, monthIdx) => {
+                csv += month;
+                let rowTotal = 0;
+                datasets.forEach(ds => {
+                    const value = ds.data[monthIdx] || 0;
+                    csv += `,${value}`;
+                    rowTotal += value;
+                });
+                csv += `,${rowTotal}\n`;
+            });
+
+            // Add yearly totals row
+            csv += '\nYearly Totals';
+            let grandTotal = 0;
+            datasets.forEach(ds => {
+                const yearTotal = ds.data.reduce((sum, val) => sum + (val || 0), 0);
+                csv += `,${yearTotal}`;
+                grandTotal += yearTotal;
+            });
+            csv += `,${grandTotal}\n`;
+
+            // Add summary statistics
+            csv += '\n\nSUMMARY STATISTICS\n';
+            csv += 'Metric,Value\n';
+            csv += `Total Records in Dataset,${allData.length}\n`;
+            csv += `Date Range,"${getDateRange()}"\n`;
+            csv += `Average Monthly Filings,${Math.round(grandTotal / (labels.length * datasets.length))}\n`;
+
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `nashville_monthly_evictions_${today}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            console.log('Monthly chart data exported successfully');
+        }
+
+        function getDateRange() {
+            if (!allData || allData.length === 0) return 'N/A';
+
+            const dates = allData
+                .map(r => new Date(r.File_Date))
+                .filter(d => !isNaN(d.getTime()))
+                .sort((a, b) => a - b);
+
+            if (dates.length === 0) return 'N/A';
+
+            const formatDate = (d) => d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+            return `${formatDate(dates[0])} - ${formatDate(dates[dates.length - 1])}`;
+        }
+
         // Demographics Visualization Charts
         let scatterChart = null;
         let rankedBarChart = null;
@@ -10446,6 +10551,200 @@
             } catch (error) {
                 console.error('Error generating PDF:', error);
                 alert('Error generating PDF. Please try again.');
+            } finally {
+                hideExportLoading();
+            }
+        }
+
+        function exportBenchmarkExcel() {
+            if (!benchmarkData) {
+                alert('Benchmark data not loaded. Please wait and try again.');
+                return;
+            }
+
+            showExportLoading('Generating Excel workbook...');
+
+            try {
+                const today = new Date().toISOString().split('T')[0];
+
+                // Build multi-sheet XML for Excel
+                let xml = '<?xml version="1.0"?>\n';
+                xml += '<?mso-application progid="Excel.Sheet"?>\n';
+                xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n';
+                xml += ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n';
+
+                // Styles
+                xml += '<Styles>\n';
+                xml += '<Style ss:ID="Header"><Font ss:Bold="1" ss:Size="12"/><Interior ss:Color="#4F46E5" ss:Pattern="Solid"/><Font ss:Color="#FFFFFF"/></Style>\n';
+                xml += '<Style ss:ID="Title"><Font ss:Bold="1" ss:Size="14"/></Style>\n';
+                xml += '<Style ss:ID="Nashville"><Interior ss:Color="#F5F3FF" ss:Pattern="Solid"/><Font ss:Bold="1"/></Style>\n';
+                xml += '<Style ss:ID="National"><Interior ss:Color="#ECFDF5" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Color="#047857"/></Style>\n';
+                xml += '<Style ss:ID="Redacted"><Font ss:Color="#9CA3AF" ss:Italic="1"/></Style>\n';
+                xml += '</Styles>\n';
+
+                // Sheet 1: Metro Comparison
+                xml += '<Worksheet ss:Name="Metro Comparison">\n<Table>\n';
+
+                // Header row
+                xml += '<Row ss:StyleID="Header">\n';
+                ['Metro Area', 'Filing Rate (%)', 'Judgment Rate (%)', 'Eviction Rate (%)', 'vs Pre-Pandemic', 'Total Filings', 'Renter Households'].forEach(h => {
+                    xml += `<Cell><Data ss:Type="String">${h}</Data></Cell>\n`;
+                });
+                xml += '</Row>\n';
+
+                // Metro data rows
+                const metros = [
+                    { name: 'Nashville', data: benchmarkData.nashville, isNashville: true },
+                    { name: 'Austin', data: benchmarkData.comparable_cities.austin },
+                    { name: 'San Antonio', data: benchmarkData.comparable_cities.san_antonio },
+                    { name: 'Jacksonville', data: benchmarkData.comparable_cities.jacksonville },
+                    { name: 'Memphis', data: benchmarkData.comparable_cities.memphis },
+                    { name: 'Indianapolis', data: benchmarkData.comparable_cities.indianapolis },
+                    { name: 'Columbus', data: benchmarkData.comparable_cities.columbus },
+                    { name: 'Charlotte', data: benchmarkData.comparable_cities.charlotte }
+                ];
+
+                metros.forEach(metro => {
+                    const fr = metro.data.filing_rates || {};
+                    const jr = metro.data.judgment_rates_pct_of_filings || {};
+                    const er = metro.data.eviction_rates_pct_of_renters || {};
+                    const rd = metro.data.renter_demographics || {};
+                    const ef = metro.data.eviction_filings || {};
+
+                    const filingRate = fr['2024_calculated'] || fr['2024_estimated'] || fr['2024'] || fr.pre_pandemic_2016_2019 || '';
+                    const judgmentRate = jr['2019'] || jr['fy2024'] || jr['2022'] || jr.rate || '';
+                    const evictionRate = er['2024_estimated'] || er['2019_estimated'] || er['fy2024_estimated'] || '';
+                    const totalFilings = ef['2024'] || ef['2023'] || ef.fy2024 || '';
+                    const renters = rd.renter_households || rd.renter_households_estimated || '';
+
+                    let prePandemic = '';
+                    if (fr.vs_pre_pandemic_percent) {
+                        const pct = fr.vs_pre_pandemic_percent;
+                        prePandemic = pct > 100 ? `+${pct - 100}%` : `${pct - 100}%`;
+                    } else if (metro.data.year_over_year?.['2024_vs_pre_pandemic_pct']) {
+                        const pct = metro.data.year_over_year['2024_vs_pre_pandemic_pct'];
+                        prePandemic = pct > 100 ? `+${pct - 100}%` : `${pct - 100}%`;
+                    }
+
+                    const style = metro.isNashville ? ' ss:StyleID="Nashville"' : '';
+                    xml += `<Row${style}>\n`;
+                    xml += `<Cell><Data ss:Type="String">${metro.name}</Data></Cell>\n`;
+                    xml += `<Cell><Data ss:Type="Number">${filingRate}</Data></Cell>\n`;
+                    xml += `<Cell><Data ss:Type="${judgmentRate ? 'Number' : 'String'}">${judgmentRate || 'N/A'}</Data></Cell>\n`;
+                    xml += `<Cell><Data ss:Type="Number">${evictionRate}</Data></Cell>\n`;
+                    xml += `<Cell><Data ss:Type="String">${prePandemic}</Data></Cell>\n`;
+                    xml += `<Cell><Data ss:Type="Number">${totalFilings}</Data></Cell>\n`;
+                    xml += `<Cell><Data ss:Type="Number">${renters}</Data></Cell>\n`;
+                    xml += '</Row>\n';
+                });
+
+                // National average row
+                const natl = benchmarkData.national_benchmarks;
+                xml += '<Row ss:StyleID="National">\n';
+                xml += '<Cell><Data ss:Type="String">National Average</Data></Cell>\n';
+                xml += `<Cell><Data ss:Type="Number">${natl.filing_rates_pct_of_renters['2024_ets_cities_avg']}</Data></Cell>\n`;
+                xml += `<Cell><Data ss:Type="Number">${natl.judgment_rates_pct_of_filings.national_avg}</Data></Cell>\n`;
+                xml += `<Cell><Data ss:Type="Number">${natl.eviction_rates_pct_of_renters.current_estimated}</Data></Cell>\n`;
+                xml += '<Cell><Data ss:Type="String">baseline</Data></Cell>\n';
+                xml += '<Cell><Data ss:Type="String">-</Data></Cell>\n';
+                xml += '<Cell><Data ss:Type="String">~44M</Data></Cell>\n';
+                xml += '</Row>\n';
+
+                xml += '</Table>\n</Worksheet>\n';
+
+                // Sheet 2: Rankings
+                xml += '<Worksheet ss:Name="Rankings">\n<Table>\n';
+
+                // Filing rates ranked
+                xml += '<Row ss:StyleID="Title"><Cell><Data ss:Type="String">Filing Rates (Highest to Lowest)</Data></Cell></Row>\n';
+                xml += '<Row ss:StyleID="Header"><Cell><Data ss:Type="String">Rank</Data></Cell><Cell><Data ss:Type="String">City</Data></Cell><Cell><Data ss:Type="String">Rate (%)</Data></Cell></Row>\n';
+                benchmarkData.comparative_summary.filing_rates_ranked.forEach((item, idx) => {
+                    const style = item.city === 'Nashville' ? ' ss:StyleID="Nashville"' : '';
+                    xml += `<Row${style}><Cell><Data ss:Type="Number">${idx + 1}</Data></Cell><Cell><Data ss:Type="String">${item.city}</Data></Cell><Cell><Data ss:Type="Number">${item.rate}</Data></Cell></Row>\n`;
+                });
+
+                xml += '<Row></Row>\n'; // Empty row
+
+                // Judgment rates ranked
+                xml += '<Row ss:StyleID="Title"><Cell><Data ss:Type="String">Judgment Rates (Highest to Lowest)</Data></Cell></Row>\n';
+                xml += '<Row ss:StyleID="Header"><Cell><Data ss:Type="String">Rank</Data></Cell><Cell><Data ss:Type="String">City</Data></Cell><Cell><Data ss:Type="String">Rate (%)</Data></Cell></Row>\n';
+                benchmarkData.comparative_summary.judgment_rates_pct_of_filings_ranked.forEach((item, idx) => {
+                    const style = item.city === 'Nashville' ? ' ss:StyleID="Nashville"' : '';
+                    xml += `<Row${style}><Cell><Data ss:Type="Number">${idx + 1}</Data></Cell><Cell><Data ss:Type="String">${item.city}</Data></Cell><Cell><Data ss:Type="Number">${item.rate}</Data></Cell></Row>\n`;
+                });
+
+                xml += '<Row></Row>\n';
+
+                // Eviction rates ranked
+                xml += '<Row ss:StyleID="Title"><Cell><Data ss:Type="String">Eviction Rates (Highest to Lowest)</Data></Cell></Row>\n';
+                xml += '<Row ss:StyleID="Header"><Cell><Data ss:Type="String">Rank</Data></Cell><Cell><Data ss:Type="String">City</Data></Cell><Cell><Data ss:Type="String">Rate (%)</Data></Cell></Row>\n';
+                benchmarkData.comparative_summary.eviction_rates_pct_of_renters_ranked.forEach((item, idx) => {
+                    const style = item.city === 'Nashville' ? ' ss:StyleID="Nashville"' : '';
+                    xml += `<Row${style}><Cell><Data ss:Type="Number">${idx + 1}</Data></Cell><Cell><Data ss:Type="String">${item.city}</Data></Cell><Cell><Data ss:Type="Number">${item.rate}</Data></Cell></Row>\n`;
+                });
+
+                xml += '</Table>\n</Worksheet>\n';
+
+                // Sheet 3: Demographic Disparities (Redacted/Anonymized)
+                xml += '<Worksheet ss:Name="Demographic Disparities">\n<Table>\n';
+
+                xml += '<Row ss:StyleID="Title"><Cell><Data ss:Type="String">Demographic Disparities (Anonymized Aggregate Data)</Data></Cell></Row>\n';
+                xml += '<Row ss:StyleID="Redacted"><Cell><Data ss:Type="String">Note: Individual-level demographic data is not included to protect privacy. Only aggregate patterns are shown.</Data></Cell></Row>\n';
+                xml += '<Row></Row>\n';
+
+                const racial = benchmarkData.demographic_disparities.racial_disparities;
+                const gender = benchmarkData.demographic_disparities.gender_disparities;
+
+                xml += '<Row ss:StyleID="Header"><Cell><Data ss:Type="String">Metric</Data></Cell><Cell><Data ss:Type="String">Value</Data></Cell><Cell><Data ss:Type="String">Source</Data></Cell></Row>\n';
+                xml += `<Row><Cell><Data ss:Type="String">Black Renter Share (National)</Data></Cell><Cell><Data ss:Type="String">${racial.national_2024_ets.black_renter_share}%</Data></Cell><Cell><Data ss:Type="String">ETS 2024</Data></Cell></Row>\n`;
+                xml += `<Row><Cell><Data ss:Type="String">Black Defendant Share (National)</Data></Cell><Cell><Data ss:Type="String">${racial.national_2024_ets.black_defendant_share}%</Data></Cell><Cell><Data ss:Type="String">ETS 2024</Data></Cell></Row>\n`;
+                xml += `<Row><Cell><Data ss:Type="String">Overrepresentation Ratio</Data></Cell><Cell><Data ss:Type="String">${racial.national_2024_ets.overrepresentation_ratio}x</Data></Cell><Cell><Data ss:Type="String">ETS 2024</Data></Cell></Row>\n`;
+                xml += `<Row><Cell><Data ss:Type="String">Female Defendant Share</Data></Cell><Cell><Data ss:Type="String">${gender.female_defendant_share_2024}%</Data></Cell><Cell><Data ss:Type="String">ETS 2024</Data></Cell></Row>\n`;
+                xml += `<Row><Cell><Data ss:Type="String">Female Renter Share</Data></Cell><Cell><Data ss:Type="String">${gender.female_renter_share}%</Data></Cell><Cell><Data ss:Type="String">Census</Data></Cell></Row>\n`;
+
+                xml += '</Table>\n</Worksheet>\n';
+
+                // Sheet 4: Methodology
+                xml += '<Worksheet ss:Name="Methodology">\n<Table>\n';
+
+                xml += '<Row ss:StyleID="Title"><Cell><Data ss:Type="String">Metric Definitions</Data></Cell></Row>\n';
+                xml += '<Row></Row>\n';
+                xml += '<Row ss:StyleID="Header"><Cell><Data ss:Type="String">Metric</Data></Cell><Cell><Data ss:Type="String">Formula</Data></Cell><Cell><Data ss:Type="String">Description</Data></Cell></Row>\n';
+
+                Object.entries(benchmarkData.metadata.metric_definitions).forEach(([key, def]) => {
+                    if (def.formula) {
+                        xml += `<Row><Cell><Data ss:Type="String">${key}</Data></Cell><Cell><Data ss:Type="String">${def.formula}</Data></Cell><Cell><Data ss:Type="String">${def.description || ''}</Data></Cell></Row>\n`;
+                    }
+                });
+
+                xml += '<Row></Row>\n';
+                xml += '<Row ss:StyleID="Title"><Cell><Data ss:Type="String">Data Sources</Data></Cell></Row>\n';
+                xml += '<Row></Row>\n';
+                benchmarkData.metadata.primary_sources.forEach(src => {
+                    xml += `<Row><Cell><Data ss:Type="String">${src}</Data></Cell></Row>\n`;
+                });
+
+                xml += '<Row></Row>\n';
+                xml += '<Row ss:StyleID="Title"><Cell><Data ss:Type="String">Privacy Notice</Data></Cell></Row>\n';
+                xml += '<Row ss:StyleID="Redacted"><Cell><Data ss:Type="String">This export contains aggregate statistical data only. All individual tenant names, specific addresses, and personally identifiable information have been redacted to protect privacy.</Data></Cell></Row>\n';
+
+                xml += '</Table>\n</Worksheet>\n';
+
+                xml += '</Workbook>';
+
+                // Download as .xls file
+                const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `nashville_eviction_benchmarks_${today}.xls`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+
+                console.log('Benchmark Excel exported successfully');
+            } catch (error) {
+                console.error('Error generating Excel:', error);
+                alert('Error generating Excel file. Please try again.');
             } finally {
                 hideExportLoading();
             }
