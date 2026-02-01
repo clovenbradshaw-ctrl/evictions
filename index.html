@@ -4779,11 +4779,60 @@
             return val !== null && val !== undefined && val !== '';
         }
 
+        // Parse case_data from JSON string if needed
+        function parseCaseData(caseData) {
+            if (!caseData) return {};
+            if (typeof caseData === 'string') {
+                try {
+                    return JSON.parse(caseData);
+                } catch (e) {
+                    console.warn('Failed to parse case_data JSON:', e.message);
+                    return {};
+                }
+            }
+            return caseData;
+        }
+
+        // Deep merge two case_data objects, keeping richest data (all non-null values)
+        function mergeCaseData(existing, newer) {
+            const existingData = parseCaseData(existing);
+            const newerData = parseCaseData(newer);
+
+            // Start with all keys from both objects
+            const allKeys = new Set([...Object.keys(existingData), ...Object.keys(newerData)]);
+            const merged = {};
+
+            for (const key of allKeys) {
+                const existingVal = existingData[key];
+                const newerVal = newerData[key];
+
+                // Prefer newer value if it has content, otherwise use existing
+                if (hasValue(newerVal)) {
+                    merged[key] = newerVal;
+                } else if (hasValue(existingVal)) {
+                    merged[key] = existingVal;
+                }
+                // If neither has value, field is omitted (keeps object clean)
+            }
+
+            return merged;
+        }
+
         // Merge two records, preferring non-null/non-empty values
         // When both have values for a field, prefer the newer record's value
+        // Special handling for case_data to deep merge its contents
         function mergeRecordFields(existing, newer) {
             const merged = { ...newer };
+
+            // Deep merge case_data field to preserve richest data
+            if (existing.case_data || newer.case_data) {
+                merged.case_data = mergeCaseData(existing.case_data, newer.case_data);
+            }
+
             for (const key of Object.keys(existing)) {
+                // Skip case_data since we handled it specially above
+                if (key === 'case_data') continue;
+
                 // If newer record has no value but existing does, use existing value
                 if (!hasValue(merged[key]) && hasValue(existing[key])) {
                     merged[key] = existing[key];
