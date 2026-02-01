@@ -5286,10 +5286,72 @@
             filters: {}
         };
 
-        async function loadData() {
-            // EO operations endpoint - fetches events and reconstructs current state
-            const API_URL = buildEOApiUrl();
+        // Helper function to apply new events incrementally to existing state
+        function applyEventsToState(existingRecords, newEvents) {
+            // Create a map of existing records by entity ID for fast lookup
+            const stateMap = new Map();
+            for (const record of existingRecords) {
+                const entityId = record.Docket_Number || record._entity_id;
+                if (entityId) {
+                    stateMap.set(entityId, { ...record });
+                }
+            }
 
+            // Sort new events by timestamp to apply in order
+            const sortedEvents = [...newEvents].sort((a, b) => a.ts - b.ts);
+
+            // Apply each event
+            for (const event of sortedEvents) {
+                const entityId = event.target?.id;
+                if (!entityId) continue;
+
+                const op = event.op;
+                let state = stateMap.get(entityId);
+
+                switch (op) {
+                    case 'INS':
+                        // New entity - create from event data
+                        state = { ...event.context?.data };
+                        state._entity_id = entityId;
+                        state._last_updated = event.ts;
+                        state._event_count = 1;
+                        stateMap.set(entityId, state);
+                        break;
+
+                    case 'ALT':
+                        if (state) {
+                            // Apply field changes
+                            if (event.context?.changes) {
+                                for (const [field, change] of Object.entries(event.context.changes)) {
+                                    state[field] = change.new;
+                                }
+                            } else if (event.target?.field && event.context?.new !== undefined) {
+                                state[event.target.field] = event.context.new;
+                            }
+                            state._last_updated = event.ts;
+                            state._event_count = (state._event_count || 0) + 1;
+                        }
+                        break;
+
+                    case 'NUL':
+                        // Delete - remove from state
+                        stateMap.delete(entityId);
+                        break;
+
+                    case 'SYN':
+                        // Merge - mark absorbed entities
+                        if (event.context?.merged && state) {
+                            state._merged_into = event.target.id;
+                        }
+                        break;
+                }
+            }
+
+            // Convert back to array
+            return Array.from(stateMap.values());
+        }
+
+        async function loadData() {
             isLoadingData = true;
             updateRefreshUI();
 
@@ -5297,48 +5359,126 @@
                 console.group('🔄 Data Loading (EO Event Sourcing)');
                 console.log('Timestamp:', new Date().toISOString());
 
-                // Check if we have fresh cached data (less than 24 hours old)
+                // Check cache status
                 const cacheAgeHours = getCacheAgeHours();
                 const cacheFresh = isCacheFresh();
                 console.log('📊 Cache status:', { ageHours: cacheAgeHours, fresh: cacheFresh });
 
-                if (cacheFresh) {
-                    // Use cached data - it's still fresh
-                    updateStatus('Loading cached data...', 'loading');
-                    const cachedData = await loadCachedData();
+                // Always try to load cached data first
+                updateStatus('Loading cached data...', 'loading');
+                const cachedData = await loadCachedData();
+                const lastSyncTs = localStorage.getItem('eo_last_sync_ts');
 
-                    if (cachedData && cachedData.length > 0) {
-                        allData = cachedData;
-                        filteredData = allData;
-                        calculateGlobalDataRange(allData);
+                // If we have cached data and a last sync timestamp, do incremental sync
+                if (cachedData && cachedData.length > 0 && lastSyncTs) {
+                    console.log('📦 Found cached data:', cachedData.length, 'records');
+                    console.log('📌 Last sync timestamp:', lastSyncTs, '(' + new Date(parseInt(lastSyncTs)).toISOString() + ')');
 
-                        const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
-                        console.log('✅ Using fresh cached data:', allData.length, 'records, cached', cacheAgeHours, 'hours ago');
-                        console.groupEnd();
+                    // Fetch only new events since last sync
+                    const incrementalUrl = buildEOApiUrl({ ts_gt: lastSyncTs });
+                    console.log('🔄 Incremental sync URL:', incrementalUrl);
+                    updateStatus('Fetching new events since last sync...', 'loading');
 
-                        updateStatus(`Loaded ${allData.length} cached records (synced ${cacheAgeHours} hours ago)`, 'success');
-                        updateMetrics();
-                        updateCharts();
-                        createDistrictMap();
-                        await loadDistrictDemographics();
-                        initDemographicsCharts();
-                        initGrid();
-                        document.getElementById('lastUpdate').textContent = storedTimestamp
-                            ? new Date(parseInt(storedTimestamp)).toLocaleString()
-                            : 'Cached data';
+                    try {
+                        const response = await fetch(incrementalUrl);
+                        if (response.ok) {
+                            const result = await response.json();
+                            let newEvents = Array.isArray(result) ? result : (result?.items || result?.data || []);
 
-                        // Re-apply persisted filters after data loads
-                        restorePersistedFilters();
-                        return;
+                            // Parse events from Xano format
+                            if (newEvents.length > 0 && typeof EOMigration !== 'undefined') {
+                                newEvents = newEvents.map(e => EOMigration.fromXanoFormat(e));
+                            }
+
+                            console.log('📥 Fetched', newEvents.length, 'new events');
+
+                            if (newEvents.length === 0) {
+                                // No new events - use cached data as-is
+                                allData = cachedData;
+                                filteredData = allData;
+                                calculateGlobalDataRange(allData);
+
+                                const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
+                                console.log('✅ Cache is current, no new events');
+                                console.groupEnd();
+
+                                updateStatus(`Loaded ${allData.length} records (already up to date)`, 'success');
+                                updateMetrics();
+                                updateCharts();
+                                createDistrictMap();
+                                await loadDistrictDemographics();
+                                initDemographicsCharts();
+                                initGrid();
+                                document.getElementById('lastUpdate').textContent = storedTimestamp
+                                    ? new Date(parseInt(storedTimestamp)).toLocaleString()
+                                    : 'Cached data';
+                                restorePersistedFilters();
+                                return;
+                            }
+
+                            // Apply new events to cached state (incremental replay)
+                            console.log('🔄 Applying', newEvents.length, 'new events to cached state...');
+                            const updatedRecords = applyEventsToState(cachedData, newEvents);
+
+                            // Track newest timestamp for next sync
+                            let newestTs = parseInt(lastSyncTs);
+                            for (const event of newEvents) {
+                                if (event.ts && event.ts > newestTs) {
+                                    newestTs = event.ts;
+                                }
+                            }
+                            localStorage.setItem('eo_last_sync_ts', newestTs.toString());
+                            console.log('📌 Updated sync timestamp:', newestTs);
+
+                            // Normalize and dedupe
+                            const normalizedData = updatedRecords.map(normalizeRecord);
+                            allData = dedupeByDocketNumber(normalizedData);
+                            allData = fillMissingEvictionProbabilities(allData);
+                            filteredData = allData;
+                            calculateGlobalDataRange(allData);
+
+                            // Invalidate caches and save
+                            dataCache.invalidateAll();
+                            const timestamp = Date.now();
+
+                            evictionDB.saveFull(allData, timestamp).then(success => {
+                                if (success) {
+                                    localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                                }
+                            });
+
+                            const compressed = compressEvictionData(allData);
+                            try {
+                                localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
+                            } catch (e) {
+                                console.warn('⚠️ localStorage quota exceeded:', e.message);
+                            }
+
+                            console.log('✅ Incremental sync complete:', allData.length, 'total records');
+                            console.groupEnd();
+
+                            updateStatus(`Synced ${newEvents.length} new events (${allData.length} total records)`, 'success');
+                            updateMetrics();
+                            updateCharts();
+                            createDistrictMap();
+                            await loadDistrictDemographics();
+                            initDemographicsCharts();
+                            initGrid();
+                            document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+                            restorePersistedFilters();
+                            return;
+                        }
+                    } catch (incrementalError) {
+                        console.warn('⚠️ Incremental sync failed, falling back to full sync:', incrementalError.message);
                     }
-                    console.log('⚠️ Cache appeared fresh but no data found, fetching from API...');
                 }
 
-                // Cache is stale or doesn't exist - fetch from API
-                updateStatus(cacheFresh === false && cacheAgeHours !== null
-                    ? `Cache is ${cacheAgeHours} hours old, refreshing from API...`
+                // No cached data or incremental sync failed - do full sync
+                const API_URL = buildEOApiUrl();
+                updateStatus(cachedData && cachedData.length > 0
+                    ? 'Incremental sync failed, loading all data...'
                     : 'Loading data from public records API...', 'loading');
-                console.log('API URL:', API_URL);
+                console.log('API URL (full sync):', API_URL);
 
                 let result = null;
                 let lastError = null;
