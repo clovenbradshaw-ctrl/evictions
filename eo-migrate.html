@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EO Migration Tool - Nashville Evictions</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .log-entry { font-family: monospace; font-size: 13px; }
+    .log-info { color: #3b82f6; }
+    .log-success { color: #22c55e; }
+    .log-warn { color: #f59e0b; }
+    .log-error { color: #ef4444; }
+    pre { white-space: pre-wrap; word-break: break-all; }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+  <div class="container mx-auto px-4 py-8 max-w-5xl">
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-white mb-2">EO Migration Tool</h1>
+      <p class="text-gray-400">Convert Nashville eviction data to Epistemic Operators (EO) append-only event format</p>
+    </div>
+
+    <!-- Configuration -->
+    <div class="bg-gray-800 rounded-lg p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-4">Configuration</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Xano API Endpoint</label>
+          <input type="text" id="apiEndpoint"
+            value="https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case"
+            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Records per page</label>
+          <input type="number" id="perPage" value="1000"
+            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Max pages (0 = unlimited)</label>
+          <input type="number" id="maxPages" value="0"
+            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white">
+        </div>
+        <div>
+          <label class="block text-sm text-gray-400 mb-1">Source table name</label>
+          <input type="text" id="sourceTable" value="eviction_cases"
+            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white">
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="bg-gray-800 rounded-lg p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-4">Actions</h2>
+      <div class="flex flex-wrap gap-3">
+        <button onclick="runDryRun()" id="btnDryRun"
+          class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded font-medium transition">
+          Dry Run (Sample 100)
+        </button>
+        <button onclick="runFullMigration()" id="btnFullMigration"
+          class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded font-medium transition">
+          Run Full Migration
+        </button>
+        <button onclick="downloadEvents()" id="btnDownload" disabled
+          class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded font-medium transition disabled:opacity-50 disabled:cursor-not-allowed">
+          Download Events JSON
+        </button>
+        <button onclick="downloadCSV()" id="btnDownloadCSV" disabled
+          class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded font-medium transition disabled:opacity-50 disabled:cursor-not-allowed">
+          Download Events CSV
+        </button>
+        <button onclick="clearLog()"
+          class="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded font-medium transition">
+          Clear Log
+        </button>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="bg-gray-800 rounded-lg p-6 mb-6" id="progressSection" style="display: none;">
+      <h2 class="text-xl font-semibold mb-4">Progress</h2>
+      <div class="mb-2 flex justify-between text-sm">
+        <span id="progressText">Processing...</span>
+        <span id="progressPercent">0%</span>
+      </div>
+      <div class="w-full bg-gray-700 rounded-full h-3">
+        <div id="progressBar" class="bg-blue-600 h-3 rounded-full transition-all" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="bg-gray-800 rounded-lg p-6 mb-6" id="statsSection" style="display: none;">
+      <h2 class="text-xl font-semibold mb-4">Results</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-gray-700 rounded p-4 text-center">
+          <div class="text-3xl font-bold text-blue-400" id="statLegacy">0</div>
+          <div class="text-sm text-gray-400">Legacy Records</div>
+        </div>
+        <div class="bg-gray-700 rounded p-4 text-center">
+          <div class="text-3xl font-bold text-green-400" id="statEvents">0</div>
+          <div class="text-sm text-gray-400">EO Events</div>
+        </div>
+        <div class="bg-gray-700 rounded p-4 text-center">
+          <div class="text-3xl font-bold text-purple-400" id="statEntities">0</div>
+          <div class="text-sm text-gray-400">Unique Cases</div>
+        </div>
+        <div class="bg-gray-700 rounded p-4 text-center">
+          <div class="text-3xl font-bold text-yellow-400" id="statINS">0</div>
+          <div class="text-sm text-gray-400">INS Events</div>
+        </div>
+      </div>
+      <div class="mt-4 grid grid-cols-3 md:grid-cols-6 gap-2">
+        <div class="bg-gray-700 rounded p-2 text-center">
+          <div class="text-lg font-bold" id="statALT">0</div>
+          <div class="text-xs text-gray-400">ALT</div>
+        </div>
+        <div class="bg-gray-700 rounded p-2 text-center">
+          <div class="text-lg font-bold" id="statNUL">0</div>
+          <div class="text-xs text-gray-400">NUL</div>
+        </div>
+        <div class="bg-gray-700 rounded p-2 text-center">
+          <div class="text-lg font-bold" id="statCON">0</div>
+          <div class="text-xs text-gray-400">CON</div>
+        </div>
+        <div class="bg-gray-700 rounded p-2 text-center">
+          <div class="text-lg font-bold" id="statSYN">0</div>
+          <div class="text-xs text-gray-400">SYN</div>
+        </div>
+        <div class="bg-gray-700 rounded p-2 text-center">
+          <div class="text-lg font-bold" id="statSEG">0</div>
+          <div class="text-xs text-gray-400">SEG</div>
+        </div>
+        <div class="bg-gray-700 rounded p-2 text-center">
+          <div class="text-lg font-bold" id="statOther">0</div>
+          <div class="text-xs text-gray-400">Other</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="bg-gray-800 rounded-lg p-6 mb-6">
+      <h2 class="text-xl font-semibold mb-4">Log</h2>
+      <div id="logContainer" class="bg-gray-900 rounded p-4 h-64 overflow-y-auto font-mono text-sm">
+        <div class="text-gray-500">Ready. Click "Dry Run" to test or "Run Full Migration" to process all data.</div>
+      </div>
+    </div>
+
+    <!-- Sample Output -->
+    <div class="bg-gray-800 rounded-lg p-6" id="sampleSection" style="display: none;">
+      <h2 class="text-xl font-semibold mb-4">Sample Events</h2>
+      <pre id="sampleOutput" class="bg-gray-900 rounded p-4 overflow-x-auto text-xs text-gray-300"></pre>
+    </div>
+
+    <!-- Xano Schema Reference -->
+    <div class="bg-gray-800 rounded-lg p-6 mt-6">
+      <h2 class="text-xl font-semibold mb-4">Xano Table Schema</h2>
+      <p class="text-gray-400 mb-4">Create this table in Xano to store the EO events:</p>
+      <pre class="bg-gray-900 rounded p-4 overflow-x-auto text-xs text-gray-300">Table: eviction_operations
+
+Fields:
+  id           TEXT      PRIMARY KEY (UUID)
+  ts           INTEGER   NOT NULL (Unix timestamp in milliseconds)
+  op           TEXT      NOT NULL (INS, ALT, NUL, CON, SYN, SEG, SUP, DES, REC)
+  target       JSON      NOT NULL (what's being operated on)
+  context      JSON      NOT NULL (where/how it's happening)
+  frame        JSON      NULL (optional interpretive context)
+  entity_id    TEXT      INDEX (extracted from target.id)
+  source_table TEXT      INDEX (extracted from context.table)
+
+Indexes:
+  idx_entity_timeline  (entity_id, ts)
+  idx_op_timeline      (op, ts)
+  idx_table_timeline   (source_table, ts)</pre>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================================================
+    // EO MIGRATION CORE (embedded)
+    // ==========================================================================
+
+    const OPERATORS = {
+      NUL: 'NUL', DES: 'DES', INS: 'INS', SEG: 'SEG',
+      CON: 'CON', ALT: 'ALT', SYN: 'SYN', SUP: 'SUP', REC: 'REC'
+    };
+
+    let migrationResult = null;
+
+    function generateUUID() {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    function normalizeCase(record) {
+      let data = record;
+      if (record.case_data) {
+        if (typeof record.case_data === 'string') {
+          try { data = { ...record, ...JSON.parse(record.case_data) }; }
+          catch (e) { /* ignore */ }
+        } else {
+          data = { ...record, ...record.case_data };
+        }
+      }
+
+      return {
+        Docket_Number: data.Docket_Number || data.docket_number,
+        File_Date: data.File_Date || data.file_date,
+        Status: data.Status || data.status,
+        Office: data.Office || data.office,
+        Description: data.Description || data.description,
+        Plaintiff_Petitioner: data.Plaintiff_Petitioner || data.plaintiff_petitioner || data.plaintiff,
+        Defendant_Respondent: data.Defendant_Respondent || data.defendant_respondent || data.defendant,
+        Attorney: data.Attorney || data.attorney || data.plaintiff_attorney,
+        Defendant_Attorney: data.Defendant_Attorney || data.defendant_attorney || data.defense_attorney,
+        Address_1: data.Address_1 || data.address_1 || data.address,
+        Address_2: data.Address_2 || data.address_2,
+        city_state_zip: data.city_state_zip || data.City_State_Zip,
+        address_formatted: data.address_formatted || data.formatted_address,
+        latitude: data.latitude || data.lat,
+        longitude: data.longitude || data.lng || data.lon,
+        council_district: data.council_district || data.Council_District,
+        council_district_number: data.council_district_number || data.Council_District_Number,
+        council_member: data.council_member || data.Council_Member,
+        individual_ll: data.individual_ll || data.Individual_LL,
+        judge: data.judge,
+        pleadings: data.pleadings || [],
+        judgments: data.judgments || [],
+        filing_date: data.filing_date,
+        service_date: data.service_date,
+        judgment_for: data.judgment_for,
+        judgment_date: data.judgment_date,
+        judgment_type: data.judgment_type,
+        case_dismissed: data.case_dismissed,
+        dismissal_date: data.dismissal_date,
+        eviction_date: data.eviction_date,
+        eviction_method: data.eviction_method,
+        eviction_executed: data.eviction_executed,
+        writ_issued_date: data.writ_issued_date,
+        writ_served_date: data.writ_served_date,
+        paper_writ_date: data.paper_writ_date
+      };
+    }
+
+    function diffCases(oldCase, newCase) {
+      const normalizedOld = normalizeCase(oldCase);
+      const normalizedNew = normalizeCase(newCase);
+      const changes = {};
+
+      for (const key of Object.keys(normalizedNew)) {
+        const oldVal = normalizedOld[key];
+        const newVal = normalizedNew[key];
+        if (oldVal == null && newVal == null) continue;
+        const oldStr = JSON.stringify(oldVal);
+        const newStr = JSON.stringify(newVal);
+        if (oldStr !== newStr) {
+          changes[key] = { old: oldVal, new: newVal };
+        }
+      }
+      return Object.keys(changes).length > 0 ? changes : null;
+    }
+
+    function convertLegacyActivityToEvents(activityRecords, sourceTable) {
+      const events = [];
+      const caseFirstSeen = new Map();
+
+      const sorted = [...activityRecords].sort((a, b) => {
+        const aTime = new Date(a.logged_at || 0).getTime();
+        const bTime = new Date(b.logged_at || 0).getTime();
+        return aTime - bTime;
+      });
+
+      for (const record of sorted) {
+        const docket = record.docket_number;
+        if (!docket) continue;
+
+        const ts = new Date(record.logged_at || Date.now()).getTime();
+        const action = record.action || 'unknown';
+
+        if (!caseFirstSeen.has(docket)) {
+          caseFirstSeen.set(docket, record);
+          events.push({
+            id: generateUUID(),
+            ts: ts,
+            op: OPERATORS.INS,
+            target: { id: docket, type: 'eviction_case' },
+            context: { table: sourceTable, data: normalizeCase(record) },
+            frame: { source: 'migration', legacy_id: record.id, legacy_action: action, version: '1.0' }
+          });
+        } else {
+          const previousRecord = caseFirstSeen.get(docket);
+          const changes = diffCases(previousRecord, record);
+          if (changes) {
+            events.push({
+              id: generateUUID(),
+              ts: ts,
+              op: OPERATORS.ALT,
+              target: { id: docket, type: 'eviction_case' },
+              context: { table: sourceTable, changes: changes },
+              frame: { source: 'migration', legacy_id: record.id, legacy_action: action, version: '1.0' }
+            });
+            caseFirstSeen.set(docket, record);
+          }
+        }
+      }
+      return events;
+    }
+
+    function reconstructAllStates(events) {
+      const byEntity = new Map();
+      for (const event of events) {
+        const entityId = event.target.id;
+        if (!byEntity.has(entityId)) byEntity.set(entityId, []);
+        byEntity.get(entityId).push(event);
+      }
+
+      const states = [];
+      for (const [entityId, entityEvents] of byEntity) {
+        const sorted = entityEvents.sort((a, b) => a.ts - b.ts);
+        let state = null;
+        let isDeleted = false;
+
+        for (const event of sorted) {
+          switch (event.op) {
+            case OPERATORS.INS:
+              state = { ...event.context.data };
+              isDeleted = false;
+              break;
+            case OPERATORS.ALT:
+              if (state && event.context.changes) {
+                for (const [field, change] of Object.entries(event.context.changes)) {
+                  state[field] = change.new;
+                }
+              }
+              break;
+            case OPERATORS.NUL:
+              isDeleted = true;
+              break;
+          }
+        }
+
+        if (!isDeleted && state) {
+          state._entity_id = entityId;
+          state._last_updated = sorted[sorted.length - 1].ts;
+          states.push(state);
+        }
+      }
+      return states;
+    }
+
+    // ==========================================================================
+    // UI FUNCTIONS
+    // ==========================================================================
+
+    function log(message, type = 'info') {
+      const container = document.getElementById('logContainer');
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      const timestamp = new Date().toLocaleTimeString();
+      entry.textContent = `[${timestamp}] ${message}`;
+      container.appendChild(entry);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('logContainer').innerHTML = '';
+      log('Log cleared', 'info');
+    }
+
+    function showProgress(show = true) {
+      document.getElementById('progressSection').style.display = show ? 'block' : 'none';
+    }
+
+    function updateProgress(current, total, text = 'Processing...') {
+      const percent = Math.round((current / total) * 100);
+      document.getElementById('progressBar').style.width = `${percent}%`;
+      document.getElementById('progressPercent').textContent = `${percent}%`;
+      document.getElementById('progressText').textContent = text;
+    }
+
+    function showStats(result) {
+      document.getElementById('statsSection').style.display = 'block';
+      document.getElementById('statLegacy').textContent = result.legacyCount.toLocaleString();
+      document.getElementById('statEvents').textContent = result.events.length.toLocaleString();
+      document.getElementById('statEntities').textContent = result.entityCount.toLocaleString();
+
+      const ops = result.opCounts;
+      document.getElementById('statINS').textContent = (ops.INS || 0).toLocaleString();
+      document.getElementById('statALT').textContent = (ops.ALT || 0).toLocaleString();
+      document.getElementById('statNUL').textContent = (ops.NUL || 0).toLocaleString();
+      document.getElementById('statCON').textContent = (ops.CON || 0).toLocaleString();
+      document.getElementById('statSYN').textContent = (ops.SYN || 0).toLocaleString();
+      document.getElementById('statSEG').textContent = (ops.SEG || 0).toLocaleString();
+
+      const other = Object.entries(ops)
+        .filter(([k]) => !['INS', 'ALT', 'NUL', 'CON', 'SYN', 'SEG'].includes(k))
+        .reduce((sum, [, v]) => sum + v, 0);
+      document.getElementById('statOther').textContent = other.toLocaleString();
+    }
+
+    function showSample(events) {
+      document.getElementById('sampleSection').style.display = 'block';
+      const sample = events.slice(0, 5);
+      document.getElementById('sampleOutput').textContent = JSON.stringify(sample, null, 2);
+    }
+
+    function setButtonsEnabled(enabled) {
+      document.getElementById('btnDryRun').disabled = !enabled;
+      document.getElementById('btnFullMigration').disabled = !enabled;
+    }
+
+    // ==========================================================================
+    // MIGRATION FUNCTIONS
+    // ==========================================================================
+
+    async function fetchData(endpoint, perPage, maxPages, onProgress) {
+      let allData = [];
+      let page = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const url = `${endpoint}?page=${page}&per_page=${perPage}`;
+        log(`Fetching page ${page}...`, 'info');
+
+        try {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+          const data = await response.json();
+          const records = Array.isArray(data) ? data : (data.items || data.data || []);
+
+          if (records.length === 0) {
+            hasMore = false;
+          } else {
+            allData = allData.concat(records);
+            log(`Page ${page}: ${records.length} records (total: ${allData.length})`, 'success');
+
+            if (onProgress) onProgress(page, allData.length);
+            page++;
+
+            if (maxPages > 0 && page > maxPages) {
+              log(`Reached max pages limit (${maxPages})`, 'warn');
+              hasMore = false;
+            }
+            if (page > 200) {
+              log('Safety limit reached (200 pages)', 'warn');
+              hasMore = false;
+            }
+          }
+        } catch (e) {
+          log(`Error fetching page ${page}: ${e.message}`, 'error');
+          hasMore = false;
+        }
+      }
+
+      return allData;
+    }
+
+    async function runDryRun() {
+      setButtonsEnabled(false);
+      showProgress(true);
+      log('Starting dry run (100 records)...', 'info');
+
+      const endpoint = document.getElementById('apiEndpoint').value;
+      const sourceTable = document.getElementById('sourceTable').value;
+
+      try {
+        updateProgress(0, 100, 'Fetching sample data...');
+        const data = await fetchData(endpoint, 100, 1, () => {});
+
+        updateProgress(50, 100, 'Converting to EO events...');
+        const events = convertLegacyActivityToEvents(data, sourceTable);
+
+        updateProgress(75, 100, 'Reconstructing state...');
+        const states = reconstructAllStates(events);
+
+        const opCounts = {};
+        for (const e of events) opCounts[e.op] = (opCounts[e.op] || 0) + 1;
+
+        migrationResult = {
+          legacyCount: data.length,
+          events: events,
+          entityCount: states.length,
+          opCounts: opCounts
+        };
+
+        updateProgress(100, 100, 'Complete!');
+        showStats(migrationResult);
+        showSample(events);
+
+        document.getElementById('btnDownload').disabled = false;
+        document.getElementById('btnDownloadCSV').disabled = false;
+
+        log(`Dry run complete: ${data.length} records → ${events.length} events → ${states.length} entities`, 'success');
+      } catch (e) {
+        log(`Dry run failed: ${e.message}`, 'error');
+      }
+
+      setButtonsEnabled(true);
+    }
+
+    async function runFullMigration() {
+      if (!confirm('This will fetch ALL data from Xano and convert to EO events. Continue?')) {
+        return;
+      }
+
+      setButtonsEnabled(false);
+      showProgress(true);
+      log('Starting full migration...', 'info');
+
+      const endpoint = document.getElementById('apiEndpoint').value;
+      const perPage = parseInt(document.getElementById('perPage').value) || 1000;
+      const maxPages = parseInt(document.getElementById('maxPages').value) || 0;
+      const sourceTable = document.getElementById('sourceTable').value;
+
+      try {
+        const data = await fetchData(endpoint, perPage, maxPages, (page, total) => {
+          updateProgress(page, page + 5, `Fetching page ${page} (${total} records)...`);
+        });
+
+        log(`Fetched ${data.length} total records`, 'success');
+        updateProgress(50, 100, 'Converting to EO events...');
+
+        const events = convertLegacyActivityToEvents(data, sourceTable);
+        log(`Generated ${events.length} EO events`, 'success');
+
+        updateProgress(75, 100, 'Reconstructing state...');
+        const states = reconstructAllStates(events);
+        log(`Reconstructed ${states.length} entity states`, 'success');
+
+        const opCounts = {};
+        for (const e of events) opCounts[e.op] = (opCounts[e.op] || 0) + 1;
+
+        migrationResult = {
+          legacyCount: data.length,
+          events: events,
+          entityCount: states.length,
+          opCounts: opCounts
+        };
+
+        updateProgress(100, 100, 'Complete!');
+        showStats(migrationResult);
+        showSample(events);
+
+        document.getElementById('btnDownload').disabled = false;
+        document.getElementById('btnDownloadCSV').disabled = false;
+
+        log('Full migration complete!', 'success');
+        log(`Summary: ${data.length} legacy records → ${events.length} EO events`, 'success');
+        log(`Event breakdown: INS=${opCounts.INS || 0}, ALT=${opCounts.ALT || 0}, NUL=${opCounts.NUL || 0}`, 'info');
+      } catch (e) {
+        log(`Migration failed: ${e.message}`, 'error');
+      }
+
+      setButtonsEnabled(true);
+    }
+
+    function downloadEvents() {
+      if (!migrationResult || !migrationResult.events.length) {
+        log('No events to download', 'warn');
+        return;
+      }
+
+      const json = JSON.stringify(migrationResult.events, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `eo-events-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      log(`Downloaded ${migrationResult.events.length} events as JSON`, 'success');
+    }
+
+    function downloadCSV() {
+      if (!migrationResult || !migrationResult.events.length) {
+        log('No events to download', 'warn');
+        return;
+      }
+
+      // Build CSV
+      const headers = ['id', 'ts', 'ts_iso', 'op', 'entity_id', 'entity_type', 'source_table', 'target', 'context', 'frame'];
+      const rows = migrationResult.events.map(e => [
+        e.id,
+        e.ts,
+        new Date(e.ts).toISOString(),
+        e.op,
+        e.target.id,
+        e.target.type || '',
+        e.context.table || '',
+        JSON.stringify(e.target),
+        JSON.stringify(e.context),
+        JSON.stringify(e.frame || {})
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => {
+          const str = String(cell);
+          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        }).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `eo-events-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      log(`Downloaded ${migrationResult.events.length} events as CSV`, 'success');
+    }
+
+    // Init
+    log('EO Migration Tool ready', 'success');
+  </script>
+</body>
+</html>
