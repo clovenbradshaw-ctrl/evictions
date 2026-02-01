@@ -3948,6 +3948,82 @@
                   const numB = valueB && valueB !== 'Unknown' ? parseInt(valueB, 10) : Infinity;
                   return numA - numB;
               }
+            },
+            // Backfill data columns
+            { field: 'Status', headerName: 'Status', width: 100,
+              cellRenderer: params => {
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
+                  const statusColors = {
+                      'PENDING': 'bg-yellow-100 text-yellow-800',
+                      'CLOSED': 'bg-gray-100 text-gray-800',
+                      'DISMISSED': 'bg-green-100 text-green-800',
+                      'JUDGMENT': 'bg-red-100 text-red-800'
+                  };
+                  const colorClass = statusColors[params.value.toUpperCase()] || 'bg-blue-100 text-blue-800';
+                  return `<span class="px-2 py-0.5 rounded text-xs font-medium ${colorClass}">${params.value}</span>`;
+              }
+            },
+            { field: 'pleadings', headerName: 'Pleadings', width: 100,
+              cellRenderer: params => {
+                  if (!params.value || !Array.isArray(params.value) || params.value.length === 0) {
+                      return '<span class="text-gray-400">—</span>';
+                  }
+                  const count = params.value.length;
+                  const latest = params.value[params.value.length - 1];
+                  const tooltip = params.value.map(p => `${p.date || ''}: ${p.description || p.code || ''}`).join('&#10;');
+                  return `<span class="text-indigo-600 cursor-help" title="${tooltip}">${count} filing${count > 1 ? 's' : ''}</span>`;
+              }
+            },
+            { field: 'judgments', headerName: 'Judgments', width: 100,
+              cellRenderer: params => {
+                  if (!params.value || !Array.isArray(params.value) || params.value.length === 0) {
+                      return '<span class="text-gray-400">—</span>';
+                  }
+                  const count = params.value.length;
+                  const tooltip = params.value.map(j => `${j.date || ''}: ${j.type || ''} ${j.for || ''}`).join('&#10;');
+                  return `<span class="text-red-600 cursor-help" title="${tooltip}">${count}</span>`;
+              }
+            },
+            { field: 'service_date', headerName: 'Service Date', width: 110,
+              valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+              cellRenderer: params => {
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
+                  return new Date(params.value).toLocaleDateString();
+              }
+            },
+            { field: 'judgment_date', headerName: 'Judgment Date', width: 120,
+              valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+              cellRenderer: params => {
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
+                  return new Date(params.value).toLocaleDateString();
+              }
+            },
+            { field: 'judgment_for', headerName: 'Judgment For', width: 110,
+              cellRenderer: params => {
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
+                  const colorClass = params.value.toLowerCase().includes('plaintiff') ? 'text-red-600' : 'text-green-600';
+                  return `<span class="${colorClass}">${params.value}</span>`;
+              }
+            },
+            { field: 'case_dismissed', headerName: 'Dismissed', width: 90,
+              cellRenderer: params => {
+                  if (params.value === true) return '<span class="text-green-600 font-medium">Yes</span>';
+                  if (params.value === false) return '<span class="text-gray-400">No</span>';
+                  return '<span class="text-gray-400">—</span>';
+              }
+            },
+            { field: 'eviction_executed', headerName: 'Eviction Executed', width: 130,
+              cellRenderer: params => {
+                  if (params.value === true) return '<span class="text-red-600 font-medium">Yes</span>';
+                  if (params.value === false) return '<span class="text-gray-400">No</span>';
+                  return '<span class="text-gray-400">—</span>';
+              }
+            },
+            { field: 'judge', headerName: 'Judge', width: 150,
+              cellRenderer: params => {
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
+                  return params.value;
+              }
             }
         ];
 
@@ -5038,6 +5114,7 @@
         }
 
         // Deep merge two case_data objects, keeping richest data (all non-null values)
+        // Arrays like pleadings and judgments are concatenated and deduped by key fields
         function mergeCaseData(existing, newer) {
             const existingData = parseCaseData(existing);
             const newerData = parseCaseData(newer);
@@ -5046,12 +5123,39 @@
             const allKeys = new Set([...Object.keys(existingData), ...Object.keys(newerData)]);
             const merged = {};
 
+            // Fields that should be concatenated as arrays (not overwritten)
+            const arrayMergeFields = new Set(['pleadings', 'judgments']);
+
             for (const key of allKeys) {
                 const existingVal = existingData[key];
                 const newerVal = newerData[key];
 
-                // Prefer newer value if it has content, otherwise use existing
-                if (hasValue(newerVal)) {
+                // Special handling for array fields - concatenate and dedupe
+                if (arrayMergeFields.has(key)) {
+                    const existingArr = Array.isArray(existingVal) ? existingVal : [];
+                    const newerArr = Array.isArray(newerVal) ? newerVal : [];
+
+                    if (existingArr.length === 0 && newerArr.length === 0) {
+                        continue; // Skip empty arrays
+                    }
+
+                    // Concatenate and dedupe by creating a unique key for each item
+                    const seen = new Map();
+                    const combined = [...existingArr, ...newerArr];
+
+                    for (const item of combined) {
+                        // Create unique key based on code+date+detail for pleadings, or relevant fields for judgments
+                        const itemKey = key === 'pleadings'
+                            ? `${item.code || ''}|${item.date || ''}|${item.detail || ''}|${item.description || ''}`
+                            : `${item.date || ''}|${item.type || ''}|${item.amount || ''}`;
+
+                        // Keep the most recent version (last occurrence)
+                        seen.set(itemKey, item);
+                    }
+
+                    merged[key] = Array.from(seen.values());
+                } else if (hasValue(newerVal)) {
+                    // Prefer newer value if it has content
                     merged[key] = newerVal;
                 } else if (hasValue(existingVal)) {
                     merged[key] = existingVal;
@@ -5065,6 +5169,7 @@
         // Merge two records, preferring non-null/non-empty values
         // When both have values for a field, prefer the newer record's value
         // Special handling for case_data to deep merge its contents
+        // Special handling for array fields (pleadings, judgments) to concatenate and dedupe
         function mergeRecordFields(existing, newer) {
             const merged = { ...newer };
 
@@ -5073,9 +5178,33 @@
                 merged.case_data = mergeCaseData(existing.case_data, newer.case_data);
             }
 
+            // Fields that should be concatenated as arrays (not overwritten)
+            const arrayMergeFields = new Set(['pleadings', 'judgments']);
+
             for (const key of Object.keys(existing)) {
                 // Skip case_data since we handled it specially above
                 if (key === 'case_data') continue;
+
+                // Special handling for array fields - concatenate and dedupe
+                if (arrayMergeFields.has(key)) {
+                    const existingArr = Array.isArray(existing[key]) ? existing[key] : [];
+                    const newerArr = Array.isArray(merged[key]) ? merged[key] : [];
+
+                    if (existingArr.length > 0 || newerArr.length > 0) {
+                        const seen = new Map();
+                        const combined = [...existingArr, ...newerArr];
+
+                        for (const item of combined) {
+                            const itemKey = key === 'pleadings'
+                                ? `${item.code || ''}|${item.date || ''}|${item.detail || ''}|${item.description || ''}`
+                                : `${item.date || ''}|${item.type || ''}|${item.amount || ''}`;
+                            seen.set(itemKey, item);
+                        }
+
+                        merged[key] = Array.from(seen.values());
+                    }
+                    continue;
+                }
 
                 // If newer record has no value but existing does, use existing value
                 if (!hasValue(merged[key]) && hasValue(existing[key])) {
@@ -5154,7 +5283,12 @@
                     'formatted_address', 'latitude', 'lat', 'longitude', 'lng', 'lon',
                     'council_district', 'Council_District', 'council_district_number',
                     'Council_District_Number', 'council_member', 'Council_Member',
-                    'individual_ll', 'Individual_LL', 'id'
+                    'individual_ll', 'Individual_LL', 'id',
+                    // Backfill data fields
+                    'judge', 'pleadings', 'judgments', 'filing_date', 'service_date',
+                    'judgment_for', 'judgment_date', 'judgment_type', 'case_dismissed',
+                    'dismissal_date', 'eviction_date', 'eviction_method', 'eviction_executed',
+                    'writ_issued_date', 'writ_served_date'
                 ]);
 
                 // Track any dynamic keys from case_data that are not in our known fields
@@ -5191,7 +5325,23 @@
                     council_district: caseData.council_district || caseData.Council_District,
                     council_district_number: caseData.council_district_number || caseData.Council_District_Number,
                     council_member: caseData.council_member || caseData.Council_Member,
-                    individual_ll: caseData.individual_ll || caseData.Individual_LL
+                    individual_ll: caseData.individual_ll || caseData.Individual_LL,
+                    // Backfill data fields
+                    judge: caseData.judge,
+                    pleadings: caseData.pleadings || [],
+                    judgments: caseData.judgments || [],
+                    filing_date: caseData.filing_date,
+                    service_date: caseData.service_date,
+                    judgment_for: caseData.judgment_for,
+                    judgment_date: caseData.judgment_date,
+                    judgment_type: caseData.judgment_type,
+                    case_dismissed: caseData.case_dismissed,
+                    dismissal_date: caseData.dismissal_date,
+                    eviction_date: caseData.eviction_date,
+                    eviction_method: caseData.eviction_method,
+                    eviction_executed: caseData.eviction_executed,
+                    writ_issued_date: caseData.writ_issued_date,
+                    writ_served_date: caseData.writ_served_date
                 };
 
                 // Copy all dynamic fields from case_data to the flat record
@@ -5242,7 +5392,12 @@
                 'formatted_address', 'latitude', 'lat', 'longitude', 'lng', 'lon',
                 'council_district', 'Council_District', 'council_district_number',
                 'Council_District_Number', 'council_member', 'Council_Member',
-                'individual_ll', 'Individual_LL', 'id', 'logged_at', 'action'
+                'individual_ll', 'Individual_LL', 'id', 'logged_at', 'action',
+                // Backfill data fields
+                'judge', 'pleadings', 'judgments', 'filing_date', 'service_date',
+                'judgment_for', 'judgment_date', 'judgment_type', 'case_dismissed',
+                'dismissal_date', 'eviction_date', 'eviction_method', 'eviction_executed',
+                'writ_issued_date', 'writ_served_date'
             ]);
 
             // Map flat records with field name fallbacks
@@ -5280,7 +5435,23 @@
                     council_district: record.council_district || record.Council_District,
                     council_district_number: record.council_district_number || record.Council_District_Number,
                     council_member: record.council_member || record.Council_Member,
-                    individual_ll: record.individual_ll || record.Individual_LL
+                    individual_ll: record.individual_ll || record.Individual_LL,
+                    // Backfill data fields
+                    judge: record.judge,
+                    pleadings: record.pleadings || [],
+                    judgments: record.judgments || [],
+                    filing_date: record.filing_date,
+                    service_date: record.service_date,
+                    judgment_for: record.judgment_for,
+                    judgment_date: record.judgment_date,
+                    judgment_type: record.judgment_type,
+                    case_dismissed: record.case_dismissed,
+                    dismissal_date: record.dismissal_date,
+                    eviction_date: record.eviction_date,
+                    eviction_method: record.eviction_method,
+                    eviction_executed: record.eviction_executed,
+                    writ_issued_date: record.writ_issued_date,
+                    writ_served_date: record.writ_served_date
                 };
 
                 // Copy all dynamic fields from record to the flat record
@@ -8999,8 +9170,15 @@
             // Get sorted list of dynamic keys for consistent column order
             const sortedDynamicKeys = Array.from(dynamicCaseDataKeys).sort();
 
-            // Build header row with base fields + dynamic fields
-            const baseHeaders = ['File Date', 'Docket Number', 'Plaintiff', 'Defendant', 'Landlord Attorney', 'Defense Attorney', 'Address', 'Council District', 'Council Member', 'Individual Landlord'];
+            // Build header row with base fields + backfill fields + dynamic fields
+            const baseHeaders = [
+                'File Date', 'Docket Number', 'Plaintiff', 'Defendant', 'Landlord Attorney', 'Defense Attorney',
+                'Address', 'Council District', 'Council Member', 'Individual Landlord',
+                // Backfill data fields
+                'Status', 'Judge', 'Service Date', 'Judgment Date', 'Judgment For', 'Judgment Type',
+                'Case Dismissed', 'Dismissal Date', 'Eviction Date', 'Eviction Method', 'Eviction Executed',
+                'Writ Issued Date', 'Writ Served Date', 'Pleadings Count', 'Pleadings', 'Judgments Count', 'Judgments'
+            ];
             const dynamicHeaders = sortedDynamicKeys.map(formatDynamicColumnHeader);
             const allHeaders = [...baseHeaders, ...dynamicHeaders];
             let csv = allHeaders.join(',') + '\n';
@@ -9022,8 +9200,38 @@
                 const councilMember = (row.CouncilMember || '').replace(/"/g, '""');
                 const individualLandlord = row.individual_ll ? 'Yes' : 'No';
 
-                // Build row with base values
-                const baseValues = [fileDate, caseNumber, plaintiff, defendantName, attorney, defenseAttorney, address, district, councilMember, individualLandlord];
+                // Backfill data values
+                const status = (row.Status || '').replace(/"/g, '""');
+                const judge = (row.judge || '').replace(/"/g, '""');
+                const serviceDate = row.service_date ? new Date(row.service_date).toLocaleDateString() : '';
+                const judgmentDate = row.judgment_date ? new Date(row.judgment_date).toLocaleDateString() : '';
+                const judgmentFor = (row.judgment_for || '').replace(/"/g, '""');
+                const judgmentType = (row.judgment_type || '').replace(/"/g, '""');
+                const caseDismissed = row.case_dismissed === true ? 'Yes' : row.case_dismissed === false ? 'No' : '';
+                const dismissalDate = row.dismissal_date ? new Date(row.dismissal_date).toLocaleDateString() : '';
+                const evictionDate = row.eviction_date ? new Date(row.eviction_date).toLocaleDateString() : '';
+                const evictionMethod = (row.eviction_method || '').replace(/"/g, '""');
+                const evictionExecuted = row.eviction_executed === true ? 'Yes' : row.eviction_executed === false ? 'No' : '';
+                const writIssuedDate = row.writ_issued_date ? new Date(row.writ_issued_date).toLocaleDateString() : '';
+                const writServedDate = row.writ_served_date ? new Date(row.writ_served_date).toLocaleDateString() : '';
+                const pleadingsCount = Array.isArray(row.pleadings) ? row.pleadings.length : 0;
+                const pleadingsJson = Array.isArray(row.pleadings) && row.pleadings.length > 0
+                    ? JSON.stringify(row.pleadings).replace(/"/g, '""')
+                    : '';
+                const judgmentsCount = Array.isArray(row.judgments) ? row.judgments.length : 0;
+                const judgmentsJson = Array.isArray(row.judgments) && row.judgments.length > 0
+                    ? JSON.stringify(row.judgments).replace(/"/g, '""')
+                    : '';
+
+                // Build row with base values + backfill values
+                const baseValues = [
+                    fileDate, caseNumber, plaintiff, defendantName, attorney, defenseAttorney,
+                    address, district, councilMember, individualLandlord,
+                    // Backfill values
+                    status, judge, serviceDate, judgmentDate, judgmentFor, judgmentType,
+                    caseDismissed, dismissalDate, evictionDate, evictionMethod, evictionExecuted,
+                    writIssuedDate, writServedDate, pleadingsCount, pleadingsJson, judgmentsCount, judgmentsJson
+                ];
 
                 // Add dynamic column values
                 const dynamicValues = sortedDynamicKeys.map(key => formatCSVValue(row[key]));
