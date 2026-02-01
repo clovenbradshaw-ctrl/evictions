@@ -968,6 +968,8 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- EO Migration for event sourcing -->
+    <script src="eo-migration.js"></script>
 
     <script>
         // =============================================
@@ -1150,8 +1152,8 @@
         // =============================================
         // CONFIGURATION
         // =============================================
-        // Activity stream endpoint - returns multiple records per case showing data changes over time
-        const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case';
+        // EO operations endpoint - fetches events and reconstructs current state
+        const API_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_operations';
         const NASHVILLE_CENTER = [36.1627, -86.7816];
         const DEFAULT_ZOOM = 11;
 
@@ -1448,24 +1450,24 @@
                     data = [result];
                 }
 
-                // Debug: log first record structure
+                // Debug: log first event structure
                 if (data.length > 0) {
-                    console.log('🔍 First record keys:', Object.keys(data[0]));
+                    console.log('🔍 First event keys:', Object.keys(data[0]));
                 }
 
-                // Detect activity stream format and reduce to current state
-                const isActivityStream = data.length > 0 && data[0].logged_at !== undefined && data[0].case_data !== undefined;
-                const hasActivityMetadata = data.length > 0 && data[0].logged_at !== undefined;
+                // Detect EO events format (has op, target, context fields)
+                const isEOFormat = data.length > 0 && data[0].op !== undefined && data[0].target !== undefined;
 
-                if (isActivityStream) {
-                    console.log('📊 Detected activity stream with case_data, reducing', data.length, 'records...');
-                    evictionData = reduceActivityStream(data);
-                    console.log('📊 Reduced to', evictionData.length, 'unique cases');
-                } else if (hasActivityMetadata) {
-                    console.log('📊 Detected activity stream WITHOUT case_data (fields at top level)');
-                    evictionData = reduceActivityStreamFlat(data);
-                    console.log('📊 Reduced to', evictionData.length, 'unique cases');
+                if (isEOFormat && typeof EOMigration !== 'undefined') {
+                    console.log('📊 Detected EO event format, reconstructing state from', data.length, 'events...');
+                    // Parse events from Xano format (stringified JSON fields)
+                    const events = data.map(e => EOMigration.fromXanoFormat(e));
+                    // Reconstruct current state from events
+                    evictionData = EOMigration.reconstructAllStates(events);
+                    console.log('📊 Reconstructed', evictionData.length, 'unique cases from', events.length, 'events');
                 } else {
+                    // Fallback for non-EO data
+                    console.log('📊 Using direct data format');
                     evictionData = data;
                 }
 

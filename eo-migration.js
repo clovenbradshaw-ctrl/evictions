@@ -25,11 +25,7 @@ const EOMigration = (function() {
   // =============================================================================
 
   const CONFIG = {
-    // Current Xano API endpoints (legacy)
-    LEGACY_FETCH_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case',
-    LEGACY_UPLOAD_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/nashville_detainer_cases',
-
-    // New EO operations endpoints
+    // EO operations endpoints (primary API)
     OPERATIONS_GET_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_operations',
     OPERATIONS_POST_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/evictionseoevents',
 
@@ -804,61 +800,39 @@ const EOMigration = (function() {
     return results;
   }
 
-  /**
-   * Fetch legacy data from current Xano endpoint
-   */
-  async function fetchLegacyData(options = {}) {
-    const params = new URLSearchParams();
-
-    if (options.per_page) {
-      params.append('per_page', options.per_page);
-    }
-    if (options.page) {
-      params.append('page', options.page);
-    }
-
-    const url = params.toString()
-      ? `${CONFIG.LEGACY_FETCH_URL}?${params.toString()}`
-      : CONFIG.LEGACY_FETCH_URL;
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch legacy data: ${response.status}`);
-    }
-
-    return response.json();
-  }
 
   // =============================================================================
-  // FULL MIGRATION WORKFLOW
+  // FULL SYNC WORKFLOW (EO-ONLY)
   // =============================================================================
 
   /**
-   * Run the complete migration from legacy Xano to EO format
+   * Fetch all events from EO operations table and reconstruct state
    */
-  async function runMigration(options = {}) {
+  async function fetchAllEvents(options = {}) {
     const log = options.log || console.log;
     const onProgress = options.onProgress || null;
 
-    log('🚀 Starting EO Migration...');
+    log('🚀 Fetching all EO events...');
     log('================================');
 
-    // Step 1: Fetch all legacy data
-    log('\n📥 Step 1: Fetching legacy data from Xano...');
-    let allLegacyData = [];
+    let allEvents = [];
     let page = 1;
     let hasMore = true;
 
     while (hasMore) {
-      const response = await fetchLegacyData({ page, per_page: 1000 });
-      const data = Array.isArray(response) ? response : (response.items || response.data || []);
+      const events = await fetchEvents({ page, per_page: 1000 });
+      const data = Array.isArray(events) ? events : (events.items || events.data || []);
 
       if (data.length === 0) {
         hasMore = false;
       } else {
-        allLegacyData = allLegacyData.concat(data);
-        log(`  Fetched page ${page}: ${data.length} records (total: ${allLegacyData.length})`);
+        allEvents = allEvents.concat(data);
+        log(`  Fetched page ${page}: ${data.length} events (total: ${allEvents.length})`);
         page++;
+
+        if (onProgress) {
+          onProgress({ page, count: allEvents.length });
+        }
 
         // Safety limit
         if (page > 100) {
@@ -868,16 +842,11 @@ const EOMigration = (function() {
       }
     }
 
-    log(`\n✅ Fetched ${allLegacyData.length} legacy records`);
-
-    // Step 2: Convert to EO events
-    log('\n🔄 Step 2: Converting to EO events...');
-    const events = convertLegacyActivityToEvents(allLegacyData);
-    log(`  Created ${events.length} EO events`);
+    log(`\n✅ Fetched ${allEvents.length} total events`);
 
     // Analyze event distribution
     const opCounts = {};
-    for (const event of events) {
+    for (const event of allEvents) {
       opCounts[event.op] = (opCounts[event.op] || 0) + 1;
     }
     log('\n  Event distribution:');
@@ -885,65 +854,45 @@ const EOMigration = (function() {
       log(`    ${op}: ${count} events`);
     }
 
-    // Step 3: Optionally push to new Xano table
-    if (options.pushToXano) {
-      log('\n📤 Step 3: Pushing events to Xano operations table...');
-      const results = await pushEventsBatch(events, (progress) => {
-        log(`  Progress: ${progress.processed}/${progress.total} (${progress.success} success, ${progress.failed} failed)`);
-        if (onProgress) onProgress(progress);
-      });
-
-      log(`\n✅ Push complete: ${results.success} success, ${results.failed} failed`);
-      if (results.errors.length > 0) {
-        log(`  ⚠️ ${results.errors.length} errors occurred`);
-      }
-    } else {
-      log('\n⏭️ Step 3: Skipping push (set options.pushToXano = true to push)');
-    }
-
-    // Step 4: Validate by reconstructing state
-    log('\n🔍 Step 4: Validating by reconstructing state...');
-    const reconstructed = reconstructAllStates(events);
-    log(`  Reconstructed ${reconstructed.length} entities from ${events.length} events`);
+    // Reconstruct state
+    log('\n🔍 Reconstructing state from events...');
+    const reconstructed = reconstructAllStates(allEvents);
+    log(`  Reconstructed ${reconstructed.length} entities`);
 
     log('\n================================');
-    log('🎉 Migration complete!');
+    log('🎉 Fetch complete!');
 
     return {
-      legacyRecords: allLegacyData.length,
-      events: events,
-      eventCount: events.length,
+      events: allEvents,
+      eventCount: allEvents.length,
       opCounts: opCounts,
-      reconstructedCount: reconstructed.length
+      states: reconstructed,
+      stateCount: reconstructed.length
     };
   }
 
   /**
-   * Dry run migration (no push, just conversion and validation)
+   * Validate EO state by fetching and reconstructing
    */
-  async function dryRunMigration(sampleSize = 100) {
-    console.log('🧪 Dry Run Migration (sample only)');
+  async function validateEOState(sampleSize = 100) {
+    console.log('🧪 Validating EO State');
     console.log('==================================\n');
 
-    // Fetch a sample
-    const response = await fetchLegacyData({ per_page: sampleSize });
-    const sample = Array.isArray(response) ? response : (response.items || response.data || []);
+    // Fetch events
+    const events = await fetchEvents({ per_page: sampleSize });
+    const data = Array.isArray(events) ? events : (events.items || events.data || []);
 
-    console.log(`Fetched ${sample.length} sample records`);
-
-    // Convert
-    const events = convertLegacyActivityToEvents(sample);
-    console.log(`Generated ${events.length} events\n`);
+    console.log(`Fetched ${data.length} events`);
 
     // Show sample events
-    console.log('Sample events:');
-    for (const event of events.slice(0, 5)) {
+    console.log('\nSample events:');
+    for (const event of data.slice(0, 5)) {
       console.log(JSON.stringify(event, null, 2));
       console.log('---');
     }
 
     // Reconstruct and validate
-    const states = reconstructAllStates(events);
+    const states = reconstructAllStates(data);
     console.log(`\nReconstructed ${states.length} entity states`);
 
     // Show sample reconstructed state
@@ -953,10 +902,9 @@ const EOMigration = (function() {
     }
 
     return {
-      sampleSize: sample.length,
-      eventCount: events.length,
+      eventCount: data.length,
       stateCount: states.length,
-      events: events,
+      events: data,
       states: states
     };
   }
@@ -1008,11 +956,11 @@ const EOMigration = (function() {
     normalizeCase,
     diffCases,
 
-    // Migration
+    // Migration/Sync
     convertLegacyActivityToEvents,
     convertSnapshotToEvents,
-    runMigration,
-    dryRunMigration,
+    fetchAllEvents,
+    validateEOState,
 
     // State reconstruction
     reconstructEntityState,
@@ -1032,7 +980,6 @@ const EOMigration = (function() {
     fetchEvents,
     pushEvent,
     pushEventsBatch,
-    fetchLegacyData,
 
     // Format conversion
     toXanoFormat,
@@ -1054,17 +1001,15 @@ if (typeof module !== 'undefined' && module.exports) {
 // Usage examples (commented out for reference):
 /*
 
-// Dry run migration to test conversion
-EOMigration.dryRunMigration(50).then(result => {
-  console.log('Dry run complete:', result);
+// Fetch all events and reconstruct state
+EOMigration.fetchAllEvents().then(result => {
+  console.log('Fetched events:', result.eventCount);
+  console.log('Reconstructed states:', result.stateCount);
 });
 
-// Full migration (with push to Xano)
-EOMigration.runMigration({
-  pushToXano: true,
-  onProgress: (p) => console.log(`${p.processed}/${p.total}`)
-}).then(result => {
-  console.log('Migration complete:', result);
+// Validate EO state with sample
+EOMigration.validateEOState(50).then(result => {
+  console.log('Validation complete:', result);
 });
 
 // Create a new event for a case update
@@ -1076,6 +1021,9 @@ const updateEvent = EOMigration.createUpdateEvent(
   { actor: 'system' }   // frame (optional)
 );
 console.log('Update event:', updateEvent);
+
+// Push event to EO operations table
+await EOMigration.pushEvent(updateEvent);
 
 // Reconstruct state from events
 const events = await EOMigration.fetchEvents({ entity_id: '24GC1234' });
