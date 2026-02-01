@@ -8677,13 +8677,24 @@
         }
 
         function exportCSV() {
-            let csv = 'File Date,Docket Number,Plaintiff,Defendant,Attorney\n';
+            // Include all available fields, respecting redaction rules for non-logged-in users
+            let csv = 'File Date,Docket Number,Plaintiff,Defendant,Landlord Attorney,Defense Attorney,Address,Council District,Council Member,Individual Landlord\n';
 
             filteredData.forEach(row => {
-                const defendantName = getDefendantDisplayName(row.Defendant);
-                csv += `"${new Date(row.File_Date).toLocaleDateString()}","${row.Case_Number}","${row.Plaintiff}","${defendantName}","${row.Attorney}"\n`;
+                const defendantName = getDefendantDisplayName(row.Defendant).replace(/"/g, '""');
+                const fileDate = new Date(row.File_Date).toLocaleDateString();
+                const caseNumber = (row.Case_Number || '').replace(/"/g, '""');
+                const plaintiff = (row.Plaintiff || '').replace(/"/g, '""');
+                const attorney = (row.Attorney || '').replace(/"/g, '""');
+                const defenseAttorney = (row.Defense_Attorney || '').replace(/"/g, '""');
+                const address = (row.Address || '').replace(/"/g, '""');
+                const district = row.District && row.District !== 'Unknown' ? row.District : '';
+                const councilMember = (row.CouncilMember || '').replace(/"/g, '""');
+                const individualLandlord = row.individual_ll ? 'Yes' : 'No';
+
+                csv += `"${fileDate}","${caseNumber}","${plaintiff}","${defendantName}","${attorney}","${defenseAttorney}","${address}","${district}","${councilMember}","${individualLandlord}"\n`;
             });
-            
+
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
