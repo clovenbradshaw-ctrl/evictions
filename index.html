@@ -4086,6 +4086,18 @@
                   return new Date(params.value).toLocaleDateString();
               }
             },
+            { field: 'paper_writ_date', headerName: 'Paper Writ Date', width: 120,
+              valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+              cellRenderer: params => {
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
+                  return `<span class="text-red-600 font-medium">${new Date(params.value).toLocaleDateString()}</span>`;
+              },
+              comparator: (valueA, valueB) => {
+                  const dateA = valueA ? new Date(valueA).getTime() : 0;
+                  const dateB = valueB ? new Date(valueB).getTime() : 0;
+                  return dateA - dateB;
+              }
+            },
             { field: 'judgment_date', headerName: 'Judgment Date', width: 120,
               valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
               cellRenderer: params => {
@@ -5379,7 +5391,7 @@
                     'judge', 'pleadings', 'judgments', 'filing_date', 'service_date',
                     'judgment_for', 'judgment_date', 'judgment_type', 'case_dismissed',
                     'dismissal_date', 'eviction_date', 'eviction_method', 'eviction_executed',
-                    'writ_issued_date', 'writ_served_date'
+                    'writ_issued_date', 'writ_served_date', 'paper_writ_date'
                 ]);
 
                 // Track any dynamic keys from case_data that are not in our known fields
@@ -5432,8 +5444,21 @@
                     eviction_method: caseData.eviction_method,
                     eviction_executed: caseData.eviction_executed,
                     writ_issued_date: caseData.writ_issued_date,
-                    writ_served_date: caseData.writ_served_date
+                    writ_served_date: caseData.writ_served_date,
+                    paper_writ_date: caseData.paper_writ_date
                 };
+
+                // Extract paper_writ_date from pleadings if not already set
+                // Look for pleadings with code "PRA" (DC SHERIFF PAPER RETURN)
+                if (!flatRecord.paper_writ_date && Array.isArray(flatRecord.pleadings)) {
+                    const paperWritPleading = flatRecord.pleadings.find(p =>
+                        p.code === 'PRA' ||
+                        (p.description && p.description.toUpperCase().includes('PAPER RETURN'))
+                    );
+                    if (paperWritPleading && paperWritPleading.date) {
+                        flatRecord.paper_writ_date = paperWritPleading.date;
+                    }
+                }
 
                 // Copy all dynamic fields from case_data to the flat record
                 for (const key of Object.keys(caseData)) {
@@ -5488,7 +5513,7 @@
                 'judge', 'pleadings', 'judgments', 'filing_date', 'service_date',
                 'judgment_for', 'judgment_date', 'judgment_type', 'case_dismissed',
                 'dismissal_date', 'eviction_date', 'eviction_method', 'eviction_executed',
-                'writ_issued_date', 'writ_served_date'
+                'writ_issued_date', 'writ_served_date', 'paper_writ_date'
             ]);
 
             // Map flat records with field name fallbacks
@@ -5542,8 +5567,21 @@
                     eviction_method: record.eviction_method,
                     eviction_executed: record.eviction_executed,
                     writ_issued_date: record.writ_issued_date,
-                    writ_served_date: record.writ_served_date
+                    writ_served_date: record.writ_served_date,
+                    paper_writ_date: record.paper_writ_date
                 };
+
+                // Extract paper_writ_date from pleadings if not already set
+                // Look for pleadings with code "PRA" (DC SHERIFF PAPER RETURN)
+                if (!flatRecord.paper_writ_date && Array.isArray(flatRecord.pleadings)) {
+                    const paperWritPleading = flatRecord.pleadings.find(p =>
+                        p.code === 'PRA' ||
+                        (p.description && p.description.toUpperCase().includes('PAPER RETURN'))
+                    );
+                    if (paperWritPleading && paperWritPleading.date) {
+                        flatRecord.paper_writ_date = paperWritPleading.date;
+                    }
+                }
 
                 // Copy all dynamic fields from record to the flat record
                 for (const key of Object.keys(record)) {
@@ -9624,7 +9662,7 @@
                 'File Date', 'Docket Number', 'Plaintiff', 'Defendant', 'Landlord Attorney', 'Defense Attorney',
                 'Address', 'Council District', 'Council Member', 'Individual Landlord',
                 // Backfill data fields
-                'Status', 'Judge', 'Service Date', 'Judgment Date', 'Judgment For', 'Judgment Type',
+                'Status', 'Judge', 'Service Date', 'Paper Writ Date', 'Judgment Date', 'Judgment For', 'Judgment Type',
                 'Case Dismissed', 'Dismissal Date',
                 'Writ Issued Date', 'Writ Served Date', 'Pleadings Count', 'Pleadings', 'Judgments Count', 'Judgments'
             ];
@@ -9653,6 +9691,7 @@
                 const status = (row.Status || '').replace(/"/g, '""');
                 const judge = (row.judge || '').replace(/"/g, '""');
                 const serviceDate = row.service_date ? new Date(row.service_date).toLocaleDateString() : '';
+                const paperWritDate = row.paper_writ_date ? new Date(row.paper_writ_date).toLocaleDateString() : '';
                 const judgmentDate = row.judgment_date ? new Date(row.judgment_date).toLocaleDateString() : '';
                 const judgmentFor = (row.judgment_for || '').replace(/"/g, '""');
                 const judgmentType = (row.judgment_type || '').replace(/"/g, '""');
@@ -9675,7 +9714,7 @@
                     fileDate, caseNumber, plaintiff, defendantName, attorney, defenseAttorney,
                     address, district, councilMember, individualLandlord,
                     // Backfill values
-                    status, judge, serviceDate, judgmentDate, judgmentFor, judgmentType,
+                    status, judge, serviceDate, paperWritDate, judgmentDate, judgmentFor, judgmentType,
                     caseDismissed, dismissalDate,
                     writIssuedDate, writServedDate, pleadingsCount, pleadingsJson, judgmentsCount, judgmentsJson
                 ];
@@ -10509,6 +10548,7 @@
             { key: 'Judge', label: 'Judge', type: 'text' },
             // Service & Writ
             { key: 'service_date', label: 'Service Date', type: 'date' },
+            { key: 'paper_writ_date', label: 'Paper Writ Date', type: 'date' },
             { key: 'writ_issued_date', label: 'Writ of Restitution Issued', type: 'date' },
             { key: 'writ_served_date', label: 'Sheriff Paper Return (Physical Removal)', type: 'date' },
             // Judgment
