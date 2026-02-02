@@ -1796,10 +1796,10 @@
                     <div class="methodology-box">
                         <div class="methodology-label">Event Sourcing Pattern</div>
                         <div class="methodology-text">
-                            Data is retrieved from a Xano backend API that implements <strong>event sourcing</strong>.
-                            Rather than storing just the current state, the system stores a log of all changes
-                            (events) that have occurred to each case. This provides a complete audit trail and
-                            enables reconstruction of case state at any point in time.
+                            Data is retrieved from a backend API that implements <strong>event sourcing</strong>.
+                            Court records are scraped multiple times, and changes detected between scrapes are stored
+                            as events. Rather than overwriting data, each change is recorded as a new event, providing
+                            a complete history of how case information evolved over time.
                         </div>
                     </div>
                     <table class="data-table">
@@ -1811,12 +1811,8 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td>API Endpoint</td>
-                                <td><code>xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_operations</code></td>
-                            </tr>
-                            <tr>
                                 <td>Event Types (op)</td>
-                                <td><code>INS</code> (insert), <code>ALT</code> (alter), <code>DES</code> (describe), <code>SEG</code> (segment), <code>CON</code> (connect), <code>SYN</code> (synthesize), <code>SUP</code> (supersede), <code>REC</code> (reconcile), <code>NUL</code> (null/delete)</td>
+                                <td><code>INS</code> (insert - new case detected), <code>ALT</code> (alter - case data changed between scrapes)</td>
                             </tr>
                             <tr>
                                 <td>Temporal Key</td>
@@ -1838,9 +1834,9 @@
                     <div class="methodology-box">
                         <div class="methodology-label">Reconstructing State from Events</div>
                         <div class="methodology-text">
-                            Each case can have multiple event records (EO operations) showing changes over time. We reconstruct
+                            Each case can have multiple event records showing changes detected between scrapes. We reconstruct
                             current state by grouping by <code>entity_id</code>, sorting by <code>ts</code>,
-                            and replaying operations in order (INS creates, ALT modifies, NUL deletes).
+                            and replaying operations in order (INS creates the initial record, ALT applies subsequent changes).
                         </div>
                     </div>
                     <div class="formula-box">
@@ -1852,7 +1848,6 @@
                         &nbsp;&nbsp;.map(group => {<br>
                         &nbsp;&nbsp;&nbsp;&nbsp;// INS: Initialize entity from context.data<br>
                         &nbsp;&nbsp;&nbsp;&nbsp;// ALT: Apply context.changes to current state<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;// NUL: Mark entity as deleted<br>
                         &nbsp;&nbsp;})
                     </div>
                     <table class="data-table" style="margin-top: 16px;">
@@ -1865,43 +1860,14 @@
                         <tbody>
                             <tr>
                                 <td><code>INS</code> (Insert)</td>
-                                <td>Create entity with <code>context.data</code></td>
+                                <td>New case detected during scrape - create entity with <code>context.data</code></td>
                             </tr>
                             <tr>
                                 <td><code>ALT</code> (Alter)</td>
-                                <td>Apply <code>context.changes</code> to entity fields</td>
-                            </tr>
-                            <tr>
-                                <td><code>DES</code> (Describe)</td>
-                                <td>Add metadata/annotations</td>
-                            </tr>
-                            <tr>
-                                <td><code>NUL</code> (Null/Delete)</td>
-                                <td>Remove entity from active state</td>
+                                <td>Case data changed between scrapes - apply <code>context.changes</code> to entity fields</td>
                             </tr>
                         </tbody>
                     </table>
-                </div>
-
-                <div class="claim-item">
-                    <div class="claim-item-header">
-                        <div class="claim-item-title">Incremental Sync</div>
-                        <span class="claim-status status-calculated">Performance</span>
-                    </div>
-                    <div class="methodology-box">
-                        <div class="methodology-label">Smart Data Fetching</div>
-                        <div class="methodology-text">
-                            Instead of fetching all events on each load, we use the <code>ts_gt</code>
-                            query parameter to fetch only events recorded since the last sync. New events
-                            are then applied incrementally to the cached state.
-                        </div>
-                    </div>
-                    <div class="formula-box">
-                        // First load: fetch all events<br>
-                        GET /eviction_operations?per_page=100<br><br>
-                        // Subsequent loads: fetch only new events<br>
-                        GET /eviction_operations?ts_gt=1705315800000
-                    </div>
                 </div>
 
                 <div class="claim-item">
@@ -1946,25 +1912,17 @@
 
                 <div class="claim-item">
                     <div class="claim-item-header">
-                        <div class="claim-item-title">Renter Household Estimation</div>
-                        <span class="claim-status status-calculated">Calculated</span>
+                        <div class="claim-item-title">Renter Household Data</div>
+                        <span class="claim-status status-verified">Data Source</span>
                     </div>
                     <div class="methodology-box">
-                        <div class="methodology-label">How We Calculate Renter Counts</div>
+                        <div class="methodology-label">Per-District Housing Data</div>
                         <div class="methodology-text">
-                            The Census doesn't directly report renter households by council district. We calculate
-                            this from available ACS data on housing occupancy and ownership.
+                            Renter household counts by council district are sourced from data published by Metro Nashville
+                            through their <a href="https://www.nashville.gov/departments/social-services/strategic-planning-and-research/publications/know-your-community" target="_blank" style="color: #4f46e5;">"Know Your Community"</a> reports.
+                            This provides district-level breakdowns of housing occupancy and tenure status.
                         </div>
                     </div>
-                    <div class="formula-box">
-                        total_occupied = total_housing_units × (percent_occupied / 100)<br>
-                        estimated_renters = total_occupied - owner_occupied_units<br>
-                        pct_renters = (estimated_renters / total_occupied) × 100
-                    </div>
-                    <p style="margin-top: 16px; font-size: 14px; color: #374151;">
-                        <strong>Validation:</strong> Our county-level estimate of 146,473 renter households closely matches
-                        the Census Bureau's reported 146,940 renter households from ACS Table B25070.
-                    </p>
                 </div>
 
                 <div class="claim-item">
