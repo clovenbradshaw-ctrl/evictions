@@ -545,8 +545,19 @@ const EOMigration = (function() {
           break;
 
         case OPERATORS.ALT:
-          if (state) {
-            // Apply field changes
+          // ALT with context.data = upsert (create if not exists, update if exists)
+          if (event.context.data) {
+            if (state) {
+              // Merge new data into existing state
+              Object.assign(state, event.context.data);
+            } else {
+              // Create new entity from ALT data
+              state = { ...event.context.data };
+              state.Docket_Number = entityId;
+            }
+            isDeleted = false;
+          } else if (state) {
+            // ALT with changes or single field update (only if state exists)
             if (event.context.changes) {
               for (const [field, change] of Object.entries(event.context.changes)) {
                 state[field] = change.new;
