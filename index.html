@@ -4896,11 +4896,15 @@
             nameFilter = null;
             updateNameFilterIndicator();
 
-            // Clear advanced filters
+            // Clear metric filter
+            activeMetricFilter = null;
+            document.querySelectorAll('.metric-clickable').forEach(el => el.classList.remove('active'));
+
+            // Clear advanced filters and re-render the filter builder UI
             filterGroups = [];
             filterGroupIdCounter = 0;
             activeAdvancedFilter = null;
-            addFilterGroup(); // Add empty group
+            addFilterGroup(); // Add empty group and renders the UI
             updateFilterSummary();
 
             // Reset to all data
@@ -4918,6 +4922,7 @@
             createDistrictMap();
             updateDemographicsCharts();
             updateDemoFilterIndicator();
+            updateMetrics();
 
             // Clear URL
             clearUrlFilters();
@@ -5017,6 +5022,7 @@
                 createDistrictMap();
                 updateDemographicsCharts();
                 updateUrlFilterBanner();
+                updateMetrics();
                 updateStatus(`URL filters applied - showing ${filteredData.length.toLocaleString()} records`, 'success');
             }
 
@@ -7667,35 +7673,65 @@
             }
         }
 
+        // Check if any filters are currently active
+        function hasActiveFilters() {
+            const hasDistrictFilter = activeDistrictFilter !== null && activeDistrictFilter !== undefined;
+            const hasChartFilter = chartFilter && chartFilter.year && chartFilter.month;
+            const nameInput = document.getElementById('nameFilter');
+            const hasNameFilter = (nameInput && nameInput.value.trim()) || (nameFilter && nameFilter.name);
+            const hasAdvancedFilter = activeAdvancedFilter && activeAdvancedFilter.length > 0;
+            const hasMetricFilter = activeMetricFilter !== null;
+            return hasDistrictFilter || hasChartFilter || hasNameFilter || hasAdvancedFilter || hasMetricFilter;
+        }
+
         function updateMetrics() {
             const now = new Date();
             const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
             const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+            // Use filteredData when filters are active, otherwise use allData
+            const isFiltered = hasActiveFilters();
+            const dataSource = isFiltered ? filteredData : allData;
+
             // Total records
-            document.getElementById('totalRecords').textContent = allData.length.toLocaleString();
+            const totalEl = document.getElementById('totalRecords');
+            if (isFiltered) {
+                totalEl.innerHTML = `${dataSource.length.toLocaleString()} <span class="text-xs text-indigo-600">(filtered)</span>`;
+            } else {
+                totalEl.textContent = dataSource.length.toLocaleString();
+            }
 
             // This month
-            const thisMonthCount = allData.filter(d => {
+            const thisMonthCount = dataSource.filter(d => {
                 const date = new Date(d.File_Date);
                 return date >= thisMonthStart;
             }).length;
-            document.getElementById('thisMonth').textContent = thisMonthCount.toLocaleString();
+            const thisMonthEl = document.getElementById('thisMonth');
+            if (isFiltered) {
+                thisMonthEl.innerHTML = `${thisMonthCount.toLocaleString()} <span class="text-xs text-indigo-600">(filtered)</span>`;
+            } else {
+                thisMonthEl.textContent = thisMonthCount.toLocaleString();
+            }
 
             // Last 30 days
-            const last30Count = allData.filter(d => {
+            const last30Count = dataSource.filter(d => {
                 const date = new Date(d.File_Date);
                 return date >= thirtyDaysAgo;
             }).length;
-            document.getElementById('last30Days').textContent = last30Count.toLocaleString();
+            const last30El = document.getElementById('last30Days');
+            if (isFiltered) {
+                last30El.innerHTML = `${last30Count.toLocaleString()} <span class="text-xs text-indigo-600">(filtered)</span>`;
+            } else {
+                last30El.textContent = last30Count.toLocaleString();
+            }
 
-            // Calculate 30-day average based on entire dataset
+            // Calculate 30-day average based on the data source (filtered or full dataset)
             const thirtyChangeEl = document.getElementById('thirtyChange');
-            if (allData.length > 0) {
+            if (dataSource.length > 0) {
                 // Find earliest and latest filing dates
                 let earliestDate = null;
                 let latestDate = null;
-                allData.forEach(d => {
+                dataSource.forEach(d => {
                     const date = new Date(d.File_Date);
                     if (!isNaN(date.getTime())) {
                         if (!earliestDate || date < earliestDate) earliestDate = date;
@@ -7705,7 +7741,7 @@
 
                 if (earliestDate && latestDate) {
                     const totalDays = Math.ceil((latestDate - earliestDate) / (1000 * 60 * 60 * 24)) + 1;
-                    const dailyAverage = allData.length / totalDays;
+                    const dailyAverage = dataSource.length / totalDays;
                     const avg30Day = Math.round(dailyAverage * 30);
 
                     const diff = last30Count - avg30Day;
@@ -8624,6 +8660,7 @@
             updateChartFilterIndicator();
             updateDemographicsCharts();
             updateDemoFilterIndicator();
+            updateMetrics();
             updateStatus(`Filtered to ${monthNames[month - 1]} ${year} - ${filteredData.length} records`, 'success');
 
             // Persist chart filter state
@@ -9465,6 +9502,7 @@
             updateChartFilterIndicator();
             updateDemographicsCharts();
             updateDemoFilterIndicator();
+            updateMetrics();
             updateUrlWithFilters();
             updateStatus(`Showing all ${allData.length} records`, 'success');
         }
@@ -9536,6 +9574,7 @@
             updateNameFilterIndicator();
             updateDemographicsCharts();
             updateDemoFilterIndicator();
+            updateMetrics();
             updateStatus(`Showing ${filteredData.length} records for ${label}: ${trimmedName}`, 'success');
 
             // Persist filter state
@@ -9573,6 +9612,7 @@
             updateNameFilterIndicator();
             updateDemographicsCharts();
             updateDemoFilterIndicator();
+            updateMetrics();
             updateUrlWithFilters();
             updateStatus(`Showing all ${allData.length} records`, 'success');
         }
@@ -12350,6 +12390,7 @@
             // Update demographics charts with filtered data
             updateDemographicsCharts();
             updateDemoFilterIndicator();
+            updateMetrics();
 
             // Persist state
             debouncedSaveUIState();
@@ -12382,6 +12423,7 @@
             updateDemographicsCharts();
             updateDemoFilterIndicator();
             updateDistrictFilterIndicator();
+            updateMetrics();
             debouncedSaveUIState();
             updateUrlWithFilters();
             updateStatus('District filter cleared - showing all records', 'success');
@@ -12438,13 +12480,18 @@
 
         function setViewMode(mode) {
             const nextMode = mode === 'pivot' ? 'pivot' : 'records';
-            if (viewMode === nextMode) {
+            if (viewMode === nextMode && !isCustomGroupingActive) {
                 updatePivotControls();
                 updateRecordCount();
                 return;
             }
 
             viewMode = nextMode;
+
+            // Clear custom grouping when switching view modes
+            if (isCustomGroupingActive) {
+                isCustomGroupingActive = false;
+            }
 
             if (viewMode === 'pivot') {
                 pivotData = buildPivotData(pivotDimension);
@@ -12472,12 +12519,14 @@
                 dimension = 'plaintiff';
             }
 
-            if (pivotDimension === dimension) {
+            // If same dimension and not switching from custom grouping, do nothing
+            if (pivotDimension === dimension && !isCustomGroupingActive) {
                 updatePivotControls();
                 return;
             }
 
             pivotDimension = dimension;
+            isCustomGroupingActive = false; // Clear custom grouping when switching to standard pivot
 
             if (viewMode === 'pivot') {
                 pivotData = buildPivotData(pivotDimension);
@@ -12512,10 +12561,44 @@
                 pivotControls.classList.toggle('hidden', viewMode !== 'pivot');
             }
 
-            document.querySelectorAll('.pivot-option').forEach(button => {
-                const isActive = button.dataset.pivotDimension === pivotDimension;
-                button.classList.toggle('active', isActive);
-            });
+            // Handle custom grouping indicator
+            let customIndicator = document.getElementById('customGroupingIndicator');
+            if (isCustomGroupingActive && viewMode === 'pivot') {
+                // Deselect all standard pivot buttons
+                document.querySelectorAll('.pivot-option').forEach(button => {
+                    button.classList.remove('active');
+                });
+                // Show custom grouping indicator
+                if (!customIndicator && pivotControls) {
+                    customIndicator = document.createElement('span');
+                    customIndicator.id = 'customGroupingIndicator';
+                    customIndicator.className = 'pivot-option active';
+                    customIndicator.style.cursor = 'default';
+                    const field1Label = getFieldLabel(customGroupingConfig.field1);
+                    const field2Label = customGroupingConfig.field2 ? ' + ' + getFieldLabel(customGroupingConfig.field2) : '';
+                    customIndicator.textContent = `Custom: ${field1Label}${field2Label}`;
+                    // Insert after the "Group by" label
+                    const groupByLabel = pivotControls.querySelector('span');
+                    if (groupByLabel && groupByLabel.nextSibling) {
+                        pivotControls.insertBefore(customIndicator, groupByLabel.nextSibling);
+                    }
+                } else if (customIndicator) {
+                    const field1Label = getFieldLabel(customGroupingConfig.field1);
+                    const field2Label = customGroupingConfig.field2 ? ' + ' + getFieldLabel(customGroupingConfig.field2) : '';
+                    customIndicator.textContent = `Custom: ${field1Label}${field2Label}`;
+                    customIndicator.classList.add('active');
+                }
+            } else {
+                // Remove custom grouping indicator if exists
+                if (customIndicator) {
+                    customIndicator.remove();
+                }
+                // Highlight the active standard pivot button
+                document.querySelectorAll('.pivot-option').forEach(button => {
+                    const isActive = button.dataset.pivotDimension === pivotDimension;
+                    button.classList.toggle('active', isActive);
+                });
+            }
         }
 
         // Format a value for CSV export, handling special types
@@ -13882,6 +13965,7 @@
                     createDistrictMap();
                     updateDemographicsCharts();
                     updateDemoFilterIndicator();
+                    updateMetrics();
                     updateStatus(`Filter applied - showing ${filteredData.length.toLocaleString()} records`, 'success');
 
                     // Persist advanced filter state
@@ -13930,6 +14014,7 @@
                     createDistrictMap();
                     updateDemographicsCharts();
                     updateDemoFilterIndicator();
+                    updateMetrics();
                     updateStatus(`Filters cleared - showing all ${allData.length.toLocaleString()} records`, 'success');
 
                     // Persist cleared filter state
@@ -14159,6 +14244,7 @@
         // ============================================
 
         const GROUPING_PRESETS_KEY = 'eviction_grouping_presets';
+        let isCustomGroupingActive = false; // Track if custom grouping is currently applied
         let customGroupingConfig = {
             field1: '',
             field2: '',
@@ -14194,6 +14280,7 @@
 
             // Switch to pivot view with custom grouping
             viewMode = 'pivot';
+            isCustomGroupingActive = true; // Mark custom grouping as active
 
             // Build custom pivot data
             const field1 = customGroupingConfig.field1;
@@ -14204,10 +14291,19 @@
             if (gridApi) {
                 gridApi.setColumnDefs(getCustomPivotColumnDefs(field1, field2, customGroupingConfig.aggregations));
                 gridApi.setRowData(pivotData);
+
+                // Wait for grid to process data before updating UI
+                requestAnimationFrame(() => {
+                    updatePivotControls();
+                    updateRecordCount();
+                    updateMetrics();
+                });
+            } else {
+                updatePivotControls();
+                updateRecordCount();
+                updateMetrics();
             }
 
-            updatePivotControls();
-            updateRecordCount();
             updateStatus(`Grouped by ${getFieldLabel(field1)}${field2 ? ' and ' + getFieldLabel(field2) : ''}`, 'success');
         }
 
@@ -14378,6 +14474,7 @@
             // Reset to default pivot dimension
             pivotDimension = 'plaintiff';
             viewMode = 'pivot';
+            isCustomGroupingActive = false; // Clear custom grouping flag
 
             // Reset the dropdowns
             const field1Select = document.getElementById('customGroupField');
