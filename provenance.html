@@ -1782,12 +1782,546 @@
                     <span class="claim-icon">🔬</span>
                     <div>
                         <div class="claim-title">Technical Methodology</div>
-                        <div class="claim-subtitle">Event sourcing, data processing, and validation</div>
+                        <div class="claim-subtitle">Complete documentation of data sources, calculations, and validation</div>
                     </div>
                 </div>
                 <span class="expand-icon">▼</span>
             </div>
             <div class="claim-content">
+                <!-- Section 1: Data Sources -->
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">1. Data Sources</div>
+                        <span class="claim-status status-verified">Primary Sources</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Primary Demographic Data: district-data.json</div>
+                        <div class="methodology-text">
+                            <strong>Source:</strong> American Community Survey 2021 (5-year estimates, 2017-2021)<br>
+                            <strong>Publisher:</strong> Metropolitan Social Services, Strategic Planning & Research<br>
+                            <strong>Geography:</strong> Nashville-Davidson County's 35 council districts (post-2021 redistricting, BL2021-1052 approved January 18, 2022)<br>
+                            <strong>PDF Source:</strong> "2023 Know Your Community: Socioeconomic Profiles Metropolitan Council Districts"
+                        </div>
+                    </div>
+                    <div class="source-list">
+                        <div class="source-item">
+                            <span class="source-icon">📖</span>
+                            <div class="source-info">
+                                <div class="source-name">Know Your Community Report</div>
+                                <div class="source-detail">Metropolitan Social Services, Strategic Planning & Research (December 2023)</div>
+                                <a href="https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf" class="source-link" target="_blank">Download PDF →</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="methodology-box" style="margin-top: 16px;">
+                        <div class="methodology-label">Eviction Data Source</div>
+                        <div class="methodology-text">
+                            <strong>Source:</strong> Davidson County Sessions Court (CaseLink)<br>
+                            <strong>Format:</strong> Real-time court filings matched to council districts via geocoding
+                        </div>
+                    </div>
+                    <div class="source-list">
+                        <div class="source-item">
+                            <span class="source-icon">🏛️</span>
+                            <div class="source-info">
+                                <div class="source-name">CaseLink Public Portal</div>
+                                <div class="source-detail">Tennessee Administrative Office of the Courts public case lookup system</div>
+                                <a href="https://caselink.nashville.gov/" class="source-link" target="_blank">caselink.nashville.gov →</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Renter Households Calculation -->
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">2. The "Renter Households" Calculation (The Key Denominator)</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Critical Normalization Figure</div>
+                        <div class="methodology-text">
+                            This is the critical figure used to normalize eviction counts. Here's exactly how it's calculated from district-data.json metadata:
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Step</th>
+                                <th>Source</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Step 1</td>
+                                <td>Census Table B25002</td>
+                                <td>Get <code>total_housing_units</code></td>
+                            </tr>
+                            <tr>
+                                <td>Step 2</td>
+                                <td>Census Table B25002</td>
+                                <td>Get <code>pct_occupied</code></td>
+                            </tr>
+                            <tr>
+                                <td>Step 3</td>
+                                <td>Census Table B25075</td>
+                                <td>Get <code>owner_occupied_units</code></td>
+                            </tr>
+                            <tr>
+                                <td>Step 4</td>
+                                <td>Calculated</td>
+                                <td><code>total_occupied = total_housing_units × (pct_occupied / 100)</code> (rounded)</td>
+                            </tr>
+                            <tr>
+                                <td>Step 5</td>
+                                <td>Calculated</td>
+                                <td><code>estimated_renters = total_occupied - owner_occupied_units</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="methodology-box" style="margin-top: 16px; background: #f0fdf4; border-left-color: #10b981;">
+                        <div class="methodology-label" style="color: #166534;">Concrete Example - District 2</div>
+                        <div class="methodology-text">
+                            <code>total_housing_units = 8,957</code><br>
+                            <code>pct_occupied = 91.8%</code><br>
+                            <code>owner_occupied_units = 3,493</code><br><br>
+                            <code>total_occupied = 8,957 × 0.918 = <strong>8,223</strong></code> (rounded)<br>
+                            <code>estimated_renters = 8,223 - 3,493 = <strong>4,730 renter households</strong></code>
+                        </div>
+                    </div>
+                    <div class="methodology-box" style="margin-top: 16px; background: #eff6ff; border-left-color: #3b82f6;">
+                        <div class="methodology-label" style="color: #1e40af;">Validation Note</div>
+                        <div class="methodology-text">
+                            Davidson County total of <strong>146,473</strong> closely matches <strong>146,398</strong> "Occupied units paying rent" from Census Table B25070 (page 56). The calculated estimated_renters is validated against Census reported "occupied units paying rent"—they match within <strong>0.05%</strong>.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Per 1,000 Renters Calculation -->
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">3. The "Per 1,000 Renters" Calculation</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Core Formula</div>
+                        <div class="methodology-text">
+                            <strong>Output Unit:</strong> "evictions per 1,000 renter households"
+                        </div>
+                    </div>
+                    <div class="formula-box">
+                        evictionRatePer1k = (eviction_count / estimated_renters) × 1000
+                    </div>
+                    <div class="methodology-box" style="margin-top: 16px;">
+                        <div class="methodology-label">Why × 1000?</div>
+                        <div class="methodology-text">
+                            The raw calculation <code>eviction_count / estimated_renters</code> produces a small decimal (e.g., 0.0317). Multiplying by 1000 converts this to a rate "per thousand" that's easier to interpret and compare.
+                        </div>
+                    </div>
+                    <div class="methodology-box" style="margin-top: 16px; background: #f0fdf4; border-left-color: #10b981;">
+                        <div class="methodology-label" style="color: #166534;">Concrete Example - District 2</div>
+                        <div class="methodology-text">
+                            <code>eviction_count = 150</code> (hypothetical)<br>
+                            <code>estimated_renters = 4,730</code><br><br>
+                            <code>Raw rate: 150 / 4,730 = 0.0317</code><br>
+                            <code>Per 1,000: 0.0317 × 1000 = <strong>31.7 evictions per 1,000 renter households</strong></code><br><br>
+                            <strong>Interpretation:</strong> For every 1,000 renter households in District 2, approximately 31.7 faced an eviction filing.
+                        </div>
+                    </div>
+                    <div class="methodology-box" style="margin-top: 16px; background: #eff6ff; border-left-color: #3b82f6;">
+                        <div class="methodology-label" style="color: #1e40af;">Rationale</div>
+                        <div class="methodology-text">
+                            Normalizes for varying renter population sizes across districts, enabling fair comparison of eviction burden.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 4: Annualization -->
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">4. Annualization (When Data Covers Less Than a Full Year)</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Partial Year Data Handling</div>
+                        <div class="methodology-text">
+                            When the eviction data doesn't span a full year, the code annualizes the rate for consistent comparison.
+                        </div>
+                    </div>
+                    <div class="formula-box">
+                        // Calculate per-month average<br>
+                        const evictionsPerMonth = monthsOfData > 0 ? evictionCount / monthsOfData : 0;<br><br>
+                        // Annualize to yearly<br>
+                        const annualizedCount = evictionsPerMonth * 12;<br><br>
+                        // Calculate eviction rate per 1,000 renter households<br>
+                        const evictionRate = estimatedRenters > 0 ?<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;((annualizedCount / estimatedRenters) * 1000) : 0;
+                    </div>
+                    <div class="methodology-box" style="margin-top: 16px;">
+                        <div class="methodology-label">Full Formula with Annualization</div>
+                        <div class="methodology-text">
+                            <code>evictionRatePer1k = (eviction_count × (365 / days_of_data) / estimated_renters) × 1000</code><br><br>
+                            Or equivalently:<br>
+                            <code>evictionRatePer1k = ((monthly_avg × 12) / estimated_renters) × 1000</code>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 5: Council District Comparison -->
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">5. Council District Comparison - What Gets Compared</div>
+                        <span class="claim-status status-calculated">Calculated</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Data Extracted for Each of 35 Districts</div>
+                        <div class="methodology-text">
+                            For each district, the following values are extracted from district-data.json and calculated:
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Data Type</th>
+                                <th>Field</th>
+                                <th>Source</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td rowspan="8" style="vertical-align: top; font-weight: 600;">Raw Data<br>(from district-data.json)</td>
+                                <td><code>population</code></td>
+                                <td>demo.population</td>
+                            </tr>
+                            <tr>
+                                <td><code>housingUnits</code></td>
+                                <td>demo.housing.total_housing_units</td>
+                            </tr>
+                            <tr>
+                                <td><code>estimatedRenters</code></td>
+                                <td>demo.housing.estimated_renters</td>
+                            </tr>
+                            <tr>
+                                <td><code>pctRenters</code></td>
+                                <td>demo.housing.pct_renters</td>
+                            </tr>
+                            <tr>
+                                <td><code>renterCostBurden</code></td>
+                                <td>demo.housing.pct_renter_cost_burdened_35plus</td>
+                            </tr>
+                            <tr>
+                                <td><code>povertyRate</code></td>
+                                <td>demo.poverty.pct_total_poverty</td>
+                            </tr>
+                            <tr>
+                                <td><code>medianIncome</code></td>
+                                <td>demo.income.median_household_income</td>
+                            </tr>
+                            <tr>
+                                <td><code>unemployment</code></td>
+                                <td>demo.employment.unemployment_rate</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600;">Court Data</td>
+                                <td><code>evictionCount</code></td>
+                                <td>districtCounts[districtNum]</td>
+                            </tr>
+                            <tr>
+                                <td rowspan="3" style="vertical-align: top; font-weight: 600;">Calculated Metrics</td>
+                                <td><code>evictionRatePer1k</code></td>
+                                <td>(evictionCount / estimatedRenters) × 1000</td>
+                            </tr>
+                            <tr>
+                                <td><code>evictionRatePer100Units</code></td>
+                                <td>(evictionCount / housingUnits) × 100</td>
+                            </tr>
+                            <tr>
+                                <td><code>unitsPerPopulation</code></td>
+                                <td>(housingUnits / population) × 1000</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Section 6: Scatter Plot / Correlation Analysis -->
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">6. Scatter Plot / Correlation Analysis</div>
+                        <span class="claim-status status-calculated">Statistical</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Demographics Tab Correlations</div>
+                        <div class="methodology-text">
+                            The demographics tab correlates eviction rates against socioeconomic factors. The Y-axis is always the calculated <code>evictionRatePer1k</code> (evictions per 1,000 renter households).
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>X-axis Variable</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>renterCostBurden</code></td><td>% of renters paying 35%+ of income on housing</td></tr>
+                            <tr><td><code>povertyRate</code></td><td>% below poverty line</td></tr>
+                            <tr><td><code>pctBlack</code></td><td>% Black population</td></tr>
+                            <tr><td><code>pctHispanic</code></td><td>% Hispanic population</td></tr>
+                            <tr><td><code>medianIncome</code></td><td>Median household income</td></tr>
+                            <tr><td><code>unemployment</code></td><td>Unemployment rate</td></tr>
+                            <tr><td><code>medianRent</code></td><td>Median monthly rent</td></tr>
+                            <tr><td><code>pctLessThanHS</code></td><td>% without high school diploma</td></tr>
+                            <tr><td><code>childPoverty</code></td><td>Child poverty rate</td></tr>
+                            <tr><td><code>pctSenior</code></td><td>% population 65+</td></tr>
+                        </tbody>
+                    </table>
+                    <div class="methodology-box" style="margin-top: 16px;">
+                        <div class="methodology-label">Correlation Coefficient Calculation (Pearson's r)</div>
+                        <div class="methodology-text">
+                            Standard Pearson correlation coefficient formula used to measure linear relationship strength.
+                        </div>
+                    </div>
+                    <div class="formula-box">
+                        function calculateCorrelation(xValues, yValues) {<br>
+                        &nbsp;&nbsp;const n = xValues.length;<br>
+                        &nbsp;&nbsp;const sumX = xValues.reduce((a, b) => a + b, 0);<br>
+                        &nbsp;&nbsp;const sumY = yValues.reduce((a, b) => a + b, 0);<br>
+                        &nbsp;&nbsp;const sumXY = xValues.reduce((total, x, i) => total + x * yValues[i], 0);<br>
+                        &nbsp;&nbsp;const sumX2 = xValues.reduce((total, x) => total + x * x, 0);<br>
+                        &nbsp;&nbsp;const sumY2 = yValues.reduce((total, y) => total + y * y, 0);<br><br>
+                        &nbsp;&nbsp;const numerator = n * sumXY - sumX * sumY;<br>
+                        &nbsp;&nbsp;const denominator = Math.sqrt(<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;(n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY)<br>
+                        &nbsp;&nbsp;);<br><br>
+                        &nbsp;&nbsp;return numerator / denominator;  // Pearson's r<br>
+                        }
+                    </div>
+                    <table class="data-table" style="margin-top: 16px;">
+                        <thead>
+                            <tr>
+                                <th>Correlation Strength</th>
+                                <th>Threshold</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td style="color: #dc2626; font-weight: 600;">Strong</td><td>|r| ≥ 0.6</td></tr>
+                            <tr><td style="color: #f59e0b; font-weight: 600;">Moderate</td><td>0.3 ≤ |r| < 0.6</td></tr>
+                            <tr><td style="color: #6b7280; font-weight: 600;">Weak</td><td>|r| < 0.3</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Section 7: Benchmark Comparisons -->
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">7. Benchmark Comparisons (City-to-City)</div>
+                        <span class="claim-status status-verified">External Data</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">Data Source: benchmarks.json</div>
+                        <div class="methodology-text">
+                            <strong>Primary Sources:</strong> Princeton Eviction Lab, Eviction Tracking System 2024, Census ACS
+                        </div>
+                    </div>
+                    <div class="methodology-box" style="margin-top: 16px;">
+                        <div class="methodology-label">Three Key Metrics Defined</div>
+                        <div class="methodology-text">
+                            <strong>1. Filing Rate</strong> (threat of eviction):<br>
+                            <code style="display: block; margin: 8px 0 16px 16px;">filing_rate = (eviction_filings / renter_households) × 100</code>
+
+                            <strong>2. Judgment Rate</strong> (court outcomes):<br>
+                            <code style="display: block; margin: 8px 0 16px 16px;">judgment_rate = (eviction_judgments / eviction_filings) × 100</code>
+
+                            <strong>3. Eviction Rate</strong> (actual displacement):<br>
+                            <code style="display: block; margin: 8px 0 16px 16px;">eviction_rate = (eviction_judgments / renter_households) × 100</code>
+
+                            <strong>Relationship:</strong> <code>eviction_rate = filing_rate × (judgment_rate / 100)</code>
+                        </div>
+                    </div>
+                    <table class="data-table" style="margin-top: 16px;">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Nashville 2024</th>
+                                <th>National Average</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Filing Rate</td>
+                                <td style="font-weight: 600; color: #dc2626;">9.8%</td>
+                                <td>7.8%</td>
+                            </tr>
+                            <tr>
+                                <td>Judgment Rate</td>
+                                <td style="font-weight: 600; color: #dc2626;">67%</td>
+                                <td>50%</td>
+                            </tr>
+                            <tr>
+                                <td>Eviction Rate</td>
+                                <td style="font-weight: 600; color: #dc2626;">6.5%</td>
+                                <td>2.5%</td>
+                            </tr>
+                            <tr>
+                                <td>Renter Households</td>
+                                <td>146,940</td>
+                                <td>—</td>
+                            </tr>
+                            <tr>
+                                <td>Estimated Renters (ACS)</td>
+                                <td>146,473</td>
+                                <td>—</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="methodology-box" style="margin-top: 16px; background: #f0fdf4; border-left-color: #10b981;">
+                        <div class="methodology-label" style="color: #166534;">Eviction Rate Calculation for Nashville</div>
+                        <div class="methodology-text">
+                            <code>14,346 filings × 67% judgment rate = 9,612 estimated judgments</code><br>
+                            <code>9,612 judgments / 146,940 renter households = <strong>6.5% eviction rate</strong></code>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 8: Data Flow Diagram -->
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">8. Complete Data Flow Diagram</div>
+                        <span class="claim-status status-verified">System Architecture</span>
+                    </div>
+                    <div class="formula-box" style="font-size: 11px; line-height: 1.4; white-space: pre; overflow-x: auto;">
+┌─────────────────────────────────────────────────────────────────────┐
+│                        DATA SOURCES                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  American Community Survey 2021          Davidson County Sessions    │
+│  (5-year estimates)                      Court (CaseLink)            │
+│         │                                        │                   │
+│         ▼                                        ▼                   │
+│  ┌─────────────────┐                    ┌─────────────────┐         │
+│  │ district-data.json                   │ Eviction records │         │
+│  │                 │                    │ (geocoded to     │         │
+│  │ Per district:   │                    │  districts)      │         │
+│  │ • population    │                    │                  │         │
+│  │ • housing_units │                    │ Per district:    │         │
+│  │ • pct_occupied  │                    │ • eviction_count │         │
+│  │ • owner_units   │                    │ • filing_dates   │         │
+│  │ • income data   │                    └────────┬─────────┘         │
+│  │ • poverty data  │                             │                   │
+│  └────────┬────────┘                             │                   │
+│           │                                      │                   │
+│           ▼                                      │                   │
+│  ┌─────────────────────────────────────┐        │                   │
+│  │ CALCULATED: estimated_renters       │        │                   │
+│  │                                     │        │                   │
+│  │ total_occupied = housing_units ×    │        │                   │
+│  │                  (pct_occupied/100) │        │                   │
+│  │                                     │        │                   │
+│  │ estimated_renters = total_occupied  │        │                   │
+│  │                    - owner_units    │        │                   │
+│  └────────────────┬────────────────────┘        │                   │
+│                   │                              │                   │
+│                   └──────────────┬───────────────┘                   │
+│                                  │                                   │
+│                                  ▼                                   │
+│           ┌──────────────────────────────────────────┐              │
+│           │   CORE CALCULATION                        │              │
+│           │                                           │              │
+│           │   evictionRatePer1k =                     │              │
+│           │       (eviction_count / estimated_renters)│              │
+│           │       × 1000                              │              │
+│           │                                           │              │
+│           │   If annualized (partial year):           │              │
+│           │       monthly_avg = count / months        │              │
+│           │       annual_count = monthly_avg × 12     │              │
+│           │       rate = (annual_count /              │              │
+│           │               estimated_renters) × 1000   │              │
+│           └──────────────────────────────────────────┘              │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘</div>
+                </div>
+
+                <!-- Section 9: Specific District Examples -->
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">9. Specific District Examples</div>
+                        <span class="claim-status status-verified">Validation Data</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">District 2 (High eviction area)</div>
+                        <div class="methodology-text">
+                            <table style="width: 100%; font-size: 13px;">
+                                <tr><td style="width: 50%;"><code>population:</code></td><td>19,501</td></tr>
+                                <tr><td><code>total_housing_units:</code></td><td>8,957</td></tr>
+                                <tr><td><code>pct_occupied:</code></td><td>91.8%</td></tr>
+                                <tr><td><code>owner_occupied_units:</code></td><td>3,493</td></tr>
+                                <tr><td><code>total_occupied:</code></td><td>8,957 × 0.918 = 8,223</td></tr>
+                                <tr><td><code>estimated_renters:</code></td><td>8,223 - 3,493 = <strong>4,730</strong></td></tr>
+                                <tr><td><code>pct_renters:</code></td><td>4,730 / 8,223 × 100 = 57.5%</td></tr>
+                                <tr><td><code>median_household_income:</code></td><td>$43,547</td></tr>
+                                <tr><td><code>poverty_rate:</code></td><td>26.3%</td></tr>
+                                <tr><td><code>renter_cost_burdened_35plus:</code></td><td>37.5%</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="methodology-box" style="margin-top: 16px;">
+                        <div class="methodology-label">District 34 (Low eviction area)</div>
+                        <div class="methodology-text">
+                            <table style="width: 100%; font-size: 13px;">
+                                <tr><td style="width: 50%;"><code>population:</code></td><td>18,407</td></tr>
+                                <tr><td><code>total_housing_units:</code></td><td>8,619</td></tr>
+                                <tr><td><code>pct_occupied:</code></td><td>92.2%</td></tr>
+                                <tr><td><code>owner_occupied_units:</code></td><td>6,304</td></tr>
+                                <tr><td><code>total_occupied:</code></td><td>8,619 × 0.922 = 7,947</td></tr>
+                                <tr><td><code>estimated_renters:</code></td><td>7,947 - 6,304 = <strong>1,643</strong></td></tr>
+                                <tr><td><code>pct_renters:</code></td><td>1,643 / 7,947 × 100 = 20.7%</td></tr>
+                                <tr><td><code>median_household_income:</code></td><td>$142,382</td></tr>
+                                <tr><td><code>poverty_rate:</code></td><td>6.0%</td></tr>
+                                <tr><td><code>renter_cost_burdened_35plus:</code></td><td>41.6%</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="methodology-box" style="margin-top: 16px; background: #fef3c7; border-left-color: #f59e0b;">
+                        <div class="methodology-label" style="color: #92400e;">Why This Matters</div>
+                        <div class="methodology-text" style="color: #78350f;">
+                            District 34 has fewer than half the renter households of District 2 (1,643 vs 4,730). Without the per-1,000-renters normalization, raw eviction counts would make District 34 look like it has fewer evictions simply because it has fewer renters to evict.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 10: County-Wide Totals -->
+                <div class="claim-item">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title">10. Key County-Wide Totals (Validation Figures)</div>
+                        <span class="claim-status status-verified">Validation Data</span>
+                    </div>
+                    <div class="methodology-box">
+                        <div class="methodology-label">From district-data.json county_totals</div>
+                        <div class="methodology-text">
+                            These aggregated figures provide validation checkpoints for all district-level calculations.
+                        </div>
+                    </div>
+                    <div class="formula-box">
+{<br>
+&nbsp;&nbsp;"population": 703953,<br>
+&nbsp;&nbsp;"total_housing_units": 343111,<br>
+&nbsp;&nbsp;"pct_occupied": 92.2,<br>
+&nbsp;&nbsp;"owner_occupied_units": 169875,<br>
+&nbsp;&nbsp;"total_occupied": 316348,           // 343,111 × 0.922<br>
+&nbsp;&nbsp;"estimated_renters": 146473,         // 316,348 - 169,875<br>
+&nbsp;&nbsp;"pct_renters": 46.3,                 // 146,473 / 316,348 × 100<br>
+&nbsp;&nbsp;"median_monthly_rent": 1298<br>
+}</div>
+                    <div class="methodology-box" style="margin-top: 16px; background: #eff6ff; border-left-color: #3b82f6;">
+                        <div class="methodology-label" style="color: #1e40af;">Cross-Validation</div>
+                        <div class="methodology-text">
+                            This county total (<strong>146,473</strong>) closely matches the Census benchmark of <strong>146,940</strong> renter households used in Eviction Lab comparisons (difference of only 0.3%).
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Event-Oriented Architecture (retained from original) -->
                 <div class="claim-item">
                     <div class="claim-item-header">
                         <div class="claim-item-title">Event-Oriented (EO) Architecture</div>
@@ -1812,7 +2346,7 @@
                         <tbody>
                             <tr>
                                 <td>Event Types (op)</td>
-                                <td><code>INS</code> (insert - new case detected), <code>ALT</code> (alter - case data changed between scrapes)</td>
+                                <td><code>INS</code> (insert), <code>ALT</code> (alter), <code>DES</code> (destroy), <code>SEG</code> (segregate), <code>CON</code> (consolidate), <code>SYN</code> (synchronize), <code>SUP</code> (supersede), <code>REC</code> (reconcile), <code>NUL</code> (nullify)</td>
                             </tr>
                             <tr>
                                 <td>Temporal Key</td>
@@ -1822,112 +2356,32 @@
                                 <td>Entity Key</td>
                                 <td><code>entity_id</code> (unique case identifier / docket number)</td>
                             </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="claim-item">
-                    <div class="claim-item-header">
-                        <div class="claim-item-title">Event Stream Replay</div>
-                        <span class="claim-status status-calculated">Calculated</span>
-                    </div>
-                    <div class="methodology-box">
-                        <div class="methodology-label">Reconstructing State from Events</div>
-                        <div class="methodology-text">
-                            Each case can have multiple event records showing changes detected between scrapes. We reconstruct
-                            current state by grouping by <code>entity_id</code>, sorting by <code>ts</code>,
-                            and replaying operations in order (INS creates the initial record, ALT applies subsequent changes).
-                        </div>
-                    </div>
-                    <div class="formula-box">
-                        // Step 1: Group events by entity<br>
-                        events.groupBy('entity_id')<br><br>
-                        // Step 2: Sort each group by timestamp<br>
-                        &nbsp;&nbsp;.map(group => group.sortBy('ts'))<br><br>
-                        // Step 3: Replay operations to build state<br>
-                        &nbsp;&nbsp;.map(group => {<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;// INS: Initialize entity from context.data<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;// ALT: Apply context.changes to current state<br>
-                        &nbsp;&nbsp;})
-                    </div>
-                    <table class="data-table" style="margin-top: 16px;">
-                        <thead>
                             <tr>
-                                <th>Operation (op)</th>
-                                <th>State Change</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td><code>INS</code> (Insert)</td>
-                                <td>New case detected during scrape - create entity with <code>context.data</code></td>
+                                <td>Target</td>
+                                <td>JSON object specifying what is being operated on (entity ID and type)</td>
                             </tr>
                             <tr>
-                                <td><code>ALT</code> (Alter)</td>
-                                <td>Case data changed between scrapes - apply <code>context.changes</code> to entity fields</td>
+                                <td>Context</td>
+                                <td>JSON object with operation details (data for INS, changes for ALT)</td>
+                            </tr>
+                            <tr>
+                                <td>Frame</td>
+                                <td>JSON object with interpretive context (source, actor, version)</td>
                             </tr>
                         </tbody>
                     </table>
-                </div>
-
-                <div class="claim-item">
-                    <div class="claim-item-header">
-                        <div class="claim-item-title">Field Normalization</div>
-                        <span class="claim-status status-calculated">Calculated</span>
-                    </div>
-                    <div class="methodology-box">
-                        <div class="methodology-label">Standardizing Data</div>
-                        <div class="methodology-text">
-                            Court records may have inconsistent field formats (PascalCase vs. snake_case,
-                            varying date formats, address abbreviations). We normalize these for consistent analysis.
-                        </div>
-                    </div>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Field Type</th>
-                                <th>Normalization Applied</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Dates</td>
-                                <td>Parsed to ISO 8601 format (YYYY-MM-DD)</td>
-                            </tr>
-                            <tr>
-                                <td>Addresses</td>
-                                <td>Standardized abbreviations (ST→Street, AVE→Avenue)</td>
-                            </tr>
-                            <tr>
-                                <td>Names</td>
-                                <td>Trimmed whitespace, standardized case</td>
-                            </tr>
-                            <tr>
-                                <td>Districts</td>
-                                <td>Geocoded from coordinates to district number</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="claim-item">
-                    <div class="claim-item-header">
-                        <div class="claim-item-title">Renter Household Data</div>
-                        <span class="claim-status status-verified">Data Source</span>
-                    </div>
-                    <div class="methodology-box">
-                        <div class="methodology-label">Per-District Housing Data</div>
-                        <div class="methodology-text">
-                            Renter household counts by council district are sourced from data published by Metro Nashville
-                            through their <a href="https://www.nashville.gov/departments/social-services/strategic-planning-and-research/publications/know-your-community" target="_blank" style="color: #4f46e5;">"Know Your Community"</a> reports.
-                            This provides district-level breakdowns of housing occupancy and tenure status.
-                        </div>
+                    <div class="formula-box" style="margin-top: 16px;">
+                        // Event sourcing reduction: multiple events → current state<br>
+                        events.groupBy('entity_id')<br>
+                        &nbsp;&nbsp;.map(group => group.sortBy('ts'))<br>
+                        &nbsp;&nbsp;.replay()  // Apply each operation to reconstruct state
                     </div>
                 </div>
 
+                <!-- Data Freshness -->
                 <div class="claim-item">
                     <div class="claim-item-header">
-                        <div class="claim-item-title">Data Freshness</div>
+                        <div class="claim-item-title">Data Freshness & Limitations</div>
                         <span class="claim-status status-verified">System Info</span>
                     </div>
                     <div class="methodology-box">
@@ -1944,8 +2398,20 @@
                             • Court records reflect formal legal proceedings only—informal evictions not captured<br>
                             • Some historic records may have incomplete or inconsistent data<br>
                             • Name matching across records is approximate (different spellings, name changes)<br>
-                            • 2024 judgment rate uses 2019 rate as estimate; actual rate may differ
+                            • 2024 judgment rate uses 2019 rate as estimate; actual rate may differ<br>
+                            • Demographic data is from ACS 2021 5-year estimates; current figures may differ
                         </div>
+                    </div>
+                </div>
+
+                <!-- Transparency Statement -->
+                <div class="claim-item" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-color: #86efac;">
+                    <div class="claim-item-header">
+                        <div class="claim-item-title" style="color: #166534;">Complete Transparency Statement</div>
+                        <span class="claim-status status-verified" style="background: #166534; color: white;">Verified</span>
+                    </div>
+                    <div style="color: #166534; font-size: 14px; line-height: 1.7;">
+                        This documentation provides complete transparency on every figure, formula, and data source used in the demographic calculations and council district comparisons. All calculations can be independently verified using the source data files (<code>district-data.json</code>, <code>benchmarks.json</code>) and the methodologies described above.
                     </div>
                 </div>
             </div>
