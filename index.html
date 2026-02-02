@@ -3607,15 +3607,39 @@
                             </div>
 
                             <div class="methodology-section">
+                                <strong>Data Sources</strong>
+                                <div style="font-size: 10px; background: #f0fdf4; padding: 8px; border-radius: 4px; margin-bottom: 8px; border: 1px solid #bbf7d0;">
+                                    <div style="margin-bottom: 6px;">
+                                        <strong style="color: #166534;">X Values (Demographics):</strong>
+                                        <span id="auditXSourceName">-</span>
+                                        <br>
+                                        <span style="color: #6b7280;">Source: </span>
+                                        <a id="auditXSourceLink" href="https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf" target="_blank" style="color: #2563eb; text-decoration: underline;">Know Your Community December 2023</a>
+                                        <span style="color: #6b7280;"> (ACS 2017-2021, 5-year estimates)</span>
+                                    </div>
+                                    <div>
+                                        <strong style="color: #166534;">Y Values (Eviction Rate):</strong>
+                                        <span>Evictions per 1,000 Renter Households (annualized)</span>
+                                        <br>
+                                        <span style="color: #6b7280;">Source: </span>
+                                        <a href="https://caselink.nashville.gov/" target="_blank" style="color: #2563eb; text-decoration: underline;">Davidson County Sessions Court</a>
+                                        <span style="color: #6b7280;"> via CaseLink public records</span>
+                                        <br>
+                                        <span style="color: #6b7280;">Formula: (Annualized Eviction Filings ÷ Renter Households) × 1,000</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="methodology-section">
                                 <strong>Raw Data Points</strong>
-                                <p style="font-size: 10px; color: #6b7280; margin-bottom: 4px;">Each district's (X, Y) values used in calculation</p>
+                                <p style="font-size: 10px; color: #6b7280; margin-bottom: 4px;">Each district's (X, Y) values used in calculation. Click column headers for source details.</p>
                                 <div id="auditDataTable" style="max-height: 200px; overflow-y: auto; font-size: 10px; background: #f9fafb; padding: 8px; border-radius: 4px;">
                                     <table style="width: 100%; border-collapse: collapse;">
                                         <thead>
                                             <tr style="border-bottom: 1px solid #e5e7eb;">
                                                 <th style="text-align: left; padding: 2px 4px;">District</th>
-                                                <th style="text-align: right; padding: 2px 4px;">X Value</th>
-                                                <th style="text-align: right; padding: 2px 4px;">Y Value</th>
+                                                <th style="text-align: right; padding: 2px 4px;" title="From ACS 2017-2021 via Know Your Community report">X Value</th>
+                                                <th style="text-align: right; padding: 2px 4px;" title="Evictions per 1,000 renter households (annualized from court records)">Y Value</th>
                                                 <th style="text-align: right; padding: 2px 4px;">X × Y</th>
                                             </tr>
                                         </thead>
@@ -3623,6 +3647,7 @@
                                         </tbody>
                                     </table>
                                 </div>
+                                <p id="auditDateRange" style="font-size: 9px; color: #6b7280; margin-top: 4px; font-style: italic;">Eviction data range: Loading...</p>
                             </div>
 
                             <div class="methodology-section" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
@@ -8746,11 +8771,28 @@
                 : allData;
             if (!districtDemographics || !dataSource) return [];
 
-            const districtCounts = {};
+            // Calculate per-district counts and date ranges for annualization
+            const districtStats = {};
             dataSource.forEach(record => {
                 const district = record.District;
                 if (district && district !== 'Unknown') {
-                    districtCounts[district] = (districtCounts[district] || 0) + 1;
+                    if (!districtStats[district]) {
+                        districtStats[district] = { count: 0, earliest: null, latest: null };
+                    }
+                    districtStats[district].count++;
+
+                    // Track date range for this district
+                    if (record.File_Date) {
+                        const date = new Date(record.File_Date);
+                        if (!isNaN(date.getTime())) {
+                            if (!districtStats[district].earliest || date < districtStats[district].earliest) {
+                                districtStats[district].earliest = date;
+                            }
+                            if (!districtStats[district].latest || date > districtStats[district].latest) {
+                                districtStats[district].latest = date;
+                            }
+                        }
+                    }
                 }
             });
 
@@ -8760,21 +8802,38 @@
                 const demo = districtDemographics.districts[districtNum];
                 if (!demo) continue;
 
-                const evictionCount = districtCounts[districtNum] || 0;
+                const stats = districtStats[districtNum] || { count: 0, earliest: null, latest: null };
+                const rawEvictionCount = stats.count;
+
+                // Calculate annualization factor based on district-specific date range
+                let annualizationFactor = 1;
+                let daysOfData = 0;
+                if (stats.earliest && stats.latest) {
+                    daysOfData = Math.ceil((stats.latest - stats.earliest) / (1000 * 60 * 60 * 24));
+                    annualizationFactor = daysOfData > 0 ? 365 / daysOfData : 1;
+                }
+
+                // Annualize eviction count to per-year rate (consistent with district profile)
+                const annualizedCount = Math.round(rawEvictionCount * annualizationFactor);
+
                 const population = demo.population || 0;
                 const housingUnits = demo.housing?.total_housing_units || 0;
                 const estimatedRenters = demo.housing?.estimated_renters || 0;
 
-                // Calculate eviction rates - using estimated_renters for accurate per-renter rate
-                const evictionRatePer1k = estimatedRenters > 0 ? (evictionCount / estimatedRenters) * 1000 : 0;
-                const evictionRatePer100Units = housingUnits > 0 ? (evictionCount / housingUnits) * 100 : 0;
+                // Calculate eviction rates using ANNUALIZED counts for accurate per-renter rate
+                const evictionRatePer1k = estimatedRenters > 0 ? (annualizedCount / estimatedRenters) * 1000 : 0;
+                const evictionRatePer100Units = housingUnits > 0 ? (annualizedCount / housingUnits) * 100 : 0;
 
                 // Calculate housing units per 1,000 population (housing density)
                 const unitsPerPopulation = population > 0 ? (housingUnits / population) * 1000 : 0;
 
                 data.push({
                     district: districtNum,
-                    evictionCount,
+                    evictionCount: annualizedCount,
+                    rawEvictionCount,
+                    annualizedCount,
+                    daysOfData,
+                    annualizationFactor,
                     population,
                     housingUnits,
                     estimatedRenters,
@@ -8876,6 +8935,48 @@
             document.getElementById('auditDenominatorFormula').textContent = audit.formula.denominatorFormula;
             document.getElementById('auditRFormula').textContent = audit.formula.rFormula;
 
+            // Update data source labels
+            const xLabel = getDemographicLabel(xAxisKey);
+            const xSourceNameEl = document.getElementById('auditXSourceName');
+            if (xSourceNameEl) {
+                xSourceNameEl.textContent = xLabel;
+            }
+
+            // Calculate overall date range from district data
+            let globalEarliest = null;
+            let globalLatest = null;
+            let avgAnnualizationFactor = 0;
+            let districtsWithData = 0;
+
+            districtData.forEach(d => {
+                if (d.daysOfData > 0) {
+                    districtsWithData++;
+                    avgAnnualizationFactor += d.annualizationFactor;
+                }
+            });
+
+            // Use allData to find global date range
+            if (allData && allData.length > 0) {
+                allData.forEach(record => {
+                    if (record.File_Date) {
+                        const date = new Date(record.File_Date);
+                        if (!isNaN(date.getTime())) {
+                            if (!globalEarliest || date < globalEarliest) globalEarliest = date;
+                            if (!globalLatest || date > globalLatest) globalLatest = date;
+                        }
+                    }
+                });
+            }
+
+            const dateRangeEl = document.getElementById('auditDateRange');
+            if (dateRangeEl && globalEarliest && globalLatest) {
+                const days = Math.ceil((globalLatest - globalEarliest) / (1000 * 60 * 60 * 24));
+                const factor = days > 0 ? (365 / days).toFixed(2) : '1.00';
+                const startStr = globalEarliest.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                const endStr = globalLatest.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                dateRangeEl.textContent = `Eviction data range: ${startStr} – ${endStr} (${days} days). Annualization factor: ×${factor} to estimate annual rate.`;
+            }
+
             // Update data table
             const tbody = document.getElementById('auditDataTableBody');
             tbody.innerHTML = '';
@@ -8889,8 +8990,8 @@
                 row.style.borderBottom = '1px solid #f3f4f6';
                 row.innerHTML = `
                     <td style="padding: 2px 4px;">District ${d.district}</td>
-                    <td style="text-align: right; padding: 2px 4px;">${xVal.toFixed(4)}</td>
-                    <td style="text-align: right; padding: 2px 4px;">${yVal.toFixed(4)}</td>
+                    <td style="text-align: right; padding: 2px 4px;" title="Source: Know Your Community (ACS 2017-2021)">${xVal.toFixed(4)}</td>
+                    <td style="text-align: right; padding: 2px 4px;" title="Annualized from ${d.rawEvictionCount || 0} filings over ${d.daysOfData || 0} days (×${(d.annualizationFactor || 1).toFixed(2)})">${yVal.toFixed(4)}</td>
                     <td style="text-align: right; padding: 2px 4px;">${product.toFixed(4)}</td>
                 `;
                 tbody.appendChild(row);
@@ -8907,11 +9008,40 @@
             const { data, xAxisKey, yAxisLabel } = currentAuditDistrictData;
             const xLabel = getDemographicLabel(xAxisKey);
 
+            // Calculate date range for audit text
+            let dateRangeText = '';
+            if (allData && allData.length > 0) {
+                let earliest = null, latest = null;
+                allData.forEach(record => {
+                    if (record.File_Date) {
+                        const date = new Date(record.File_Date);
+                        if (!isNaN(date.getTime())) {
+                            if (!earliest || date < earliest) earliest = date;
+                            if (!latest || date > latest) latest = date;
+                        }
+                    }
+                });
+                if (earliest && latest) {
+                    const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24));
+                    const factor = days > 0 ? (365 / days).toFixed(2) : '1.00';
+                    dateRangeText = `${earliest.toLocaleDateString()} – ${latest.toLocaleDateString()} (${days} days, annualization factor: ×${factor})`;
+                }
+            }
+
             let text = `CORRELATION AUDIT DATA\n`;
             text += `=======================\n\n`;
-            text += `Variables:\n`;
-            text += `  X: ${xLabel}\n`;
-            text += `  Y: ${yAxisLabel}\n\n`;
+            text += `DATA SOURCES:\n`;
+            text += `  X Variable: ${xLabel}\n`;
+            text += `    Source: Know Your Community December 2023 (ACS 2017-2021, 5-year estimates)\n`;
+            text += `    URL: https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf\n\n`;
+            text += `  Y Variable: ${yAxisLabel}\n`;
+            text += `    Source: Davidson County Sessions Court via CaseLink\n`;
+            text += `    URL: https://caselink.nashville.gov/\n`;
+            text += `    Formula: (Annualized Eviction Filings ÷ Renter Households) × 1,000\n`;
+            if (dateRangeText) {
+                text += `    Date Range: ${dateRangeText}\n`;
+            }
+            text += `\n`;
             text += `Sample Size (n): ${audit.n}\n`;
             text += `Final r value: ${audit.r.toFixed(6)}\n\n`;
             text += `SUMS:\n`;
@@ -8928,14 +9058,14 @@
             text += `  Denominator: ${audit.formula.denominatorFormula}\n`;
             text += `  Result: ${audit.formula.rFormula}\n\n`;
             text += `RAW DATA POINTS:\n`;
-            text += `District\t${xLabel}\t${yAxisLabel}\tX×Y\n`;
-            text += `--------\t--------\t--------\t--------\n`;
+            text += `District\t${xLabel}\tRaw Filings\tDays\tAnnualized\t${yAxisLabel}\tX×Y\n`;
+            text += `--------\t--------\t-----------\t----\t----------\t--------\t--------\n`;
 
             data.forEach((d, i) => {
                 const xVal = d[xAxisKey];
                 const yVal = audit.yValues[i];
                 const product = xVal * yVal;
-                text += `${d.district}\t${xVal.toFixed(4)}\t${yVal.toFixed(4)}\t${product.toFixed(4)}\n`;
+                text += `${d.district}\t${xVal.toFixed(4)}\t${d.rawEvictionCount || 0}\t${d.daysOfData || 0}\t${d.annualizedCount || 0}\t${yVal.toFixed(4)}\t${product.toFixed(4)}\n`;
             });
 
             navigator.clipboard.writeText(text).then(() => {
