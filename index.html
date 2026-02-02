@@ -10960,6 +10960,7 @@
 
         function toggleBenchmarkExportMenu() {
             const menu = document.getElementById('benchmarkExportMenu');
+            if (!menu) return; // Menu element doesn't exist
             menu.classList.toggle('hidden');
 
             // Close menu when clicking outside
@@ -10972,8 +10973,10 @@
 
         function closeBenchmarkExportMenuOnClickOutside(e) {
             const dropdown = document.getElementById('benchmarkExportDropdown');
+            const menu = document.getElementById('benchmarkExportMenu');
+            if (!dropdown || !menu) return; // Elements don't exist
             if (!dropdown.contains(e.target)) {
-                document.getElementById('benchmarkExportMenu').classList.add('hidden');
+                menu.classList.add('hidden');
                 document.removeEventListener('click', closeBenchmarkExportMenuOnClickOutside);
             }
         }
@@ -11112,8 +11115,8 @@
                 return;
             }
 
-            // Close dropdown
-            document.getElementById('benchmarkExportMenu').classList.add('hidden');
+            // Close dropdown if it exists
+            document.getElementById('benchmarkExportMenu')?.classList.add('hidden');
 
             const today = new Date().toISOString().split('T')[0];
 
@@ -11246,8 +11249,8 @@
                 return;
             }
 
-            // Close dropdown
-            document.getElementById('benchmarkExportMenu').classList.add('hidden');
+            // Close dropdown if it exists
+            document.getElementById('benchmarkExportMenu')?.classList.add('hidden');
 
             const today = new Date().toISOString().split('T')[0];
 
@@ -11281,8 +11284,8 @@
                 return;
             }
 
-            // Close dropdown
-            document.getElementById('benchmarkExportMenu').classList.add('hidden');
+            // Close dropdown if it exists
+            document.getElementById('benchmarkExportMenu')?.classList.add('hidden');
 
             showExportLoading('Generating PDF report...');
 
