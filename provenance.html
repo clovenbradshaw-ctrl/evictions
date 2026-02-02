@@ -637,32 +637,52 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td><code>logged_at</code></td>
+                                <td><code>ts</code></td>
+                                <td>integer</td>
+                                <td>Unix timestamp in milliseconds when the event was recorded</td>
+                            </tr>
+                            <tr>
+                                <td><code>ts_iso</code></td>
                                 <td>timestamp</td>
-                                <td>When the change was recorded (ISO format)</td>
+                                <td>ISO 8601 formatted timestamp for human readability</td>
                             </tr>
                             <tr>
-                                <td><code>action</code></td>
+                                <td><code>op</code></td>
                                 <td>string</td>
-                                <td>Type of change (e.g., 'new_case', 'address_update')</td>
+                                <td>Operation type (INS, ALT, DES, SEG, CON, SYN, SUP, REC, NUL)</td>
                             </tr>
                             <tr>
-                                <td><code>docket_number</code></td>
+                                <td><code>entity_id</code></td>
                                 <td>string</td>
-                                <td>Unique case identifier (primary key for deduplication)</td>
+                                <td>Unique case identifier (docket number)</td>
                             </tr>
                             <tr>
-                                <td><code>case_data</code></td>
-                                <td>object</td>
-                                <td>Nested case information (parties, dates, pleadings, judgments)</td>
+                                <td><code>entity_type</code></td>
+                                <td>string</td>
+                                <td>Type of entity (e.g., 'eviction_case')</td>
+                            </tr>
+                            <tr>
+                                <td><code>target</code></td>
+                                <td>JSON</td>
+                                <td>What is being operated on (entity ID and type)</td>
+                            </tr>
+                            <tr>
+                                <td><code>context</code></td>
+                                <td>JSON</td>
+                                <td>Operation details (data for INS, changes for ALT)</td>
+                            </tr>
+                            <tr>
+                                <td><code>frame</code></td>
+                                <td>JSON</td>
+                                <td>Interpretive context (source, actor, version)</td>
                             </tr>
                         </tbody>
                     </table>
                     <div class="formula-box">
-                        // Event sourcing reduction: multiple records → current state<br>
-                        records.groupBy('docket_number')<br>
-                        &nbsp;&nbsp;.map(group => group.sortBy('logged_at').last())<br>
-                        &nbsp;&nbsp;.mergeFields()  // Concatenate arrays like pleadings, judgments
+                        // Event sourcing reduction: multiple events → current state<br>
+                        events.groupBy('entity_id')<br>
+                        &nbsp;&nbsp;.map(group => group.sortBy('ts'))<br>
+                        &nbsp;&nbsp;.replay()  // Apply each operation to reconstruct state
                     </div>
                     <div class="limitation-box">
                         <div class="limitation-label">⚠️ Limitations</div>
@@ -1792,19 +1812,19 @@
                         <tbody>
                             <tr>
                                 <td>API Endpoint</td>
-                                <td><code>xvkq-pq7i-idtl.n7d.xano.io/api:gx-QnxD1/detainer_case</code></td>
+                                <td><code>xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_operations</code></td>
                             </tr>
                             <tr>
-                                <td>Event Types</td>
-                                <td><code>new_case</code>, <code>address_update</code>, <code>status_change</code>, <code>pleading_added</code></td>
+                                <td>Event Types (op)</td>
+                                <td><code>INS</code> (insert), <code>ALT</code> (alter), <code>DES</code> (describe), <code>SEG</code> (segment), <code>CON</code> (connect), <code>SYN</code> (synthesize), <code>SUP</code> (supersede), <code>REC</code> (reconcile), <code>NUL</code> (null/delete)</td>
                             </tr>
                             <tr>
                                 <td>Temporal Key</td>
-                                <td><code>logged_at</code> (ISO 8601 timestamp)</td>
+                                <td><code>ts</code> (Unix timestamp in ms) + <code>ts_iso</code> (ISO 8601)</td>
                             </tr>
                             <tr>
                                 <td>Entity Key</td>
-                                <td><code>docket_number</code> (unique case identifier)</td>
+                                <td><code>entity_id</code> (unique case identifier / docket number)</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1812,52 +1832,52 @@
 
                 <div class="claim-item">
                     <div class="claim-item-header">
-                        <div class="claim-item-title">Activity Stream Reduction</div>
+                        <div class="claim-item-title">Event Stream Replay</div>
                         <span class="claim-status status-calculated">Calculated</span>
                     </div>
                     <div class="methodology-box">
-                        <div class="methodology-label">Reducing Events to Current State</div>
+                        <div class="methodology-label">Reconstructing State from Events</div>
                         <div class="methodology-text">
-                            Each case can have multiple event records showing changes over time. We reduce these
-                            to the current state by grouping by <code>docket_number</code>, sorting by <code>logged_at</code>,
-                            and taking the most recent values while intelligently merging array fields.
+                            Each case can have multiple event records (EO operations) showing changes over time. We reconstruct
+                            current state by grouping by <code>entity_id</code>, sorting by <code>ts</code>,
+                            and replaying operations in order (INS creates, ALT modifies, NUL deletes).
                         </div>
                     </div>
                     <div class="formula-box">
-                        // Step 1: Group events by case<br>
-                        events.groupBy('docket_number')<br><br>
+                        // Step 1: Group events by entity<br>
+                        events.groupBy('entity_id')<br><br>
                         // Step 2: Sort each group by timestamp<br>
-                        &nbsp;&nbsp;.map(group => group.sortBy('logged_at'))<br><br>
-                        // Step 3: Reduce to current state<br>
+                        &nbsp;&nbsp;.map(group => group.sortBy('ts'))<br><br>
+                        // Step 3: Replay operations to build state<br>
                         &nbsp;&nbsp;.map(group => {<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;// Take latest scalar values<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;// Concatenate + dedupe array fields (pleadings, judgments)<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;// Deep merge nested case_data objects<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;// INS: Initialize entity from context.data<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;// ALT: Apply context.changes to current state<br>
+                        &nbsp;&nbsp;&nbsp;&nbsp;// NUL: Mark entity as deleted<br>
                         &nbsp;&nbsp;})
                     </div>
                     <table class="data-table" style="margin-top: 16px;">
                         <thead>
                             <tr>
-                                <th>Field Type</th>
-                                <th>Merge Strategy</th>
+                                <th>Operation (op)</th>
+                                <th>State Change</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td>Scalar (status, address)</td>
-                                <td>Take most recent non-null value</td>
+                                <td><code>INS</code> (Insert)</td>
+                                <td>Create entity with <code>context.data</code></td>
                             </tr>
                             <tr>
-                                <td>Arrays (pleadings, judgments)</td>
-                                <td>Concatenate and deduplicate by ID</td>
+                                <td><code>ALT</code> (Alter)</td>
+                                <td>Apply <code>context.changes</code> to entity fields</td>
                             </tr>
                             <tr>
-                                <td>Nested objects (case_data)</td>
-                                <td>Deep merge with newer values overwriting</td>
+                                <td><code>DES</code> (Describe)</td>
+                                <td>Add metadata/annotations</td>
                             </tr>
                             <tr>
-                                <td>Timestamps</td>
-                                <td>Preserve <code>_logged_at</code> for audit trail</td>
+                                <td><code>NUL</code> (Null/Delete)</td>
+                                <td>Remove entity from active state</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1871,16 +1891,16 @@
                     <div class="methodology-box">
                         <div class="methodology-label">Smart Data Fetching</div>
                         <div class="methodology-text">
-                            Instead of fetching all records on each load, we use the <code>logged_at.gt</code>
-                            query parameter to fetch only records updated since the last sync. This reduces
-                            API calls and improves load times.
+                            Instead of fetching all events on each load, we use the <code>ts_gt</code>
+                            query parameter to fetch only events recorded since the last sync. New events
+                            are then applied incrementally to the cached state.
                         </div>
                     </div>
                     <div class="formula-box">
-                        // First load: fetch all records<br>
-                        GET /detainer_case?per_page=100<br><br>
-                        // Subsequent loads: fetch only updates<br>
-                        GET /detainer_case?logged_at.gt=2026-01-15T10:30:00Z
+                        // First load: fetch all events<br>
+                        GET /eviction_operations?per_page=100<br><br>
+                        // Subsequent loads: fetch only new events<br>
+                        GET /eviction_operations?ts_gt=1705315800000
                     </div>
                 </div>
 
