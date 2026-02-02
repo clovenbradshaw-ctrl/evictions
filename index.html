@@ -2589,6 +2589,80 @@
             color: #a16207;
         }
 
+        /* Methodology Toggle Styles */
+        .methodology-details {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .methodology-toggle {
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: #4b5563;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            user-select: none;
+        }
+
+        .methodology-toggle:hover {
+            color: #1f2937;
+            background: #f3f4f6;
+            border-radius: 8px;
+        }
+
+        .methodology-icon {
+            font-size: 14px;
+        }
+
+        .methodology-content {
+            padding: 0 14px 14px 14px;
+            font-size: 12px;
+            color: #374151;
+            line-height: 1.5;
+        }
+
+        .methodology-section {
+            margin-bottom: 12px;
+        }
+
+        .methodology-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .methodology-section strong {
+            color: #1f2937;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .methodology-section p {
+            margin: 4px 0;
+        }
+
+        .methodology-formula {
+            display: block;
+            background: #f3f4f6;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 11px;
+            margin: 6px 0;
+            overflow-x: auto;
+        }
+
+        .methodology-list {
+            margin: 4px 0 0 16px;
+            padding: 0;
+        }
+
+        .methodology-list li {
+            margin: 3px 0;
+        }
+
         .correlation-badge {
             display: inline-flex;
             align-items: center;
@@ -3443,6 +3517,46 @@
                         <div class="insight-title">Key Insight</div>
                         <div class="insight-text">Select a demographic factor to see correlation analysis.</div>
                     </div>
+
+                    <!-- Methodology Toggle -->
+                    <details class="methodology-details mt-3">
+                        <summary class="methodology-toggle">
+                            <span class="methodology-icon">📐</span> Correlation Methodology
+                        </summary>
+                        <div class="methodology-content">
+                            <div class="methodology-section">
+                                <strong>Statistical Method:</strong>
+                                <p>Pearson correlation coefficient (r) measures linear relationship strength between -1 and +1:</p>
+                                <code class="methodology-formula">r = Σ(xᵢ - x̄)(yᵢ - ȳ) / √[Σ(xᵢ - x̄)² × Σ(yᵢ - ȳ)²]</code>
+                                <ul class="methodology-list">
+                                    <li><strong>|r| ≥ 0.7:</strong> Strong correlation</li>
+                                    <li><strong>0.4 ≤ |r| < 0.7:</strong> Moderate correlation</li>
+                                    <li><strong>|r| < 0.4:</strong> Weak correlation</li>
+                                </ul>
+                            </div>
+                            <div class="methodology-section">
+                                <strong>Eviction Rate Calculation:</strong>
+                                <p>Rate per 1,000 renter households = (Eviction Filings in District ÷ Estimated Renter Households) × 1,000</p>
+                            </div>
+                            <div class="methodology-section">
+                                <strong>Data Sources:</strong>
+                                <ul class="methodology-list">
+                                    <li><strong>Eviction filings:</strong> Davidson County General Sessions Court detainer warrant records</li>
+                                    <li><strong>Demographics:</strong> American Community Survey 5-year estimates by council district</li>
+                                    <li><strong>Renter estimates:</strong> ACS housing tenure data (occupied units × renter percentage)</li>
+                                </ul>
+                            </div>
+                            <div class="methodology-section">
+                                <strong>Limitations:</strong>
+                                <ul class="methodology-list">
+                                    <li>Correlation ≠ causation; other factors may explain relationships</li>
+                                    <li>District-level aggregation masks within-district variation</li>
+                                    <li>Eviction filings ≠ completed evictions (some dismissed, settled, or withdrawn)</li>
+                                    <li>n=35 districts limits statistical power for detecting weak effects</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </details>
                 </div>
 
                 <!-- Ranked Bar Chart -->
@@ -7369,10 +7483,11 @@
         }
 
         function normalizeRecord(record) {
-            // Extract council district - prefer council_district_number if it's a valid number
+            // Extract council district - prefer council_district_number (handles both string and number types)
             let district = 'Unknown';
-            if (record.council_district_number && typeof record.council_district_number === 'number' && record.council_district_number > 0) {
-                district = record.council_district_number;
+            const cdNum = Number(record.council_district_number);
+            if (!isNaN(cdNum) && cdNum > 0 && cdNum <= 35) {
+                district = cdNum;
             } else if (record.council_district) {
                 // Extract number from strings like "Council District 8"
                 const match = String(record.council_district).match(/(\d+)/);
