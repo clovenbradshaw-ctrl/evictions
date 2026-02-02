@@ -5722,19 +5722,19 @@
                 console.group('🔄 Incremental Data Sync');
                 console.log('Timestamp:', new Date().toISOString());
 
-                // Get the last logged_at timestamp to query only newer records
-                const lastLoggedAt = getLastLoggedAt();
+                // Get the last sync timestamp to query only newer records
+                const lastSyncTs = localStorage.getItem('eo_last_sync_ts');
 
-                // Build URL using the query builder
+                // Build URL using the EO query builder
                 const queryOptions = {};
-                if (lastLoggedAt) {
-                    queryOptions.logged_at_gt = lastLoggedAt;
-                    console.log('📊 Smart query: fetching records after', lastLoggedAt);
+                if (lastSyncTs) {
+                    queryOptions.ts_gt = lastSyncTs;
+                    console.log('📊 Smart query: fetching events after ts', lastSyncTs);
                 } else {
                     console.log('📊 No previous timestamp, doing full fetch');
                 }
 
-                const url = buildDetainerCaseApiUrl(queryOptions);
+                const url = buildEOApiUrl(queryOptions);
 
                 updateStatus('Checking for new records...', 'loading');
 
@@ -5768,20 +5768,26 @@
                     return;
                 }
 
-                // Track the newest logged_at timestamp from new data
-                let newestLoggedAt = lastLoggedAt;
+                // Track the newest timestamp from new events
+                let newestTs = lastSyncTs ? parseInt(lastSyncTs) : 0;
                 for (const record of newData) {
-                    if (record.logged_at && (!newestLoggedAt || record.logged_at > newestLoggedAt)) {
-                        newestLoggedAt = record.logged_at;
+                    if (record.ts && record.ts > newestTs) {
+                        newestTs = record.ts;
                     }
                 }
 
-                // Process new records
+                // Process new records - detect EO format vs legacy format
+                const isEOFormat = newData.length > 0 && newData[0].op !== undefined && newData[0].target !== undefined;
                 const isActivityStream = newData.length > 0 && newData[0].logged_at !== undefined && newData[0].case_data !== undefined;
                 const hasActivityMetadata = newData.length > 0 && newData[0].logged_at !== undefined;
 
                 let processedNewData;
-                if (isActivityStream) {
+                if (isEOFormat && typeof EOMigration !== 'undefined') {
+                    // Process EO format events - parse from Xano and apply to state
+                    console.log('📊 Processing EO format events');
+                    const events = newData.map(e => EOMigration.fromXanoFormat(e));
+                    processedNewData = applyEventsToState(allData, events);
+                } else if (isActivityStream) {
                     processedNewData = reduceActivityStream(newData);
                 } else if (hasActivityMetadata) {
                     processedNewData = reduceActivityStreamFlat(newData);
@@ -5832,9 +5838,9 @@
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
 
-                // Update the last logged_at timestamp
-                if (newestLoggedAt) {
-                    setLastLoggedAt(newestLoggedAt);
+                // Update the last sync timestamp
+                if (newestTs) {
+                    localStorage.setItem('eo_last_sync_ts', newestTs.toString());
                 }
 
                 // Invalidate computed data caches
@@ -5885,7 +5891,7 @@
             }
         }
 
-        // Fetch all pages of data from the paginated API
+        // Fetch all pages of data from the paginated EO API
         // Useful when you need complete data but the API returns paginated results
         async function fetchAllDetainerCases(options = {}) {
             const allRecords = [];
@@ -5893,11 +5899,11 @@
             let hasMore = true;
             const perPage = options.per_page || 100;
 
-            console.group('📥 Fetching all detainer cases');
+            console.group('📥 Fetching all EO events');
             console.log('Options:', options);
 
             while (hasMore) {
-                const url = buildDetainerCaseApiUrl({
+                const url = buildEOApiUrl({
                     ...options,
                     page: currentPage,
                     per_page: perPage
@@ -5954,11 +5960,11 @@
             return allRecords;
         }
 
-        // Fetch detainer cases with specific filters (server-side filtering)
+        // Fetch EO events with specific filters (server-side filtering)
         // Returns { data: [...], meta: {...} } with pagination info
         async function fetchDetainerCasesFiltered(options = {}) {
-            const url = buildDetainerCaseApiUrl(options);
-            console.log('🔍 Fetching filtered detainer cases:', url);
+            const url = buildEOApiUrl(options);
+            console.log('🔍 Fetching filtered EO events:', url);
 
             const response = await fetch(url);
 
