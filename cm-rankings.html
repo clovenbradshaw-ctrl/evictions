@@ -1420,14 +1420,14 @@
 
     <div class="container">
         <div id="statusMessage" class="status-message status-loading">
-            ⏳ Loading council member data and eviction records...
+            ⏳ Loading council member data and eviction filing records...
         </div>
 
         <!-- Summary Cards -->
         <div class="summary-cards" id="summaryCards" style="display: none;">
             <div class="summary-card">
-                <div class="value" id="totalEvictions">-</div>
-                <div class="label">Total Evictions</div>
+                <div class="value" id="totalFilings">-</div>
+                <div class="label">Total Filings</div>
                 <div class="sublabel" id="dateRangeLabel" style="font-size: 11px; color: #666; margin-top: 4px;">-</div>
             </div>
             <div class="summary-card">
@@ -1445,8 +1445,8 @@
         </div>
 
         <div class="disclaimer" id="disclaimer" style="display: none;">
-            <strong>Note:</strong> Rankings are calculated relative to the <span id="dataDistrictCount">0</span> districts with available eviction data.
-            Districts without eviction records are excluded from percentage calculations.
+            <strong>Note:</strong> Rankings are calculated relative to the <span id="dataDistrictCount">0</span> districts with available eviction filing data.
+            Districts without eviction filing records are excluded from percentage calculations.
         </div>
 
         <div class="grid-2">
@@ -1685,7 +1685,7 @@
             let html = `
                 <div class="modal-tabs">
                     <button class="modal-tab active" onclick="switchModalTab('demographics')">Demographics</button>
-                    <button class="modal-tab" onclick="switchModalTab('evictions')">Evictions (${stats?.total || 0})</button>
+                    <button class="modal-tab" onclick="switchModalTab('evictions')">Filings (${stats?.total || 0})</button>
                 </div>
                 <div id="demographicsTab" class="tab-content active">
             `;
@@ -2229,7 +2229,7 @@
                 const recordsWithDistrict = Object.values(districtStats).reduce((sum, d) => sum + d.total, 0);
                 console.log('✅ Processing complete:', {
                     councilMembers: Object.keys(councilMembers).length,
-                    totalEvictions: evictionData.length,
+                    totalFilings: evictionData.length,
                     recordsWithDistrict
                 });
                 console.groupEnd();
@@ -2241,7 +2241,7 @@
                     const endDate = globalDataRange.latest.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                     dateRangeStr = ` from ${startDate} to ${endDate}`;
                 }
-                statusEl.textContent = `✓ Loaded ${Object.keys(councilMembers).length} council members and ${evictionData.length} eviction records${dateRangeStr} (${recordsWithDistrict} with district data)`;
+                statusEl.textContent = `✓ Loaded ${Object.keys(councilMembers).length} council members and ${evictionData.length} eviction filings${dateRangeStr} (${recordsWithDistrict} with district data)`;
                 statusEl.className = 'status-message status-success';
 
                 // Generate UI
@@ -2713,11 +2713,11 @@
             const thirtyDayValues = Object.values(districtStats).map(d => d.avg30Day || 0);
             const medianPerDistrict = calculateMedian(thirtyDayValues);
 
-            document.getElementById('totalEvictions').textContent = totalAllRecords.toLocaleString();
+            document.getElementById('totalFilings').textContent = totalAllRecords.toLocaleString();
             document.getElementById('districtsWithData').textContent = `${districtsWithData.length}/35`;
             document.getElementById('medianPerDistrict').textContent = medianPerDistrict.toLocaleString();
 
-            // Show date range for total evictions
+            // Show date range for total filings
             if (globalDataRange.earliest && globalDataRange.latest) {
                 const startDate = globalDataRange.earliest.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
                 const endDate = globalDataRange.latest.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });

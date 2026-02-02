@@ -71,15 +71,15 @@ const EOMigration = (function() {
   };
 
   /**
-   * Operator semantics for eviction tracking
+   * Operator semantics for eviction filing tracking
    */
   const OPERATOR_MEANINGS = {
-    INS: 'New eviction case filed',
-    ALT: 'Case data updated',
-    NUL: 'Case deleted/archived',
-    CON: 'Cases linked (same property/plaintiff)',
-    SYN: 'Cases merged (duplicates)',
-    SEG: 'Case filtered/categorized',
+    INS: 'New eviction filing recorded',
+    ALT: 'Filing data updated',
+    NUL: 'Filing deleted/archived',
+    CON: 'Filings linked (same property/plaintiff)',
+    SYN: 'Filings merged (duplicates)',
+    SEG: 'Filing filtered/categorized',
     SUP: 'Context overlay added',
     DES: 'Field/entity defined',
     REC: 'Pattern learned/reconfigured'
@@ -166,7 +166,7 @@ const EOMigration = (function() {
   }
 
   /**
-   * Create an INS (insert/create) event for a new eviction case
+   * Create an INS (insert/create) event for a new eviction filing
    */
   function createInsertEvent(caseData, frame = null) {
     const docketNumber = caseData.Docket_Number || caseData.docket_number;
