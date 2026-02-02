@@ -886,9 +886,9 @@
             <button class="sidebar-close" onclick="closeMobileSidebar()" aria-label="Close filters menu">×</button>
             <div class="section-title">Overview</div>
             <div class="stats-grid">
-                <div class="stat-card clickable" onclick="showMapMetricSource('totalEvictions')" title="Click for source">
-                    <div class="stat-value" id="totalEvictions">--</div>
-                    <div class="stat-label">Total Evictions</div>
+                <div class="stat-card clickable" onclick="showMapMetricSource('totalFilings')" title="Click for source">
+                    <div class="stat-value" id="totalFilings">--</div>
+                    <div class="stat-label">Total Filings</div>
                 </div>
                 <div class="stat-card clickable" onclick="showMapMetricSource('avgPerDistrict')" title="Click for source">
                     <div class="stat-value" id="avgPerDistrict">--</div>
@@ -900,7 +900,7 @@
                 </div>
                 <div class="stat-card clickable" onclick="showMapMetricSource('hotspotCount')" title="Click for source">
                     <div class="stat-value" id="hotspotCount">--</div>
-                    <div class="stat-label">Hotspot Evictions</div>
+                    <div class="stat-label">Hotspot Filings</div>
                 </div>
             </div>
 
@@ -916,7 +916,7 @@
                 <div class="filter-group">
                     <div class="filter-label">Heat Metric</div>
                     <select class="filter-select" id="heatMetric">
-                        <option value="total">Total Evictions</option>
+                        <option value="total">Total Filings</option>
                         <option value="per_capita">Per 1,000 Residents</option>
                         <option value="per_rental">Per 100 Rental Units</option>
                     </select>
@@ -952,7 +952,7 @@
                 </div>
             </div>
 
-            <div class="section-title">Districts by Evictions</div>
+            <div class="section-title">Districts by Filings</div>
             <div class="district-list" id="districtList">
                 <!-- Populated by JS -->
             </div>
@@ -962,7 +962,7 @@
             <div id="map"></div>
             <div class="loading-overlay" id="loadingOverlay">
                 <div class="spinner"></div>
-                <div class="loading-text">Loading eviction data...</div>
+                <div class="loading-text">Loading eviction filing data...</div>
             </div>
         </div>
     </div>
@@ -1082,33 +1082,33 @@
         // =============================================
         function showMapMetricSource(metricType) {
             const sourceInfo = {
-                totalEvictions: {
-                    title: 'Total Evictions',
-                    description: 'Total number of eviction filings within the selected date range and filters.',
+                totalFilings: {
+                    title: 'Total Filings',
+                    description: 'Total number of detainer warrant filings (eviction filings) within the selected date range and filters.',
                     source: 'Davidson County Sessions Court',
                     sourceUrl: 'https://caselink.nashville.gov/',
-                    methodology: 'Sum of all eviction filings recorded in the public court records that match the current filter criteria.'
+                    methodology: 'Sum of all detainer warrant filings recorded in the public court records that match the current filter criteria.'
                 },
                 avgPerDistrict: {
                     title: 'Average per District',
                     description: 'Mean number of eviction filings across all 35 council districts.',
                     source: 'Davidson County Sessions Court',
                     sourceUrl: 'https://caselink.nashville.gov/',
-                    methodology: 'Calculated as Total Evictions / 35 districts. This provides a baseline for comparing individual district activity.'
+                    methodology: 'Calculated as Total Filings / 35 districts. This provides a baseline for comparing individual district activity.'
                 },
                 hotspotDistrict: {
                     title: 'Top Hotspot District',
                     description: 'The council district with the highest number of eviction filings.',
                     source: 'Davidson County Sessions Court',
                     sourceUrl: 'https://caselink.nashville.gov/',
-                    methodology: 'Identified by ranking all districts by eviction count and selecting the district with the maximum value.'
+                    methodology: 'Identified by ranking all districts by filing count and selecting the district with the maximum value.'
                 },
                 hotspotCount: {
-                    title: 'Hotspot Evictions',
+                    title: 'Hotspot Filings',
                     description: 'Number of eviction filings in the top hotspot district.',
                     source: 'Davidson County Sessions Court',
                     sourceUrl: 'https://caselink.nashville.gov/',
-                    methodology: 'Total eviction count for the district identified as having the highest activity.'
+                    methodology: 'Total filing count for the district identified as having the highest activity.'
                 }
             };
 
@@ -1657,7 +1657,7 @@
 
         function createPopupContent(district, count, demo, metricVal) {
             const metric = document.getElementById('heatMetric').value;
-            let metricLabel = 'Evictions';
+            let metricLabel = 'Filings';
             let metricDisplay = count.toLocaleString();
 
             if (metric === 'per_capita') {
@@ -1672,7 +1672,7 @@
                 <div class="info-popup">
                     <h3>District ${district}</h3>
                     <div class="stat-row">
-                        <span class="label">Total Evictions</span>
+                        <span class="label">Total Filings</span>
                         <span class="value">${count.toLocaleString()}</span>
                     </div>
                     <div class="stat-row">
@@ -1713,7 +1713,7 @@
                 }
             });
 
-            document.getElementById('totalEvictions').textContent = total.toLocaleString();
+            document.getElementById('totalFilings').textContent = total.toLocaleString();
             document.getElementById('avgPerDistrict').textContent = avg.toLocaleString();
             document.getElementById('hotspotDistrict').textContent = `District ${maxDistrict}`;
             document.getElementById('hotspotCount').textContent = maxCount.toLocaleString();
