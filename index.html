@@ -8687,12 +8687,25 @@
             if (!districtDemographics || !dataSource) return [];
 
             const districtCounts = {};
+            let unknownCount = 0;
+            let validCount = 0;
             dataSource.forEach(record => {
                 const district = record.District;
                 if (district && district !== 'Unknown') {
                     districtCounts[district] = (districtCounts[district] || 0) + 1;
+                    validCount++;
+                } else {
+                    unknownCount++;
                 }
             });
+
+            // Log district attribution stats for debugging
+            if (unknownCount > 0 || validCount === 0) {
+                console.warn(`📊 District attribution: ${validCount} records with valid districts, ${unknownCount} unknown`);
+                if (validCount === 0 && unknownCount > 0) {
+                    console.warn('⚠️ No records have district data - correlation analysis will show zeros');
+                }
+            }
 
             const data = [];
             for (let i = 1; i <= 35; i++) {
@@ -9051,17 +9064,33 @@
 
             scatterChart.update();
 
+            // Check if we have meaningful data before showing correlation
+            const hasDistrictData = data.some(d => d.evictionCount > 0);
+
             const correlationBadge = document.getElementById('correlationBadge');
-            correlationBadge.textContent = `${strength.label} (r = ${correlation.toFixed(2)})`;
-            correlationBadge.className = `correlation-badge ${strength.class}`;
+            if (!hasDistrictData) {
+                correlationBadge.textContent = 'No District Data';
+                correlationBadge.className = 'correlation-badge weak';
+            } else {
+                correlationBadge.textContent = `${strength.label} (r = ${correlation.toFixed(2)})`;
+                correlationBadge.className = `correlation-badge ${strength.class}`;
+            }
 
             // Update scatter insight
             const scatterInsight = document.getElementById('scatterInsight');
             const direction = correlation > 0 ? 'positive' : 'negative';
             const demoLabel = getDemographicLabel(xAxisKey).toLowerCase();
 
+            // Check if all eviction rates are zero (no district data available)
+            const allRatesZero = yValues.every(v => v === 0);
+            const totalEvictions = data.reduce((sum, d) => sum + d.evictionCount, 0);
+
             let insightText = '';
-            if (Math.abs(correlation) >= 0.6) {
+            if (allRatesZero || totalEvictions === 0) {
+                // No district data available - show warning
+                insightText = `District-level analysis unavailable: Eviction records do not have council district assignments. This may indicate geocoding data is missing from the source.`;
+                scatterInsight.className = 'demo-insight-box warning';
+            } else if (Math.abs(correlation) >= 0.6) {
                 insightText = `Strong ${direction} correlation: Districts with higher ${demoLabel} tend to have ${correlation > 0 ? 'higher' : 'lower'} eviction rates.`;
                 scatterInsight.className = 'demo-insight-box warning';
             } else if (Math.abs(correlation) >= 0.3) {
