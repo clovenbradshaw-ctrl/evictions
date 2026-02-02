@@ -11546,8 +11546,7 @@
                 if (field === 'File_Date_Month') {
                     const date = new Date(record.File_Date);
                     if (!isNaN(date.getTime())) {
-                        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                        rawKey = `${months[date.getMonth()]} ${date.getFullYear()}`;
+                        rawKey = date.toLocaleDateString();
                     }
                 } else {
                     rawKey = record[field];
