@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="dist/output.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/ag-grid-community.min.js"></script>
     <script src="eo-migration.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/styles/ag-grid.css">
@@ -729,10 +728,6 @@
             background: #fef3c7;
         }
 
-        .download-item-icon.pdf {
-            background: #fee2e2;
-        }
-
         .download-item-icon.excel {
             background: #dbeafe;
         }
@@ -922,7 +917,6 @@
 
         .download-format-option .format-icon.csv { background: #dcfce7; }
         .download-format-option .format-icon.json { background: #fef3c7; }
-        .download-format-option .format-icon.pdf { background: #fee2e2; }
         .download-format-option .format-icon.excel { background: #dbeafe; }
 
         .download-format-option .format-name {
@@ -3829,11 +3823,6 @@
 
                             <!-- Export Format Buttons Grid -->
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                <button onclick="exportBenchmarkPDF()" class="export-format-btn flex flex-col items-center gap-1 px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/30 rounded-lg transition-all text-white group">
-                                    <svg class="w-6 h-6 text-red-300 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10.92,12.31C10.68,11.54 10.15,9.08 11.55,9.04C12.95,9 12.03,12.16 12.03,12.16C12.42,13.65 14.05,14.72 14.05,14.72C14.55,14.57 17.4,14.24 17,15.72C16.57,17.2 13.5,15.81 13.5,15.81C11.55,15.95 10.09,16.47 10.09,16.47C8.96,18.58 7.64,19.5 7.1,18.61C6.43,17.5 9.23,16.07 9.23,16.07C10.68,13.72 10.9,12.35 10.92,12.31Z"/></svg>
-                                    <span class="text-xs font-semibold">PDF</span>
-                                    <span class="text-[10px] text-indigo-200">Visual Report</span>
-                                </button>
                                 <button onclick="exportBenchmarkCSV()" class="export-format-btn flex flex-col items-center gap-1 px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/30 rounded-lg transition-all text-white group">
                                     <svg class="w-6 h-6 text-green-300 group-hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20M10,19L12,15H9V10H15V15L13,19H10Z"/></svg>
                                     <span class="text-xs font-semibold">CSV</span>
@@ -4181,11 +4170,6 @@
                             <div class="format-icon json">{ }</div>
                             <div class="format-name">JSON</div>
                             <div class="format-desc">Raw structured data</div>
-                        </div>
-                        <div class="download-format-option" data-format="pdf" onclick="selectDownloadFormat('pdf')">
-                            <div class="format-icon pdf">&#128209;</div>
-                            <div class="format-name">PDF Report</div>
-                            <div class="format-desc">Professional format</div>
                         </div>
                         <div class="download-format-option" data-format="excel" onclick="selectDownloadFormat('excel')">
                             <div class="format-icon excel">&#128202;</div>
@@ -11164,19 +11148,16 @@
             const extensions = {
                 csv: 'csv',
                 json: 'json',
-                pdf: 'pdf',
                 excel: 'xlsx'
             };
             const sizes = {
                 csv: '~15 KB',
                 json: '~25 KB',
-                pdf: '~150 KB',
                 excel: '~20 KB'
             };
             const icons = {
                 csv: '&#128196;',
                 json: '{ }',
-                pdf: '&#128209;',
                 excel: '&#128202;'
             };
 
@@ -11197,9 +11178,6 @@
                     break;
                 case 'json':
                     await exportBenchmarkJSON();
-                    break;
-                case 'pdf':
-                    await exportBenchmarkPDF();
                     break;
                 case 'excel':
                     await exportBenchmarkExcel();
@@ -11419,298 +11397,6 @@
             window.URL.revokeObjectURL(url);
 
             console.log('Benchmark JSON exported successfully');
-        }
-
-        async function exportBenchmarkPDF() {
-            // Ensure benchmark data is loaded before exporting
-            const loaded = await ensureBenchmarkDataLoaded();
-            if (!loaded) {
-                alert('Failed to load benchmark data. Please try again.');
-                return;
-            }
-
-            // Close dropdown if it exists
-            document.getElementById('benchmarkExportMenu')?.classList.add('hidden');
-
-            showExportLoading('Generating PDF report...');
-
-            try {
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const pageWidth = pdf.internal.pageSize.getWidth();
-                const pageHeight = pdf.internal.pageSize.getHeight();
-                const margin = 15;
-                let yPos = margin;
-
-                const today = new Date().toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
-
-                // Helper functions
-                const addText = (text, size, style = 'normal', color = [0, 0, 0]) => {
-                    pdf.setFontSize(size);
-                    pdf.setFont('helvetica', style);
-                    pdf.setTextColor(...color);
-                    const lines = pdf.splitTextToSize(text, pageWidth - 2 * margin);
-                    lines.forEach(line => {
-                        if (yPos > pageHeight - 20) {
-                            pdf.addPage();
-                            yPos = margin;
-                        }
-                        pdf.text(line, margin, yPos);
-                        yPos += size * 0.4;
-                    });
-                    return lines.length * size * 0.4;
-                };
-
-                const addSpace = (space) => {
-                    yPos += space;
-                    if (yPos > pageHeight - 20) {
-                        pdf.addPage();
-                        yPos = margin;
-                    }
-                };
-
-                // Title
-                pdf.setFillColor(79, 70, 229);
-                pdf.rect(0, 0, pageWidth, 40, 'F');
-                pdf.setTextColor(255, 255, 255);
-                pdf.setFontSize(24);
-                pdf.setFont('helvetica', 'bold');
-                pdf.text('Nashville Eviction Benchmark Report', margin, 20);
-                pdf.setFontSize(12);
-                pdf.setFont('helvetica', 'normal');
-                pdf.text(`Generated: ${today}`, margin, 30);
-                yPos = 50;
-
-                // Executive Summary
-                addText('Executive Summary', 16, 'bold', [31, 41, 55]);
-                addSpace(3);
-
-                const ctx = benchmarkData.comparative_summary.nashville_context;
-                addText(`Nashville's eviction filing rate is ${ctx.filing_rate_vs_national}. The eviction rate (judgments per renter households) is ${ctx.eviction_rate_vs_national}. Current filing levels are ${ctx.trend}.`, 10, 'normal', [75, 85, 99]);
-                addSpace(8);
-
-                // Key Metrics Box
-                pdf.setFillColor(245, 243, 255);
-                pdf.setDrawColor(167, 139, 250);
-                pdf.roundedRect(margin, yPos, pageWidth - 2 * margin, 35, 3, 3, 'FD');
-
-                pdf.setTextColor(124, 58, 237);
-                pdf.setFontSize(10);
-                pdf.setFont('helvetica', 'bold');
-                pdf.text('NASHVILLE 2024 KEY METRICS', margin + 5, yPos + 8);
-
-                const nashville = benchmarkData.nashville;
-                const metrics = [
-                    { label: 'Filing Rate', value: `${nashville.filing_rates['2024_calculated']}%` },
-                    { label: 'Judgment Rate', value: `${nashville.judgment_rates_pct_of_filings['2019']}%` },
-                    { label: 'Eviction Rate', value: `${nashville.eviction_rates_pct_of_renters['2024_estimated']}%` },
-                    { label: 'Total Filings', value: nashville.eviction_filings['2024'].toLocaleString() }
-                ];
-
-                const colWidth = (pageWidth - 2 * margin - 10) / 4;
-                metrics.forEach((m, i) => {
-                    const x = margin + 5 + i * colWidth;
-                    pdf.setTextColor(88, 28, 135);
-                    pdf.setFontSize(18);
-                    pdf.setFont('helvetica', 'bold');
-                    pdf.text(m.value, x, yPos + 22);
-                    pdf.setTextColor(124, 58, 237);
-                    pdf.setFontSize(8);
-                    pdf.setFont('helvetica', 'normal');
-                    pdf.text(m.label, x, yPos + 28);
-                });
-
-                yPos += 45;
-
-                // Capture and add the chart
-                addText('Metro Area Comparison', 14, 'bold', [31, 41, 55]);
-                addSpace(5);
-
-                try {
-                    const chartCanvas = document.getElementById('metroBenchmarkChart');
-                    if (chartCanvas) {
-                        const chartImage = chartCanvas.toDataURL('image/png', 1.0);
-                        const imgWidth = pageWidth - 2 * margin;
-                        const imgHeight = 60;
-
-                        if (yPos + imgHeight > pageHeight - 20) {
-                            pdf.addPage();
-                            yPos = margin;
-                        }
-
-                        pdf.addImage(chartImage, 'PNG', margin, yPos, imgWidth, imgHeight);
-                        yPos += imgHeight + 10;
-                    }
-                } catch (chartErr) {
-                    console.warn('Could not capture chart:', chartErr);
-                    addText('(Chart not available)', 10, 'italic', [156, 163, 175]);
-                    addSpace(5);
-                }
-
-                // Comparison Table
-                addText('Detailed Comparison', 14, 'bold', [31, 41, 55]);
-                addSpace(5);
-
-                // Table header
-                const tableStartY = yPos;
-                const cols = [
-                    { label: 'Metro Area', width: 40 },
-                    { label: 'Filing Rate', width: 25 },
-                    { label: 'Judgment Rate', width: 28 },
-                    { label: 'Eviction Rate', width: 28 },
-                    { label: 'vs Pre-Pandemic', width: 32 }
-                ];
-
-                pdf.setFillColor(249, 250, 251);
-                pdf.rect(margin, yPos, pageWidth - 2 * margin, 8, 'F');
-
-                let xPos = margin + 2;
-                pdf.setFontSize(8);
-                pdf.setFont('helvetica', 'bold');
-                pdf.setTextColor(55, 65, 81);
-                cols.forEach(col => {
-                    pdf.text(col.label, xPos, yPos + 5);
-                    xPos += col.width;
-                });
-                yPos += 10;
-
-                // Table rows
-                const metros = [
-                    { name: 'Nashville', data: benchmarkData.nashville, highlight: true },
-                    { name: 'Austin', data: benchmarkData.comparable_cities.austin },
-                    { name: 'San Antonio', data: benchmarkData.comparable_cities.san_antonio },
-                    { name: 'Jacksonville', data: benchmarkData.comparable_cities.jacksonville },
-                    { name: 'Memphis', data: benchmarkData.comparable_cities.memphis },
-                    { name: 'Indianapolis', data: benchmarkData.comparable_cities.indianapolis },
-                    { name: 'Columbus', data: benchmarkData.comparable_cities.columbus },
-                    { name: 'Charlotte', data: benchmarkData.comparable_cities.charlotte }
-                ];
-
-                pdf.setFont('helvetica', 'normal');
-                metros.forEach((metro, idx) => {
-                    if (yPos > pageHeight - 25) {
-                        pdf.addPage();
-                        yPos = margin;
-                    }
-
-                    const fr = metro.data.filing_rates || {};
-                    const jr = metro.data.judgment_rates_pct_of_filings || {};
-                    const er = metro.data.eviction_rates_pct_of_renters || {};
-
-                    const filingRate = fr['2024_calculated'] || fr['2024_estimated'] || fr['2024'] || fr.pre_pandemic_2016_2019 || '-';
-                    const judgmentRate = jr['2019'] || jr['fy2024'] || jr['2022'] || jr.rate || (jr.data_available === false ? 'N/A' : '-');
-                    const evictionRate = er['2024_estimated'] || er['2019_estimated'] || er['fy2024_estimated'] || (er.data_available === false ? 'N/A' : '-');
-
-                    let prePandemic = '-';
-                    if (fr.vs_pre_pandemic_percent) {
-                        const pct = fr.vs_pre_pandemic_percent;
-                        prePandemic = pct > 100 ? `+${pct - 100}%` : `${pct - 100}%`;
-                    } else if (metro.data.year_over_year?.['2024_vs_pre_pandemic_pct']) {
-                        const pct = metro.data.year_over_year['2024_vs_pre_pandemic_pct'];
-                        prePandemic = pct > 100 ? `+${pct - 100}%` : `${pct - 100}%`;
-                    }
-
-                    if (metro.highlight) {
-                        pdf.setFillColor(245, 243, 255);
-                        pdf.rect(margin, yPos - 2, pageWidth - 2 * margin, 7, 'F');
-                        pdf.setTextColor(109, 40, 217);
-                        pdf.setFont('helvetica', 'bold');
-                    } else {
-                        pdf.setTextColor(55, 65, 81);
-                        pdf.setFont('helvetica', 'normal');
-                    }
-
-                    xPos = margin + 2;
-                    const rowData = [
-                        metro.name,
-                        typeof filingRate === 'number' ? `${filingRate.toFixed(1)}%` : String(filingRate),
-                        typeof judgmentRate === 'number' ? `${judgmentRate}%` : String(judgmentRate),
-                        typeof evictionRate === 'number' ? `${evictionRate.toFixed(1)}%` : String(evictionRate),
-                        prePandemic
-                    ];
-
-                    rowData.forEach((val, i) => {
-                        pdf.text(val, xPos, yPos + 3);
-                        xPos += cols[i].width;
-                    });
-
-                    yPos += 7;
-                });
-
-                // National average row
-                pdf.setFillColor(236, 253, 245);
-                pdf.rect(margin, yPos - 2, pageWidth - 2 * margin, 7, 'F');
-                pdf.setTextColor(4, 120, 87);
-                pdf.setFont('helvetica', 'bold');
-
-                const natl = benchmarkData.national_benchmarks;
-                xPos = margin + 2;
-                const natlRow = [
-                    'National Average',
-                    `${natl.filing_rates_pct_of_renters['2024_ets_cities_avg']}%`,
-                    `${natl.judgment_rates_pct_of_filings.national_avg}%`,
-                    `${natl.eviction_rates_pct_of_renters.current_estimated}%`,
-                    'baseline'
-                ];
-                natlRow.forEach((val, i) => {
-                    pdf.text(val, xPos, yPos + 3);
-                    xPos += cols[i].width;
-                });
-
-                yPos += 15;
-
-                // Methodology section
-                if (yPos > pageHeight - 60) {
-                    pdf.addPage();
-                    yPos = margin;
-                }
-
-                addText('Methodology & Definitions', 14, 'bold', [31, 41, 55]);
-                addSpace(3);
-
-                const definitions = [
-                    'Filing Rate: (eviction filings ÷ renter households) × 100. Measures threat of eviction.',
-                    'Judgment Rate: (eviction judgments ÷ filings) × 100. What % of cases result in eviction orders.',
-                    'Eviction Rate: (eviction judgments ÷ renter households) × 100. Actual displacement rate.'
-                ];
-                definitions.forEach(def => {
-                    addText('• ' + def, 9, 'normal', [75, 85, 99]);
-                    addSpace(2);
-                });
-
-                addSpace(5);
-                addText('Data Sources', 12, 'bold', [31, 41, 55]);
-                addSpace(3);
-                benchmarkData.metadata.primary_sources.forEach(src => {
-                    addText('• ' + src, 9, 'normal', [75, 85, 99]);
-                    addSpace(1);
-                });
-
-                // Footer on last page
-                pdf.setFontSize(8);
-                pdf.setTextColor(156, 163, 175);
-                pdf.text(
-                    'Generated by Nashville Eviction Tracker | Data for informational purposes only',
-                    pageWidth / 2,
-                    pageHeight - 10,
-                    { align: 'center' }
-                );
-
-                // Save PDF
-                const today_file = new Date().toISOString().split('T')[0];
-                pdf.save(`nashville_eviction_benchmark_report_${today_file}.pdf`);
-
-                console.log('Benchmark PDF exported successfully');
-            } catch (error) {
-                console.error('Error generating PDF:', error);
-                alert('Error generating PDF. Please try again.');
-            } finally {
-                hideExportLoading();
-            }
         }
 
         async function exportBenchmarkExcel() {
