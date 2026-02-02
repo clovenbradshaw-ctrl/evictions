@@ -5860,6 +5860,9 @@
         // Cache staleness threshold: 24 hours in milliseconds
         const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+        // Cache version - increment when data processing logic changes (e.g., district extraction fix)
+        const CACHE_VERSION = 2;  // v2: Fixed district extraction from string council_district_number
+
         // Polling configuration
         const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
         let pollIntervalId = null;
@@ -6188,6 +6191,22 @@
                 console.group('🔄 Data Loading (EO Event Sourcing)');
                 console.log('Timestamp:', new Date().toISOString());
 
+                // Check cache version - invalidate if outdated (e.g., after bug fixes)
+                const storedCacheVersion = parseInt(localStorage.getItem('evictionCacheVersion') || '0');
+                if (storedCacheVersion < CACHE_VERSION) {
+                    console.log('🔄 Cache version outdated (v' + storedCacheVersion + ' → v' + CACHE_VERSION + '), clearing cache...');
+                    localStorage.removeItem('evictionDataCompressed');
+                    localStorage.removeItem('evictionDataTimestamp');
+                    localStorage.removeItem('eo_last_sync_ts');
+                    localStorage.removeItem('evictionData');
+                    try {
+                        await evictionDB.clear();
+                    } catch (e) {
+                        console.warn('Failed to clear IndexedDB:', e);
+                    }
+                    localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
+                }
+
                 // Check cache status
                 const cacheAgeHours = getCacheAgeHours();
                 const cacheFresh = isCacheFresh();
@@ -6273,12 +6292,14 @@
                             evictionDB.saveFull(allData, timestamp).then(success => {
                                 if (success) {
                                     localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                                    localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
                                 }
                             });
 
                             const compressed = compressEvictionData(allData);
                             try {
                                 localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
+                                localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
                             } catch (e) {
                                 console.warn('⚠️ localStorage quota exceeded:', e.message);
                             }
@@ -6488,6 +6509,7 @@
                 evictionDB.saveFull(allData, timestamp).then(success => {
                     if (success) {
                         localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                        localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
                     }
                 });
 
@@ -6495,6 +6517,7 @@
                 const compressed = compressEvictionData(allData);
                 try {
                     localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
+                    localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
                     localStorage.removeItem('evictionData'); // Remove old uncompressed data
                     console.log('💾 Stored compressed data in localStorage for CM rankings');
                 } catch (e) {
@@ -6682,11 +6705,13 @@
                 const timestamp = Date.now();
                 await evictionDB.saveFull(allData, timestamp);
                 localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
 
                 // Also update compressed localStorage for compatibility
                 const compressed = compressEvictionData(allData);
                 try {
                     localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
+                    localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
                 } catch (e) {
                     console.warn('⚠️ localStorage quota exceeded for compressed data');
                 }
