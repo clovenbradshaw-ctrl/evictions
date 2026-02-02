@@ -10291,6 +10291,27 @@
         let metroBenchmarkChart = null;
         let currentBenchmarkMetric = 'filing_rate';
 
+        // Helper function to ensure benchmark data is loaded (used by export functions)
+        async function ensureBenchmarkDataLoaded() {
+            if (!benchmarkData) {
+                try {
+                    const response = await fetch('benchmarks.json');
+                    if (response.ok) {
+                        benchmarkData = await response.json();
+                        console.log('Benchmark data loaded for export:', benchmarkData);
+                        return true;
+                    } else {
+                        console.error('Failed to load benchmarks.json');
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('Error loading benchmarks:', error);
+                    return false;
+                }
+            }
+            return true;
+        }
+
         async function loadAndRenderBenchmarks() {
             if (!benchmarkData) {
                 try {
@@ -10573,9 +10594,11 @@
             if (overlay) overlay.remove();
         }
 
-        function exportBenchmarkCSV() {
-            if (!benchmarkData) {
-                alert('Benchmark data not loaded. Please wait and try again.');
+        async function exportBenchmarkCSV() {
+            // Ensure benchmark data is loaded before exporting
+            const loaded = await ensureBenchmarkDataLoaded();
+            if (!loaded) {
+                alert('Failed to load benchmark data. Please try again.');
                 return;
             }
 
@@ -10705,9 +10728,11 @@
             console.log('Benchmark CSV exported successfully');
         }
 
-        function exportBenchmarkJSON() {
-            if (!benchmarkData) {
-                alert('Benchmark data not loaded. Please wait and try again.');
+        async function exportBenchmarkJSON() {
+            // Ensure benchmark data is loaded before exporting
+            const loaded = await ensureBenchmarkDataLoaded();
+            if (!loaded) {
+                alert('Failed to load benchmark data. Please try again.');
                 return;
             }
 
@@ -10739,8 +10764,10 @@
         }
 
         async function exportBenchmarkPDF() {
-            if (!benchmarkData) {
-                alert('Benchmark data not loaded. Please wait and try again.');
+            // Ensure benchmark data is loaded before exporting
+            const loaded = await ensureBenchmarkDataLoaded();
+            if (!loaded) {
+                alert('Failed to load benchmark data. Please try again.');
                 return;
             }
 
@@ -11028,9 +11055,11 @@
             }
         }
 
-        function exportBenchmarkExcel() {
-            if (!benchmarkData) {
-                alert('Benchmark data not loaded. Please wait and try again.');
+        async function exportBenchmarkExcel() {
+            // Ensure benchmark data is loaded before exporting
+            const loaded = await ensureBenchmarkDataLoaded();
+            if (!loaded) {
+                alert('Failed to load benchmark data. Please try again.');
                 return;
             }
 
