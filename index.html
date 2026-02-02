@@ -517,6 +517,241 @@
             text-decoration: none;
         }
 
+        /* Professional Navigation Styles */
+        .main-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-group {
+            display: flex;
+            align-items: center;
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 4px;
+            gap: 2px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #475569;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .nav-item:hover {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .nav-item.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.15);
+        }
+
+        .nav-item-icon {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .nav-divider {
+            width: 1px;
+            height: 28px;
+            background: #e2e8f0;
+            margin: 0 8px;
+        }
+
+        .nav-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            background: #f8fafc;
+            border-radius: 10px;
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .nav-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 6px #10b981;
+            animation: pulse-dot 2s infinite;
+        }
+
+        .nav-status-dot.offline {
+            background: #f59e0b;
+            box-shadow: 0 0 6px #f59e0b;
+            animation: none;
+        }
+
+        .nav-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .nav-btn-refresh {
+            background: #f0fdf4;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .nav-btn-refresh:hover {
+            background: #dcfce7;
+            box-shadow: 0 2px 8px rgba(21, 128, 61, 0.15);
+        }
+
+        .nav-btn-download {
+            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+            color: white;
+        }
+
+        .nav-btn-download:hover {
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .nav-btn-login {
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+            color: white;
+        }
+
+        .nav-btn-login:hover {
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .nav-btn-logout {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+
+        .nav-btn-logout:hover {
+            background: #e2e8f0;
+        }
+
+        /* Download dropdown menu */
+        .download-dropdown {
+            position: relative;
+        }
+
+        .download-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            border: 1px solid #e2e8f0;
+            min-width: 220px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-8px);
+            transition: all 0.2s ease;
+        }
+
+        .download-dropdown-menu.open {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .download-dropdown-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 11px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .download-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-decoration: none;
+            color: #334155;
+        }
+
+        .download-dropdown-item:hover {
+            background: #f8fafc;
+        }
+
+        .download-dropdown-item:first-of-type {
+            border-radius: 0;
+        }
+
+        .download-dropdown-item:last-child {
+            border-radius: 0 0 12px 12px;
+        }
+
+        .download-item-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .download-item-icon.csv {
+            background: #dcfce7;
+        }
+
+        .download-item-icon.json {
+            background: #fef3c7;
+        }
+
+        .download-item-icon.pdf {
+            background: #fee2e2;
+        }
+
+        .download-item-icon.excel {
+            background: #dbeafe;
+        }
+
+        .download-item-details {
+            flex: 1;
+        }
+
+        .download-item-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .download-item-desc {
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
         #dataGrid {
             height: 800px;
             border: 1px solid #e5e7eb;
@@ -2673,21 +2908,88 @@
                         Community-maintained analysis of public court records • Data sourced from Sessions Court
                     </p>
                 </div>
-                <div class="flex items-center gap-4">
-                    <a href="map.html" class="btn btn-secondary nav-link hidden">🗺️ Hotspot Map</a>
-                    <a href="cm-rankings.html" class="btn btn-secondary nav-link">📊 CM Rankings</a>
-                    <a href="provenance.html" class="btn btn-secondary nav-link">📋 Methodology</a>
-                    <a href="event-log.html" class="btn btn-secondary nav-link">📜 Event Log</a>
-                    <div class="flex items-center gap-2">
-                        <span id="pollStatusDot" class="poll-status-dot active" title="Auto-refresh active"></span>
-                        <span class="text-sm text-gray-500">Last Updated: <span id="lastUpdate">Loading...</span></span>
+
+                <!-- Improved Navigation -->
+                <nav class="main-nav">
+                    <!-- Navigation Links Group -->
+                    <div class="nav-group">
+                        <a href="cm-rankings.html" class="nav-item">
+                            <span class="nav-item-icon">📊</span>
+                            <span>CM Rankings</span>
+                        </a>
+                        <a href="provenance.html" class="nav-item">
+                            <span class="nav-item-icon">📋</span>
+                            <span>Methodology</span>
+                        </a>
+                        <a href="event-log.html" class="nav-item">
+                            <span class="nav-item-icon">📜</span>
+                            <span>Event Log</span>
+                        </a>
+                    </div>
+
+                    <div class="nav-divider"></div>
+
+                    <!-- Status Indicator -->
+                    <div class="nav-status">
+                        <span id="pollStatusDot" class="nav-status-dot" title="Auto-refresh active"></span>
+                        <span>Updated: <span id="lastUpdate">Loading...</span></span>
                         <span id="pollCountdown" class="text-xs text-gray-400"></span>
                     </div>
-                    <button id="refreshBtn" onclick="manualRefresh()" class="btn btn-secondary">🔄 Refresh</button>
-                    <button onclick="togglePolling()" class="btn btn-secondary text-xs" title="Toggle auto-refresh">⏱️</button>
-                    <button id="loginBtn" onclick="showLoginModal()" class="btn btn-danger">🔒 Login to View Tenant Names</button>
-                    <button id="logoutBtn" onclick="logout()" class="btn btn-secondary hidden">🔓 Logout</button>
-                </div>
+
+                    <!-- Action Buttons -->
+                    <button id="refreshBtn" onclick="manualRefresh()" class="nav-action-btn nav-btn-refresh" title="Refresh data">
+                        <span>Refresh</span>
+                    </button>
+
+                    <!-- Download Benchmark Data Dropdown -->
+                    <div class="download-dropdown">
+                        <button onclick="toggleNavDownloadMenu()" class="nav-action-btn nav-btn-download" title="Download benchmark data">
+                            <span>Download Data</span>
+                            <span style="font-size: 10px;">▼</span>
+                        </button>
+                        <div id="navDownloadMenu" class="download-dropdown-menu">
+                            <div class="download-dropdown-header">Export Benchmark Data</div>
+                            <div class="download-dropdown-item" onclick="exportBenchmarkCSV(); closeNavDownloadMenu();">
+                                <div class="download-item-icon csv">📄</div>
+                                <div class="download-item-details">
+                                    <div class="download-item-title">CSV Format</div>
+                                    <div class="download-item-desc">Spreadsheet-ready data</div>
+                                </div>
+                            </div>
+                            <div class="download-dropdown-item" onclick="exportBenchmarkJSON(); closeNavDownloadMenu();">
+                                <div class="download-item-icon json">{ }</div>
+                                <div class="download-item-details">
+                                    <div class="download-item-title">JSON Format</div>
+                                    <div class="download-item-desc">Raw structured data</div>
+                                </div>
+                            </div>
+                            <div class="download-dropdown-item" onclick="exportBenchmarkPDF(); closeNavDownloadMenu();">
+                                <div class="download-item-icon pdf">📑</div>
+                                <div class="download-item-details">
+                                    <div class="download-item-title">PDF Report</div>
+                                    <div class="download-item-desc">Professional report format</div>
+                                </div>
+                            </div>
+                            <div class="download-dropdown-item" onclick="exportBenchmarkExcel(); closeNavDownloadMenu();">
+                                <div class="download-item-icon excel">📊</div>
+                                <div class="download-item-details">
+                                    <div class="download-item-title">Excel Format</div>
+                                    <div class="download-item-desc">Multi-sheet workbook</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="nav-divider"></div>
+
+                    <!-- Auth Buttons -->
+                    <button id="loginBtn" onclick="showLoginModal()" class="nav-action-btn nav-btn-login">
+                        <span>Login to View Tenant Names</span>
+                    </button>
+                    <button id="logoutBtn" onclick="logout()" class="nav-action-btn nav-btn-logout hidden">
+                        <span>Logout</span>
+                    </button>
+                </nav>
             </div>
         </div>
     </header>
@@ -10223,6 +10525,32 @@
             if (!dropdown.contains(e.target)) {
                 document.getElementById('benchmarkExportMenu').classList.add('hidden');
                 document.removeEventListener('click', closeBenchmarkExportMenuOnClickOutside);
+            }
+        }
+
+        // Nav Download Menu Functions
+        function toggleNavDownloadMenu() {
+            const menu = document.getElementById('navDownloadMenu');
+            menu.classList.toggle('open');
+
+            // Close menu when clicking outside
+            if (menu.classList.contains('open')) {
+                setTimeout(() => {
+                    document.addEventListener('click', closeNavDownloadMenuOnClickOutside);
+                }, 0);
+            }
+        }
+
+        function closeNavDownloadMenu() {
+            const menu = document.getElementById('navDownloadMenu');
+            menu.classList.remove('open');
+            document.removeEventListener('click', closeNavDownloadMenuOnClickOutside);
+        }
+
+        function closeNavDownloadMenuOnClickOutside(e) {
+            const dropdown = e.target.closest('.download-dropdown');
+            if (!dropdown) {
+                closeNavDownloadMenu();
             }
         }
 
