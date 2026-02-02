@@ -3556,6 +3556,82 @@
                             </div>
                         </div>
                     </details>
+
+                    <!-- Audit the Math Section -->
+                    <details class="methodology-details mt-3" id="auditMathDetails">
+                        <summary class="methodology-toggle">
+                            <span class="methodology-icon">🔍</span> Audit the Math
+                        </summary>
+                        <div class="methodology-content" id="auditMathContent">
+                            <div class="methodology-section">
+                                <strong>Calculation Verification</strong>
+                                <p style="font-size: 11px; color: #6b7280; margin-bottom: 8px;">All intermediate values shown for independent verification of Pearson's r</p>
+                            </div>
+
+                            <div class="methodology-section" id="auditSummarySection">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
+                                    <div><strong>Sample size (n):</strong> <span id="auditN">-</span></div>
+                                    <div><strong>Final r value:</strong> <span id="auditR" style="font-weight: 600; color: #4f46e5;">-</span></div>
+                                </div>
+                            </div>
+
+                            <div class="methodology-section">
+                                <strong>Step 1: Compute Sums</strong>
+                                <div style="font-family: monospace; font-size: 11px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-top: 4px; overflow-x: auto;">
+                                    <div>Σx (sum of X values) = <span id="auditSumX">-</span></div>
+                                    <div>Σy (sum of Y values) = <span id="auditSumY">-</span></div>
+                                    <div>Σxy (sum of X×Y products) = <span id="auditSumXY">-</span></div>
+                                    <div>Σx² (sum of X² values) = <span id="auditSumX2">-</span></div>
+                                    <div>Σy² (sum of Y² values) = <span id="auditSumY2">-</span></div>
+                                </div>
+                            </div>
+
+                            <div class="methodology-section">
+                                <strong>Step 2: Compute Means</strong>
+                                <div style="font-family: monospace; font-size: 11px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-top: 4px;">
+                                    <div>x̄ (mean of X) = Σx / n = <span id="auditMeanX">-</span></div>
+                                    <div>ȳ (mean of Y) = Σy / n = <span id="auditMeanY">-</span></div>
+                                </div>
+                            </div>
+
+                            <div class="methodology-section">
+                                <strong>Step 3: Apply Pearson's Formula</strong>
+                                <div style="font-family: monospace; font-size: 11px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-top: 4px; overflow-x: auto;">
+                                    <div style="margin-bottom: 4px;"><strong>Numerator:</strong></div>
+                                    <div id="auditNumeratorFormula" style="word-break: break-word;">-</div>
+                                    <div style="margin: 8px 0 4px 0;"><strong>Denominator:</strong></div>
+                                    <div id="auditDenominatorFormula" style="word-break: break-word;">-</div>
+                                    <div style="margin: 8px 0 4px 0; border-top: 1px solid #e5e7eb; padding-top: 8px;"><strong>Final Calculation:</strong></div>
+                                    <div id="auditRFormula" style="font-weight: 600; color: #4f46e5;">-</div>
+                                </div>
+                            </div>
+
+                            <div class="methodology-section">
+                                <strong>Raw Data Points</strong>
+                                <p style="font-size: 10px; color: #6b7280; margin-bottom: 4px;">Each district's (X, Y) values used in calculation</p>
+                                <div id="auditDataTable" style="max-height: 200px; overflow-y: auto; font-size: 10px; background: #f9fafb; padding: 8px; border-radius: 4px;">
+                                    <table style="width: 100%; border-collapse: collapse;">
+                                        <thead>
+                                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                                <th style="text-align: left; padding: 2px 4px;">District</th>
+                                                <th style="text-align: right; padding: 2px 4px;">X Value</th>
+                                                <th style="text-align: right; padding: 2px 4px;">Y Value</th>
+                                                <th style="text-align: right; padding: 2px 4px;">X × Y</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="auditDataTableBody">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="methodology-section" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+                                <button onclick="copyAuditData()" style="font-size: 11px; padding: 4px 8px; background: #4f46e5; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    📋 Copy Audit Data to Clipboard
+                                </button>
+                            </div>
+                        </div>
+                    </details>
                 </div>
 
                 <!-- Ranked Bar Chart -->
@@ -8723,8 +8799,16 @@
         }
 
         function calculateCorrelation(xValues, yValues) {
+            const audit = calculateCorrelationWithAudit(xValues, yValues);
+            return audit.r;
+        }
+
+        // Returns full audit trail of all calculation steps
+        function calculateCorrelationWithAudit(xValues, yValues) {
             const n = xValues.length;
-            if (n < 3) return 0;
+            if (n < 3) {
+                return { r: 0, error: 'Insufficient data points (need at least 3)', n };
+            }
 
             const sumX = xValues.reduce((a, b) => a + b, 0);
             const sumY = yValues.reduce((a, b) => a + b, 0);
@@ -8732,11 +8816,141 @@
             const sumX2 = xValues.reduce((total, x) => total + x * x, 0);
             const sumY2 = yValues.reduce((total, y) => total + y * y, 0);
 
-            const numerator = n * sumXY - sumX * sumY;
-            const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+            const meanX = sumX / n;
+            const meanY = sumY / n;
 
-            if (denominator === 0) return 0;
-            return numerator / denominator;
+            const numerator = n * sumXY - sumX * sumY;
+            const denominatorSquared = (n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY);
+            const denominator = Math.sqrt(denominatorSquared);
+
+            const r = denominator === 0 ? 0 : numerator / denominator;
+
+            return {
+                r,
+                n,
+                sumX,
+                sumY,
+                sumXY,
+                sumX2,
+                sumY2,
+                meanX,
+                meanY,
+                numerator,
+                denominatorSquared,
+                denominator,
+                formula: {
+                    numeratorFormula: `n×Σxy - Σx×Σy = ${n}×${sumXY.toFixed(4)} - ${sumX.toFixed(4)}×${sumY.toFixed(4)} = ${numerator.toFixed(4)}`,
+                    denominatorFormula: `√[(n×Σx² - (Σx)²) × (n×Σy² - (Σy)²)] = √[(${n}×${sumX2.toFixed(4)} - ${(sumX*sumX).toFixed(4)}) × (${n}×${sumY2.toFixed(4)} - ${(sumY*sumY).toFixed(4)})] = ${denominator.toFixed(4)}`,
+                    rFormula: `r = ${numerator.toFixed(4)} / ${denominator.toFixed(4)} = ${r.toFixed(4)}`
+                },
+                xValues: [...xValues],
+                yValues: [...yValues]
+            };
+        }
+
+        // Store current audit data for clipboard copy
+        let currentCorrelationAudit = null;
+        let currentAuditDistrictData = null;
+
+        function updateCorrelationAuditDisplay(audit, districtData, xAxisKey, yAxisLabel) {
+            currentCorrelationAudit = audit;
+            currentAuditDistrictData = { data: districtData, xAxisKey, yAxisLabel };
+
+            // Update summary values
+            document.getElementById('auditN').textContent = audit.n;
+            document.getElementById('auditR').textContent = audit.r.toFixed(6);
+
+            // Update sums
+            document.getElementById('auditSumX').textContent = audit.sumX.toFixed(6);
+            document.getElementById('auditSumY').textContent = audit.sumY.toFixed(6);
+            document.getElementById('auditSumXY').textContent = audit.sumXY.toFixed(6);
+            document.getElementById('auditSumX2').textContent = audit.sumX2.toFixed(6);
+            document.getElementById('auditSumY2').textContent = audit.sumY2.toFixed(6);
+
+            // Update means
+            document.getElementById('auditMeanX').textContent = audit.meanX.toFixed(6);
+            document.getElementById('auditMeanY').textContent = audit.meanY.toFixed(6);
+
+            // Update formula display
+            document.getElementById('auditNumeratorFormula').textContent = audit.formula.numeratorFormula;
+            document.getElementById('auditDenominatorFormula').textContent = audit.formula.denominatorFormula;
+            document.getElementById('auditRFormula').textContent = audit.formula.rFormula;
+
+            // Update data table
+            const tbody = document.getElementById('auditDataTableBody');
+            tbody.innerHTML = '';
+
+            districtData.forEach((d, i) => {
+                const xVal = d[xAxisKey];
+                const yVal = audit.yValues[i];
+                const product = xVal * yVal;
+
+                const row = document.createElement('tr');
+                row.style.borderBottom = '1px solid #f3f4f6';
+                row.innerHTML = `
+                    <td style="padding: 2px 4px;">District ${d.district}</td>
+                    <td style="text-align: right; padding: 2px 4px;">${xVal.toFixed(4)}</td>
+                    <td style="text-align: right; padding: 2px 4px;">${yVal.toFixed(4)}</td>
+                    <td style="text-align: right; padding: 2px 4px;">${product.toFixed(4)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function copyAuditData() {
+            if (!currentCorrelationAudit || !currentAuditDistrictData) {
+                alert('No audit data available');
+                return;
+            }
+
+            const audit = currentCorrelationAudit;
+            const { data, xAxisKey, yAxisLabel } = currentAuditDistrictData;
+            const xLabel = getDemographicLabel(xAxisKey);
+
+            let text = `CORRELATION AUDIT DATA\n`;
+            text += `=======================\n\n`;
+            text += `Variables:\n`;
+            text += `  X: ${xLabel}\n`;
+            text += `  Y: ${yAxisLabel}\n\n`;
+            text += `Sample Size (n): ${audit.n}\n`;
+            text += `Final r value: ${audit.r.toFixed(6)}\n\n`;
+            text += `SUMS:\n`;
+            text += `  Σx = ${audit.sumX.toFixed(6)}\n`;
+            text += `  Σy = ${audit.sumY.toFixed(6)}\n`;
+            text += `  Σxy = ${audit.sumXY.toFixed(6)}\n`;
+            text += `  Σx² = ${audit.sumX2.toFixed(6)}\n`;
+            text += `  Σy² = ${audit.sumY2.toFixed(6)}\n\n`;
+            text += `MEANS:\n`;
+            text += `  x̄ = ${audit.meanX.toFixed(6)}\n`;
+            text += `  ȳ = ${audit.meanY.toFixed(6)}\n\n`;
+            text += `FORMULA:\n`;
+            text += `  Numerator: ${audit.formula.numeratorFormula}\n`;
+            text += `  Denominator: ${audit.formula.denominatorFormula}\n`;
+            text += `  Result: ${audit.formula.rFormula}\n\n`;
+            text += `RAW DATA POINTS:\n`;
+            text += `District\t${xLabel}\t${yAxisLabel}\tX×Y\n`;
+            text += `--------\t--------\t--------\t--------\n`;
+
+            data.forEach((d, i) => {
+                const xVal = d[xAxisKey];
+                const yVal = audit.yValues[i];
+                const product = xVal * yVal;
+                text += `${d.district}\t${xVal.toFixed(4)}\t${yVal.toFixed(4)}\t${product.toFixed(4)}\n`;
+            });
+
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                btn.style.background = '#22c55e';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#4f46e5';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy to clipboard');
+            });
         }
 
         function getCorrelationStrength(r) {
@@ -9014,11 +9228,15 @@
             if (xVarLabel) xVarLabel.textContent = getDemographicLabel(xAxisKey);
             if (yVarLabel) yVarLabel.textContent = yAxisLabel;
 
-            // Calculate and display correlation
+            // Calculate and display correlation with audit data
             const xValues = data.map(d => d[xAxisKey]);
             const yValues = data.map(d => d[yAxisKey]);
-            const correlation = calculateCorrelation(xValues, yValues);
+            const correlationAudit = calculateCorrelationWithAudit(xValues, yValues);
+            const correlation = correlationAudit.r;
             const strength = getCorrelationStrength(correlation);
+
+            // Populate audit section
+            updateCorrelationAuditDisplay(correlationAudit, data, xAxisKey, yAxisLabel);
 
             // Calculate and add regression line with correlation-based styling
             const regression = calculateLinearRegression(xValues, yValues);
