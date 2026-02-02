@@ -156,6 +156,32 @@
       <pre id="sampleOutput" class="bg-gray-900 rounded p-4 overflow-x-auto text-xs text-gray-300"></pre>
     </div>
 
+    <!-- Authentication (required for Push to Xano) -->
+    <div class="bg-gray-800 rounded-lg p-6 mt-6">
+      <h2 class="text-xl font-semibold mb-4">Authentication</h2>
+      <p class="text-gray-400 mb-4">Login required to push events to Xano</p>
+      <div id="loginSection" class="flex gap-4 items-end">
+        <div class="flex-1">
+          <label class="block text-sm text-gray-400 mb-1">Password</label>
+          <input type="password" id="loginPassword" placeholder="Enter password"
+            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white"
+            onkeypress="if(event.key === 'Enter') attemptLogin()">
+        </div>
+        <button onclick="attemptLogin()" class="bg-red-600 hover:bg-red-700 px-6 py-2 rounded font-medium transition">
+          Login
+        </button>
+      </div>
+      <div id="loggedInSection" class="hidden">
+        <div class="flex items-center gap-4">
+          <span class="text-green-400">Authenticated - Push to Xano enabled</span>
+          <button onclick="logoutMigrate()" class="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded text-sm">
+            Logout
+          </button>
+        </div>
+      </div>
+      <div id="loginError" class="hidden mt-2 text-red-400 text-sm">Incorrect password</div>
+    </div>
+
     <!-- Xano Schema Reference -->
     <div class="bg-gray-800 rounded-lg p-6 mt-6">
       <h2 class="text-xl font-semibold mb-4">Xano Table Schema</h2>
@@ -173,12 +199,71 @@
   frame        TEXT       JSON string - interpretive context
 
 API Endpoints:
-  GET  /api:3CsVHkZK/eviction_operations   (with filters: ts_gt, entity_id, op, etc.)
-  POST /api:3CsVHkZK/evictionseoevents     (create new event)</pre>
+  GET  /eviction_operations   (with filters: ts_gt, entity_id, op, etc.)
+  POST (requires authentication)</pre>
     </div>
   </div>
 
   <script>
+    // ==========================================================================
+    // AUTHENTICATION
+    // ==========================================================================
+
+    const LOGIN_PASSWORD_HASH = 'fac97e07e2a67586b26047d8862db7306133ca2e1d033013fea044177d584404';
+    const ENCRYPTED_POST_ENDPOINT = 'tRfLwLSLvPZ9HGJXfB8xR7xBMoawRXcN3L+0Y1K/yFaF3HhKPiAI5n4RIHMpqZVN38uaSxp3e3uTsChVBF2XZLQV8WfNJNqwmm+8oCRvIHqw94mTbfE8gQ==';
+    let isLoggedIn = false;
+    let decryptedPostEndpoint = null;
+
+    async function hashPassword(text) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(text.toLowerCase().trim());
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function decryptEndpoint(encryptedBase64, password) {
+      try {
+        const encoder = new TextEncoder();
+        const keyData = encoder.encode(password.toLowerCase().trim());
+        const keyHash = await crypto.subtle.digest('SHA-256', keyData);
+        const key = await crypto.subtle.importKey('raw', keyHash, { name: 'AES-GCM' }, false, ['decrypt']);
+        const encryptedData = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+        const iv = encryptedData.slice(0, 12);
+        const ciphertext = encryptedData.slice(12);
+        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, ciphertext);
+        return new TextDecoder().decode(decrypted);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function attemptLogin() {
+      const password = document.getElementById('loginPassword').value;
+      const inputHash = await hashPassword(password);
+      if (inputHash === LOGIN_PASSWORD_HASH) {
+        isLoggedIn = true;
+        decryptedPostEndpoint = await decryptEndpoint(ENCRYPTED_POST_ENDPOINT, password);
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('loggedInSection').classList.remove('hidden');
+        document.getElementById('loginError').classList.add('hidden');
+        document.getElementById('btnPushXano').disabled = !migrationResult;
+        log('Authenticated successfully', 'success');
+      } else {
+        document.getElementById('loginError').classList.remove('hidden');
+      }
+    }
+
+    function logoutMigrate() {
+      isLoggedIn = false;
+      decryptedPostEndpoint = null;
+      document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('loggedInSection').classList.add('hidden');
+      document.getElementById('btnPushXano').disabled = true;
+      document.getElementById('loginPassword').value = '';
+      log('Logged out', 'info');
+    }
+
     // ==========================================================================
     // EO MIGRATION CORE (embedded)
     // ==========================================================================
@@ -446,14 +531,16 @@ API Endpoints:
       if (migrationResult && migrationResult.events.length > 0) {
         document.getElementById('btnDownload').disabled = !enabled;
         document.getElementById('btnDownloadCSV').disabled = !enabled;
-        document.getElementById('btnPushXano').disabled = !enabled;
+        // Push to Xano requires both results AND authentication
+        document.getElementById('btnPushXano').disabled = !enabled || !isLoggedIn;
       }
     }
 
     function enableResultButtons() {
       document.getElementById('btnDownload').disabled = false;
       document.getElementById('btnDownloadCSV').disabled = false;
-      document.getElementById('btnPushXano').disabled = false;
+      // Push to Xano requires authentication
+      document.getElementById('btnPushXano').disabled = !isLoggedIn;
     }
 
     // ==========================================================================
@@ -667,10 +754,12 @@ API Endpoints:
       log(`Downloaded ${migrationResult.events.length} events as CSV (Xano format)`, 'success');
     }
 
-    // Xano API endpoint
-    const XANO_POST_URL = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/evictionseoevents';
-
     async function pushToXano() {
+      if (!isLoggedIn || !decryptedPostEndpoint) {
+        log('Authentication required to push to Xano', 'error');
+        return;
+      }
+
       if (!migrationResult || !migrationResult.events.length) {
         log('No events to push', 'warn');
         return;
@@ -694,7 +783,7 @@ API Endpoints:
         const xanoEvent = toXanoFormat(event);
 
         try {
-          const response = await fetch(XANO_POST_URL, {
+          const response = await fetch(decryptedPostEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(xanoEvent)
@@ -736,7 +825,7 @@ API Endpoints:
 
     // Init
     log('EO Migration Tool ready', 'success');
-    log(`POST endpoint: ${XANO_POST_URL}`, 'info');
+    log('Login required to push events to Xano', 'info');
   </script>
 </body>
 </html>

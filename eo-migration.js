@@ -27,7 +27,8 @@ const EOMigration = (function() {
   const CONFIG = {
     // EO operations endpoints (primary API)
     OPERATIONS_GET_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_operations',
-    OPERATIONS_POST_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/evictionseoevents',
+    // POST URL is encrypted and must be set via setPostEndpoint() after authentication
+    OPERATIONS_POST_URL: null,
 
     // Source table identifier
     SOURCE_TABLE: 'eviction_cases',
@@ -35,6 +36,20 @@ const EOMigration = (function() {
     // Batch size for migrations
     BATCH_SIZE: 100
   };
+
+  /**
+   * Set the POST endpoint URL (called after decryption on login)
+   */
+  function setPostEndpoint(url) {
+    CONFIG.OPERATIONS_POST_URL = url;
+  }
+
+  /**
+   * Check if POST endpoint is available
+   */
+  function isPostEndpointAvailable() {
+    return CONFIG.OPERATIONS_POST_URL !== null;
+  }
 
   // =============================================================================
   // EO OPERATORS
@@ -737,9 +752,13 @@ const EOMigration = (function() {
 
   /**
    * Push a single event to the operations table
-   * POST https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/evictionseoevents
+   * Requires authentication - POST endpoint must be set via setPostEndpoint()
    */
   async function pushEvent(event) {
+    if (!isPostEndpointAvailable()) {
+      throw new Error('POST endpoint not available. Authentication required.');
+    }
+
     // Convert to Xano format (stringify JSON fields)
     const xanoEvent = toXanoFormat(event);
 
@@ -942,6 +961,10 @@ const EOMigration = (function() {
     CONFIG,
     OPERATORS,
     OPERATOR_MEANINGS,
+
+    // Authentication (POST endpoint requires login)
+    setPostEndpoint,
+    isPostEndpointAvailable,
 
     // Event creation
     createEvent,

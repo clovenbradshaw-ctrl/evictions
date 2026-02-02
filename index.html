@@ -3928,6 +3928,10 @@
         // SHA-256 hash of the password (hashed in lowercase)
         const LOGIN_PASSWORD_HASH = 'fac97e07e2a67586b26047d8862db7306133ca2e1d033013fea044177d584404';
 
+        // Encrypted POST endpoint (AES-GCM, decrypted on login)
+        const ENCRYPTED_POST_ENDPOINT = 'tRfLwLSLvPZ9HGJXfB8xR7xBMoawRXcN3L+0Y1K/yFaF3HhKPiAI5n4RIHMpqZVN38uaSxp3e3uTsChVBF2XZLQV8WfNJNqwmm+8oCRvIHqw94mTbfE8gQ==';
+        let decryptedPostEndpoint = null;
+
         // Hash function using Web Crypto API
         async function hashPassword(text) {
             const encoder = new TextEncoder();
@@ -3935,6 +3939,62 @@
             const hashBuffer = await crypto.subtle.digest('SHA-256', data);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // AES-GCM encryption using password-derived key (for generating encrypted values)
+        async function encryptEndpoint(plaintext, password) {
+            try {
+                const encoder = new TextEncoder();
+                const keyData = encoder.encode(password.toLowerCase().trim());
+                const keyHash = await crypto.subtle.digest('SHA-256', keyData);
+
+                const key = await crypto.subtle.importKey(
+                    'raw', keyHash, { name: 'AES-GCM' }, false, ['encrypt']
+                );
+
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const encrypted = await crypto.subtle.encrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    key,
+                    encoder.encode(plaintext)
+                );
+
+                const combined = new Uint8Array(iv.length + encrypted.byteLength);
+                combined.set(iv);
+                combined.set(new Uint8Array(encrypted), iv.length);
+
+                return btoa(String.fromCharCode(...combined));
+            } catch (e) {
+                console.error('Encryption failed:', e);
+                return null;
+            }
+        }
+
+        // AES-GCM decryption using password-derived key
+        async function decryptEndpoint(encryptedBase64, password) {
+            try {
+                const encoder = new TextEncoder();
+                const keyData = encoder.encode(password.toLowerCase().trim());
+                const keyHash = await crypto.subtle.digest('SHA-256', keyData);
+
+                const key = await crypto.subtle.importKey(
+                    'raw', keyHash, { name: 'AES-GCM' }, false, ['decrypt']
+                );
+
+                const encryptedData = Uint8Array.from(atob(encryptedBase64), c => c.charCodeAt(0));
+                const iv = encryptedData.slice(0, 12);
+                const ciphertext = encryptedData.slice(12);
+
+                const decrypted = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    key,
+                    ciphertext
+                );
+
+                return new TextDecoder().decode(decrypted);
+            } catch (e) {
+                return null;
+            }
         }
 
         // ============================================
@@ -4867,6 +4927,12 @@
             const inputHash = await hashPassword(password);
             if (inputHash === LOGIN_PASSWORD_HASH) {
                 isLoggedIn = true;
+                // Decrypt the POST endpoint on successful login
+                decryptedPostEndpoint = await decryptEndpoint(ENCRYPTED_POST_ENDPOINT, password);
+                // Also set it in EOMigration module if available
+                if (typeof EOMigration !== 'undefined' && decryptedPostEndpoint) {
+                    EOMigration.setPostEndpoint(decryptedPostEndpoint);
+                }
                 hideLoginModal();
                 updateLoginButton();
                 updateBulkSearchState();
@@ -4881,6 +4947,12 @@
 
         function logout() {
             isLoggedIn = false;
+            // Clear decrypted endpoint on logout
+            decryptedPostEndpoint = null;
+            // Also clear in EOMigration module if available
+            if (typeof EOMigration !== 'undefined') {
+                EOMigration.setPostEndpoint(null);
+            }
             updateLoginButton();
             updateBulkSearchState();
             // Refresh grid to scramble names again
@@ -12422,8 +12494,17 @@
             let success = 0;
             let failed = 0;
 
-            // EO operations POST endpoint
-            const apiUrl = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/evictionseoevents';
+            // EO operations POST endpoint (requires login to decrypt)
+            if (!isLoggedIn || !decryptedPostEndpoint) {
+                addUploadStatusItem(statusLog, 'Authentication required', 'error', {
+                    recordId: 'System',
+                    errorType: 'AUTH',
+                    details: 'You must be logged in to upload data.',
+                    errorMessage: 'Please login before uploading records.'
+                });
+                return;
+            }
+            const apiUrl = decryptedPostEndpoint;
 
             // Upload each record as an EO event
             for (let i = 0; i < transformedData.length; i++) {
