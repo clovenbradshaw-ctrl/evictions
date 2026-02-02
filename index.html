@@ -10291,24 +10291,33 @@
         let metroBenchmarkChart = null;
         let currentBenchmarkMetric = 'filing_rate';
 
-        async function loadAndRenderBenchmarks() {
+        // Helper function to ensure benchmark data is loaded
+        async function ensureBenchmarkData() {
             if (!benchmarkData) {
                 try {
                     const response = await fetch('benchmarks.json');
                     if (response.ok) {
                         benchmarkData = await response.json();
                         console.log('Benchmark data loaded:', benchmarkData);
+                        return true;
                     } else {
                         console.error('Failed to load benchmarks.json');
-                        return;
+                        return false;
                     }
                 } catch (error) {
                     console.error('Error loading benchmarks:', error);
-                    return;
+                    return false;
                 }
             }
-            renderBenchmarkChart();
-            renderBenchmarkTable();
+            return true;
+        }
+
+        async function loadAndRenderBenchmarks() {
+            await ensureBenchmarkData();
+            if (benchmarkData) {
+                renderBenchmarkChart();
+                renderBenchmarkTable();
+            }
         }
 
         function setBenchmarkMetric(metric) {
@@ -10573,14 +10582,19 @@
             if (overlay) overlay.remove();
         }
 
-        function exportBenchmarkCSV() {
-            if (!benchmarkData) {
-                alert('Benchmark data not loaded. Please wait and try again.');
+        async function exportBenchmarkCSV() {
+            showExportLoading('Preparing CSV export...');
+
+            // Ensure data is loaded
+            const loaded = await ensureBenchmarkData();
+            if (!loaded) {
+                hideExportLoading();
+                alert('Failed to load benchmark data. Please try again.');
                 return;
             }
 
             // Close dropdown
-            document.getElementById('benchmarkExportMenu').classList.add('hidden');
+            document.getElementById('benchmarkExportMenu')?.classList.add('hidden');
 
             const today = new Date().toISOString().split('T')[0];
 
@@ -10702,17 +10716,23 @@
             a.click();
             window.URL.revokeObjectURL(url);
 
+            hideExportLoading();
             console.log('Benchmark CSV exported successfully');
         }
 
-        function exportBenchmarkJSON() {
-            if (!benchmarkData) {
-                alert('Benchmark data not loaded. Please wait and try again.');
+        async function exportBenchmarkJSON() {
+            showExportLoading('Preparing JSON export...');
+
+            // Ensure data is loaded
+            const loaded = await ensureBenchmarkData();
+            if (!loaded) {
+                hideExportLoading();
+                alert('Failed to load benchmark data. Please try again.');
                 return;
             }
 
             // Close dropdown
-            document.getElementById('benchmarkExportMenu').classList.add('hidden');
+            document.getElementById('benchmarkExportMenu')?.classList.add('hidden');
 
             const today = new Date().toISOString().split('T')[0];
 
@@ -10735,19 +10755,23 @@
             a.click();
             window.URL.revokeObjectURL(url);
 
+            hideExportLoading();
             console.log('Benchmark JSON exported successfully');
         }
 
         async function exportBenchmarkPDF() {
-            if (!benchmarkData) {
-                alert('Benchmark data not loaded. Please wait and try again.');
+            showExportLoading('Generating PDF report...');
+
+            // Ensure data is loaded
+            const loaded = await ensureBenchmarkData();
+            if (!loaded) {
+                hideExportLoading();
+                alert('Failed to load benchmark data. Please try again.');
                 return;
             }
 
             // Close dropdown
-            document.getElementById('benchmarkExportMenu').classList.add('hidden');
-
-            showExportLoading('Generating PDF report...');
+            document.getElementById('benchmarkExportMenu')?.classList.add('hidden');
 
             try {
                 const { jsPDF } = window.jspdf;
@@ -11028,13 +11052,16 @@
             }
         }
 
-        function exportBenchmarkExcel() {
-            if (!benchmarkData) {
-                alert('Benchmark data not loaded. Please wait and try again.');
+        async function exportBenchmarkExcel() {
+            showExportLoading('Generating Excel workbook...');
+
+            // Ensure data is loaded
+            const loaded = await ensureBenchmarkData();
+            if (!loaded) {
+                hideExportLoading();
+                alert('Failed to load benchmark data. Please try again.');
                 return;
             }
-
-            showExportLoading('Generating Excel workbook...');
 
             try {
                 const today = new Date().toISOString().split('T')[0];
