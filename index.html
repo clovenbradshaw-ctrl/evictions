@@ -3632,6 +3632,7 @@
                         <button class="pivot-option" data-pivot-dimension="attorney" onclick="setPivotDimension('attorney')">Landlord Attorney</button>
                         <button class="pivot-option" data-pivot-dimension="defenseAttorney" onclick="setPivotDimension('defenseAttorney')">Defense Attorney</button>
                         <button class="pivot-option" data-pivot-dimension="district" onclick="setPivotDimension('district')">Council District</button>
+                        <button class="pivot-option" data-pivot-dimension="fileMonth" onclick="setPivotDimension('fileMonth')">Date</button>
                         <button id="attorneyModalBtn" onclick="openAttorneyModal()" class="ml-2 px-3 py-1 text-xs font-semibold bg-purple-100 text-purple-700 rounded-full border border-purple-200 hover:bg-purple-200 transition-colors" title="View attorney breakdown">
                             View All Attorneys
                         </button>
@@ -4919,7 +4920,8 @@
             defendant: 'Defendant',
             attorney: 'Attorney',
             defenseAttorney: 'Defense_Attorney',
-            district: 'District'
+            district: 'District',
+            fileMonth: 'File_Date_Month'
         };
 
         const pivotDimensionLabels = {
@@ -4927,7 +4929,8 @@
             defendant: 'Tenant',
             attorney: 'Landlord Attorney',
             defenseAttorney: 'Defense Attorney',
-            district: 'Council District'
+            district: 'Council District',
+            fileMonth: 'Date'
         };
 
         // Track active name filter
@@ -11538,7 +11541,17 @@
             const summaries = new Map();
 
             filteredData.forEach(record => {
-                const rawKey = record[field];
+                let rawKey;
+                // Handle computed date fields
+                if (field === 'File_Date_Month') {
+                    const date = new Date(record.File_Date);
+                    if (!isNaN(date.getTime())) {
+                        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        rawKey = `${months[date.getMonth()]} ${date.getFullYear()}`;
+                    }
+                } else {
+                    rawKey = record[field];
+                }
                 const key = rawKey && String(rawKey).trim() !== '' ? String(rawKey).trim() : 'Unknown';
 
                 if (!summaries.has(key)) {
