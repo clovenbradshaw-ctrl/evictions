@@ -148,6 +148,21 @@ const EOMigration = (function() {
   }
 
   /**
+   * Safely parse JSON, returning fallback on error
+   */
+  function safeJsonParse(value, fallback = null) {
+    if (typeof value !== 'string') {
+      return value ?? fallback;
+    }
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      console.warn('Failed to parse JSON in event record:', e.message, value);
+      return fallback;
+    }
+  }
+
+  /**
    * Convert from Xano format back to internal format (parse JSON TEXT fields)
    */
   function fromXanoFormat(record) {
@@ -159,9 +174,9 @@ const EOMigration = (function() {
       entity_id: record.entity_id,
       entity_type: record.entity_type,
       source_table: record.source_table,
-      target: typeof record.target === 'string' ? JSON.parse(record.target) : record.target,
-      context: typeof record.context === 'string' ? JSON.parse(record.context) : record.context,
-      frame: typeof record.frame === 'string' ? JSON.parse(record.frame || '{}') : (record.frame || {})
+      target: safeJsonParse(record.target, {}),
+      context: safeJsonParse(record.context, {}),
+      frame: safeJsonParse(record.frame, {})
     };
   }
 
