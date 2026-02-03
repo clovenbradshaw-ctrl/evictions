@@ -5841,9 +5841,9 @@
                       'JUDGMENT': 'bg-red-100 text-red-800'
                   };
                   const colorClass = statusColors[params.value.toUpperCase()] || 'bg-blue-100 text-blue-800';
-                  // Get the "as of" timestamp for when data was observed
-                  const storedTs = localStorage.getItem('evictionDataTimestamp');
-                  const asOfDate = storedTs ? new Date(parseInt(storedTs)).toLocaleDateString() : '';
+                  // Get the "as of" timestamp from record's _last_updated (when data was originally pulled)
+                  const recordTs = params.data?._last_updated;
+                  const asOfDate = recordTs ? new Date(recordTs).toLocaleDateString() : '';
                   const asOfHtml = asOfDate ? `<div class="status-as-of"><span class="status-as-of-label">as of</span> ${asOfDate}</div>` : '';
                   return `<div style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
                       <span class="px-2 py-0.5 rounded text-xs font-medium ${colorClass}">${params.value}</span>
@@ -10021,13 +10021,13 @@
                 card.appendChild(labelEl);
                 card.appendChild(valueEl);
 
-                // Add "as of" timestamp for Status field (observation, not fact)
+                // Add "as of" timestamp for Status field (when data was originally pulled)
                 if (entry.label === 'Status') {
-                    const storedTs = localStorage.getItem('evictionDataTimestamp');
-                    if (storedTs) {
+                    const recordTs = record._last_updated;
+                    if (recordTs) {
                         const asOfEl = document.createElement('p');
                         asOfEl.className = 'meta-status-as-of';
-                        asOfEl.textContent = `as of ${new Date(parseInt(storedTs)).toLocaleDateString()}`;
+                        asOfEl.textContent = `as of ${new Date(recordTs).toLocaleDateString()}`;
                         card.appendChild(asOfEl);
                     }
                 }
