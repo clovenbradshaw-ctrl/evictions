@@ -3557,9 +3557,46 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+
+        /* Secret mode indicator */
+        .secret-mode-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 10000;
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .secret-mode-indicator.visible {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .secret-mode-indicator .typed-chars {
+            font-family: monospace;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
+    <!-- Secret Mode Indicator -->
+    <div id="secretModeIndicator" class="secret-mode-indicator">
+        Type the keyword: <span id="secretModeTyped" class="typed-chars"></span>
+    </div>
+
     <!-- Unofficial Notice Banner -->
     <div class="unofficial-banner">
         ⚠️ UNOFFICIAL COMMUNITY PROJECT - Not affiliated with Metro Nashville or any government agency
@@ -14335,6 +14372,30 @@
         let secretInputTimer = null;
         let secretModeActive = false;
 
+        // Secret mode indicator functions
+        function showSecretModeIndicator() {
+            const indicator = document.getElementById('secretModeIndicator');
+            const typedSpan = document.getElementById('secretModeTyped');
+            if (indicator && typedSpan) {
+                typedSpan.textContent = '';
+                indicator.classList.add('visible');
+            }
+        }
+
+        function hideSecretModeIndicator() {
+            const indicator = document.getElementById('secretModeIndicator');
+            if (indicator) {
+                indicator.classList.remove('visible');
+            }
+        }
+
+        function updateSecretModeIndicator(typed) {
+            const typedSpan = document.getElementById('secretModeTyped');
+            if (typedSpan) {
+                typedSpan.textContent = typed;
+            }
+        }
+
         // Bulk upload state
         let bulkUploadStep = 1;
         let bulkUploadData = [];
@@ -14443,18 +14504,21 @@
                 if (event.key.length === 1 && /[a-zA-Z]/.test(event.key)) {
                     event.preventDefault();
                     secretInputBuffer += event.key.toLowerCase();
+                    updateSecretModeIndicator(secretInputBuffer);
 
                     // Reset timer
                     if (secretInputTimer) clearTimeout(secretInputTimer);
                     secretInputTimer = setTimeout(() => {
                         secretInputBuffer = '';
                         secretModeActive = false;
+                        hideSecretModeIndicator();
                     }, 3000);
 
                     // Check if "detainer" was typed
                     if (secretInputBuffer === 'detainer') {
                         secretInputBuffer = '';
                         secretModeActive = false;
+                        hideSecretModeIndicator();
                         // Reveal and switch to docket processing tab
                         const docketTab = document.getElementById('docketTab');
                         if (docketTab) {
@@ -14487,12 +14551,14 @@
                     escPressCount = 0;
                     secretModeActive = true;
                     secretInputBuffer = '';
+                    showSecretModeIndicator();
 
                     // Auto-reset after 5 seconds
                     if (secretInputTimer) clearTimeout(secretInputTimer);
                     secretInputTimer = setTimeout(() => {
                         secretInputBuffer = '';
                         secretModeActive = false;
+                        hideSecretModeIndicator();
                     }, 5000);
                 }
             }
