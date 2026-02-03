@@ -523,6 +523,11 @@ const EOMigration = (function() {
 
   /**
    * Reconstruct current state of a single entity from events
+   *
+   * Proper event sourcing implementation:
+   * - Handles ALT events even without a prior INS event
+   * - Tracks the latest version of each field based on event timestamps
+   * - Supports partial updates (deltas) that only contain changed fields
    */
   function reconstructEntityState(entityId, events) {
     const entityEvents = events
@@ -535,37 +540,57 @@ const EOMigration = (function() {
 
     let state = null;
     let isDeleted = false;
+    // Track field versions: { fieldName: { value, ts } }
+    let fieldVersions = {};
+
+    /**
+     * Update a field only if this event is newer than the last update
+     */
+    function updateField(fieldName, value, eventTs) {
+      if (!fieldVersions[fieldName] || eventTs >= fieldVersions[fieldName].ts) {
+        fieldVersions[fieldName] = { value, ts: eventTs };
+      }
+    }
+
+    /**
+     * Apply all fields from a data object
+     */
+    function applyData(data, eventTs) {
+      if (!data) return;
+      for (const [field, value] of Object.entries(data)) {
+        if (value !== undefined) {
+          updateField(field, value, eventTs);
+        }
+      }
+    }
 
     for (const event of entityEvents) {
       switch (event.op) {
         case OPERATORS.INS:
-          // Initialize state from INS event
-          state = { ...event.context.data };
+          // Initialize/update state from INS event data
+          applyData(event.context.data, event.ts);
           isDeleted = false;
           break;
 
         case OPERATORS.ALT:
-          // ALT with context.data = upsert (create if not exists, update if exists)
+          // ALT with context.data = full record upsert
           if (event.context.data) {
-            if (state) {
-              // Merge new data into existing state
-              Object.assign(state, event.context.data);
-            } else {
-              // Create new entity from ALT data
-              state = { ...event.context.data };
-              state.Docket_Number = entityId;
-            }
+            applyData(event.context.data, event.ts);
             isDeleted = false;
-          } else if (state) {
-            // ALT with changes or single field update (only if state exists)
-            if (event.context.changes) {
-              for (const [field, change] of Object.entries(event.context.changes)) {
-                state[field] = change.new;
-              }
-            } else if (event.target.field && event.context.new !== undefined) {
-              // Single field update
-              state[event.target.field] = event.context.new;
+          }
+
+          // ALT with context.changes = delta update (works even without prior INS)
+          if (event.context.changes) {
+            for (const [field, change] of Object.entries(event.context.changes)) {
+              // change can be { old, new } or just a new value
+              const newValue = change.new !== undefined ? change.new : change;
+              updateField(field, newValue, event.ts);
             }
+          }
+
+          // ALT with single field update via target.field
+          if (event.target.field && event.context.new !== undefined) {
+            updateField(event.target.field, event.context.new, event.ts);
           }
           break;
 
@@ -576,7 +601,7 @@ const EOMigration = (function() {
         case OPERATORS.SYN:
           // Mark as merged if this entity was absorbed
           if (event.context.merged && event.context.merged.includes(entityId)) {
-            state._merged_into = event.target.id;
+            updateField('_merged_into', event.target.id, event.ts);
           }
           break;
       }
@@ -584,6 +609,19 @@ const EOMigration = (function() {
 
     if (isDeleted) {
       return null;
+    }
+
+    // Build final state from latest field versions
+    if (Object.keys(fieldVersions).length > 0) {
+      state = {};
+      for (const [field, versionInfo] of Object.entries(fieldVersions)) {
+        state[field] = versionInfo.value;
+      }
+
+      // Ensure Docket_Number is set
+      if (!state.Docket_Number) {
+        state.Docket_Number = entityId;
+      }
     }
 
     // Add metadata
@@ -654,6 +692,101 @@ const EOMigration = (function() {
       ops: ops,
       count: ops.length
     };
+  }
+
+  /**
+   * Get the complete field-level history for an entity
+   *
+   * Returns a map of field names to their version history:
+   * {
+   *   fieldName: [
+   *     { value, ts, eventId, eventOp },
+   *     ...
+   *   ]
+   * }
+   *
+   * This is useful for understanding how each field evolved over time
+   * and supports proper event sourcing where ALT events may only have partial data.
+   */
+  function getFieldHistory(entityId, events) {
+    const entityEvents = events
+      .filter(e => e.target.id === entityId)
+      .sort((a, b) => a.ts - b.ts);
+
+    // Track all versions of each field
+    const fieldHistory = {};
+
+    function addFieldVersion(fieldName, value, eventTs, eventId, eventOp) {
+      if (!fieldHistory[fieldName]) {
+        fieldHistory[fieldName] = [];
+      }
+      fieldHistory[fieldName].push({
+        value,
+        ts: eventTs,
+        ts_iso: new Date(eventTs).toISOString(),
+        eventId,
+        eventOp
+      });
+    }
+
+    for (const event of entityEvents) {
+      switch (event.op) {
+        case OPERATORS.INS:
+          // All fields from INS data
+          if (event.context.data) {
+            for (const [field, value] of Object.entries(event.context.data)) {
+              if (value !== undefined) {
+                addFieldVersion(field, value, event.ts, event.id, event.op);
+              }
+            }
+          }
+          break;
+
+        case OPERATORS.ALT:
+          // ALT with context.data = full record
+          if (event.context.data) {
+            for (const [field, value] of Object.entries(event.context.data)) {
+              if (value !== undefined) {
+                addFieldVersion(field, value, event.ts, event.id, event.op);
+              }
+            }
+          }
+
+          // ALT with context.changes = delta update
+          if (event.context.changes) {
+            for (const [field, change] of Object.entries(event.context.changes)) {
+              const newValue = change.new !== undefined ? change.new : change;
+              addFieldVersion(field, newValue, event.ts, event.id, event.op);
+            }
+          }
+
+          // ALT with single field update
+          if (event.target.field && event.context.new !== undefined) {
+            addFieldVersion(event.target.field, event.context.new, event.ts, event.id, event.op);
+          }
+          break;
+      }
+    }
+
+    return fieldHistory;
+  }
+
+  /**
+   * Get the latest value for each field from field history
+   * This is the definitive current state based on all available events.
+   */
+  function getLatestFieldValues(entityId, events) {
+    const fieldHistory = getFieldHistory(entityId, events);
+    const latestValues = {};
+
+    for (const [field, versions] of Object.entries(fieldHistory)) {
+      if (versions.length > 0) {
+        // Versions are already sorted by timestamp
+        latestValues[field] = versions[versions.length - 1].value;
+      }
+    }
+
+    return latestValues;
   }
 
   // =============================================================================
@@ -1001,6 +1134,8 @@ const EOMigration = (function() {
     reconstructAllStates,
     getAuditTrail,
     getOperatorPattern,
+    getFieldHistory,
+    getLatestFieldValues,
 
     // Query utilities
     filterByOperator,
