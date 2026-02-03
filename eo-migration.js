@@ -531,7 +531,7 @@ const EOMigration = (function() {
    */
   function reconstructEntityState(entityId, events) {
     const entityEvents = events
-      .filter(e => e.target.id === entityId)
+      .filter(e => (e.entity_id || e.target?.id) === entityId)
       .sort((a, b) => a.ts - b.ts);
 
     if (entityEvents.length === 0) {
@@ -600,8 +600,8 @@ const EOMigration = (function() {
 
         case OPERATORS.SYN:
           // Mark as merged if this entity was absorbed
-          if (event.context.merged && event.context.merged.includes(entityId)) {
-            updateField('_merged_into', event.target.id, event.ts);
+          if (event.context?.merged && event.context.merged.includes(entityId)) {
+            updateField('_merged_into', event.entity_id || event.target?.id, event.ts);
           }
           break;
       }
@@ -642,7 +642,12 @@ const EOMigration = (function() {
     const byEntity = new Map();
 
     for (const event of events) {
-      const entityId = event.target.id;
+      // Handle events with missing or null target - use entity_id as fallback
+      const entityId = event.entity_id || event.target?.id;
+      if (!entityId) {
+        // Skip events without a valid entity ID
+        continue;
+      }
       if (!byEntity.has(entityId)) {
         byEntity.set(entityId, []);
       }
@@ -666,7 +671,7 @@ const EOMigration = (function() {
    */
   function getAuditTrail(entityId, events) {
     return events
-      .filter(e => e.target.id === entityId)
+      .filter(e => (e.entity_id || e.target?.id) === entityId)
       .sort((a, b) => a.ts - b.ts)
       .map(e => ({
         id: e.id,
@@ -683,7 +688,7 @@ const EOMigration = (function() {
    */
   function getOperatorPattern(entityId, events) {
     const ops = events
-      .filter(e => e.target.id === entityId)
+      .filter(e => (e.entity_id || e.target?.id) === entityId)
       .sort((a, b) => a.ts - b.ts)
       .map(e => e.op);
 
@@ -710,7 +715,7 @@ const EOMigration = (function() {
    */
   function getFieldHistory(entityId, events) {
     const entityEvents = events
-      .filter(e => e.target.id === entityId)
+      .filter(e => (e.entity_id || e.target?.id) === entityId)
       .sort((a, b) => a.ts - b.ts);
 
     // Track all versions of each field
@@ -818,7 +823,7 @@ const EOMigration = (function() {
    * Get all entity IDs that have events
    */
   function getAllEntityIds(events) {
-    return [...new Set(events.map(e => e.target.id))];
+    return [...new Set(events.map(e => e.entity_id || e.target?.id).filter(Boolean))];
   }
 
   /**
@@ -827,7 +832,8 @@ const EOMigration = (function() {
   function getCreatedInRange(events, startTs, endTs) {
     return filterByOperator(events, OPERATORS.INS)
       .filter(e => e.ts >= startTs && e.ts <= endTs)
-      .map(e => e.target.id);
+      .map(e => e.entity_id || e.target?.id)
+      .filter(Boolean);
   }
 
   /**
@@ -836,11 +842,12 @@ const EOMigration = (function() {
   function getEntitiesWithFieldChange(events, fieldName) {
     return filterByOperator(events, OPERATORS.ALT)
       .filter(e => {
-        if (e.target.field === fieldName) return true;
-        if (e.context.changes && e.context.changes[fieldName]) return true;
+        if (e.target?.field === fieldName) return true;
+        if (e.context?.changes && e.context.changes[fieldName]) return true;
         return false;
       })
-      .map(e => e.target.id);
+      .map(e => e.entity_id || e.target?.id)
+      .filter(Boolean);
   }
 
   // =============================================================================
