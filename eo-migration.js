@@ -198,7 +198,7 @@ const EOMigration = (function() {
       },
       {
         table: CONFIG.SOURCE_TABLE,
-        data: normalizeCase(caseData)
+        data: caseData
       },
       frame || {
         source: 'migration',
@@ -453,7 +453,7 @@ const EOMigration = (function() {
           },
           context: {
             table: CONFIG.SOURCE_TABLE,
-            data: normalizeCase(record)
+            data: record
           },
           frame: {
             source: 'migration',
@@ -518,7 +518,7 @@ const EOMigration = (function() {
         },
         context: {
           table: CONFIG.SOURCE_TABLE,
-          data: normalizeCase(record)
+          data: record
         },
         frame: {
           source: 'snapshot_migration',
