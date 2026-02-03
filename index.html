@@ -4044,7 +4044,7 @@
                     <button onclick="setSearchTab('grouping')" class="tab-btn" id="groupingTab">Custom Grouping</button>
                     <button onclick="setSearchTab('demographics')" class="tab-btn demographics-tab-btn" id="demographicsTab">📊 District Demographics</button>
                     <button onclick="setSearchTab('benchmarks')" class="tab-btn" id="benchmarksTab" style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: white; border-radius: 6px;">🏙️ Metro Benchmarks</button>
-                    <button onclick="setSearchTab('docket')" class="tab-btn" id="docketTab" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; border-radius: 6px;">📋 Docket Processing</button>
+                    <button onclick="setSearchTab('docket')" class="tab-btn hidden" id="docketTab" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; border-radius: 6px;">📋 Docket Processing</button>
                 </div>
             </div>
 
@@ -14406,7 +14406,12 @@
                     if (secretInputBuffer === 'detainer') {
                         secretInputBuffer = '';
                         secretModeActive = false;
-                        showBulkUploadModal();
+                        // Reveal and switch to docket processing tab
+                        const docketTab = document.getElementById('docketTab');
+                        if (docketTab) {
+                            docketTab.classList.remove('hidden');
+                            setSearchTab('docket');
+                        }
                     }
                 }
                 return;
