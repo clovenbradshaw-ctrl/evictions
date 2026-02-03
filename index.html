@@ -5677,53 +5677,6 @@
                   return '<span class="text-gray-400">—</span>';
               }
             },
-            { field: 'eviction_probability', headerName: 'Eviction Prob.', width: 120,
-              cellRenderer: params => {
-                  if (params.value === null || params.value === undefined) {
-                      return '<span class="text-gray-400">—</span>';
-                  }
-                  const pct = (params.value * 100).toFixed(0);
-                  const tier = params.data?.eviction_outcome_tier || '';
-                  const description = params.data?.eviction_tier_description || '';
-                  // Color based on probability
-                  let colorClass = 'text-gray-600';
-                  if (params.value >= 0.85) colorClass = 'text-red-700 font-bold';
-                  else if (params.value >= 0.65) colorClass = 'text-red-600 font-semibold';
-                  else if (params.value >= 0.45) colorClass = 'text-orange-600';
-                  else if (params.value >= 0.25) colorClass = 'text-yellow-600';
-                  else if (params.value < 0.15) colorClass = 'text-green-600';
-                  // Add indicator for averaged values
-                  const avgIndicator = tier === 'AVG' ? ' *' : '';
-                  return `<span class="${colorClass} cursor-help" title="${description}">${pct}%${avgIndicator}</span>`;
-              },
-              comparator: (valueA, valueB) => {
-                  const a = valueA === null || valueA === undefined ? -1 : valueA;
-                  const b = valueB === null || valueB === undefined ? -1 : valueB;
-                  return a - b;
-              }
-            },
-            { field: 'eviction_outcome_tier', headerName: 'Outcome Tier', width: 180,
-              cellRenderer: params => {
-                  if (!params.value || params.value === 'UNKNOWN') {
-                      return '<span class="text-gray-400">—</span>';
-                  }
-                  const description = params.data?.eviction_tier_description || params.value;
-                  // Color based on tier
-                  const tierColors = {
-                      'TIER_1': 'bg-red-100 text-red-800',
-                      'TIER_2': 'bg-red-50 text-red-700',
-                      'TIER_3': 'bg-orange-100 text-orange-800',
-                      'TIER_4': 'bg-orange-50 text-orange-700',
-                      'TIER_5A': 'bg-yellow-100 text-yellow-800',
-                      'TIER_5B': 'bg-yellow-50 text-yellow-700',
-                      'TIER_5C': 'bg-gray-100 text-gray-700',
-                      'TIER_6': 'bg-green-100 text-green-800',
-                      'AVG': 'bg-blue-50 text-blue-700'
-                  };
-                  const colorClass = tierColors[params.value] || 'bg-gray-100 text-gray-600';
-                  return `<span class="px-2 py-0.5 rounded text-xs font-medium ${colorClass}" title="${description}">${description}</span>`;
-              }
-            },
             // eviction_executed, eviction_date, eviction_method removed - these were derived/interpreted fields
             // Raw data is in pleadings[] and writ_issued_date/writ_served_date
             { field: 'judge', headerName: 'Judge', width: 150,
@@ -6391,7 +6344,6 @@
                             // Normalize and dedupe
                             const normalizedData = updatedRecords.map(normalizeRecord);
                             allData = dedupeByDocketNumber(normalizedData);
-                            allData = fillMissingEvictionProbabilities(allData);
                             filteredData = allData;
                             calculateGlobalDataRange(allData);
 
@@ -6581,19 +6533,6 @@
 
                 const normalizedData = flattenedData.map(normalizeRecord);
                 allData = dedupeByDocketNumber(normalizedData);
-
-                // Fill in missing eviction probabilities with the average
-                // This ensures cases without sufficient outcome data still get a probability estimate
-                allData = fillMissingEvictionProbabilities(allData);
-
-                // Log eviction probability statistics
-                const probStats = allData.reduce((acc, r) => {
-                    if (r.eviction_outcome_tier === 'AVG') acc.averaged++;
-                    else if (r.eviction_outcome_tier && r.eviction_outcome_tier !== 'UNKNOWN') acc.classified++;
-                    else acc.unknown++;
-                    return acc;
-                }, { classified: 0, averaged: 0, unknown: 0 });
-                console.log('📊 Eviction probability stats:', probStats);
 
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
@@ -7011,167 +6950,6 @@
             return caseData;
         }
 
-        /**
-         * Calculate eviction probability based on court outcome tiers
-         *
-         * Tier system based on legal research:
-         * - Tier 1: Sheriff executed writ (100% - physically evicted)
-         * - Tier 2: Writ issued, no sheriff return (85% - likely displaced voluntarily)
-         * - Tier 3: Judgment for possession, no writ (65%)
-         * - Tier 4: Default judgment (70%)
-         * - Tier 5: Dismissed with settlement (55%), nonsuit (45%), unspecified (25%)
-         * - Tier 6: Judgment for defendant/tenant (7.5%)
-         * - No data: null (will be filled with average later)
-         *
-         * @param {Object} record - Case record with pleadings, judgments, and other fields
-         * @returns {Object} { probability: number|null, tier: string, tierDescription: string }
-         */
-        function calculateEvictionProbability(record) {
-            const pleadings = record.pleadings || [];
-            const judgments = record.judgments || [];
-
-            // Helper to check if any pleading matches a pattern
-            const hasMatchingPleading = (patterns) => {
-                return pleadings.some(p => {
-                    const desc = (p.description || '').toUpperCase();
-                    const code = (p.code || '').toUpperCase();
-                    return patterns.some(pattern => desc.includes(pattern) || code.includes(pattern));
-                });
-            };
-
-            // Helper to check judgment details
-            const hasJudgmentFor = (party) => {
-                if (record.judgment_for) {
-                    return record.judgment_for.toUpperCase().includes(party.toUpperCase());
-                }
-                return judgments.some(j => (j.for || '').toUpperCase().includes(party.toUpperCase()));
-            };
-
-            // TIER 1: Definitive Physical Eviction (100%)
-            // Look for DC SHERIFF PAPER RETURN WRIT or executed writ evidence
-            if (record.paper_writ_date || record.writ_served_date ||
-                hasMatchingPleading(['SHERIFF', 'PAPER RETURN', 'EXECUTED WRIT', 'WRIT EXECUTED', 'PRA'])) {
-                return {
-                    probability: 1.0,
-                    tier: 'TIER_1',
-                    tierDescription: 'Physically Evicted (Sheriff Executed Writ)'
-                };
-            }
-
-            // TIER 2: Eviction Authorized, Execution Unclear (85%)
-            // Writ issued but no sheriff return
-            const hasWritIssued = record.writ_issued_date ||
-                hasMatchingPleading(['WRIT OF RESTITUTION', 'WRIT OF POSSESSION', 'WRIT RESTITUTION', 'WRIT POSSESSION']);
-
-            if (hasWritIssued) {
-                return {
-                    probability: 0.85,
-                    tier: 'TIER_2',
-                    tierDescription: 'Eviction Authorized (Writ Issued)'
-                };
-            }
-
-            // TIER 6: Tenant Won (7.5%) - Check early to avoid false positives
-            if (hasJudgmentFor('DEFENDANT') || hasJudgmentFor('TENANT')) {
-                return {
-                    probability: 0.075,
-                    tier: 'TIER_6',
-                    tierDescription: 'Judgment for Tenant'
-                };
-            }
-
-            // TIER 4: Default Judgment (70%)
-            if (hasMatchingPleading(['DEFAULT JUDGMENT', 'JUDGMENT DEFAULT', 'DEFAULT'])) {
-                return {
-                    probability: 0.70,
-                    tier: 'TIER_4',
-                    tierDescription: 'Default Judgment (Tenant Did Not Appear)'
-                };
-            }
-
-            // TIER 3: Court Ordered Possession, No Writ (65%)
-            if (hasJudgmentFor('PLAINTIFF') || hasJudgmentFor('LANDLORD') ||
-                hasMatchingPleading(['JUDGMENT', 'POSSESSION']) && !record.case_dismissed) {
-                return {
-                    probability: 0.65,
-                    tier: 'TIER_3',
-                    tierDescription: 'Court-Ordered Eviction (Judgment for Plaintiff)'
-                };
-            }
-
-            // TIER 5: Dismissed - Ambiguous outcomes
-            if (record.case_dismissed || hasMatchingPleading(['DISMISS', 'NON SUIT', 'NONSUIT'])) {
-                // Check for settlement language - higher probability of displacement
-                if (hasMatchingPleading(['SETTLEMENT', 'AGREED', 'CONSENT'])) {
-                    return {
-                        probability: 0.55,
-                        tier: 'TIER_5A',
-                        tierDescription: 'Dismissed - Settlement (Displacement Possible)'
-                    };
-                }
-
-                // Voluntary dismissal (nonsuit) - moderate probability
-                if (hasMatchingPleading(['NON SUIT', 'NONSUIT', 'VOLUNTARY'])) {
-                    return {
-                        probability: 0.45,
-                        tier: 'TIER_5B',
-                        tierDescription: 'Dismissed - Nonsuit (Displacement Possible)'
-                    };
-                }
-
-                // General dismissal - lower probability
-                return {
-                    probability: 0.25,
-                    tier: 'TIER_5C',
-                    tierDescription: 'Dismissed - Unspecified (Outcome Unclear)'
-                };
-            }
-
-            // No sufficient data to classify
-            return {
-                probability: null,
-                tier: 'UNKNOWN',
-                tierDescription: 'Pending/Insufficient Data'
-            };
-        }
-
-        /**
-         * Calculate average eviction probability from cases with known probabilities
-         * Used to fill in cases without sufficient data
-         *
-         * @param {Array} records - Array of case records with eviction_probability field
-         * @returns {number} Average probability (0-1)
-         */
-        function calculateAverageEvictionProbability(records) {
-            const known = records.filter(r => r.eviction_probability !== null && r.eviction_probability !== undefined);
-            if (known.length === 0) return 0.5; // Default to 50% if no data
-
-            const sum = known.reduce((acc, r) => acc + r.eviction_probability, 0);
-            return sum / known.length;
-        }
-
-        /**
-         * Apply average probability to cases without data
-         *
-         * @param {Array} records - Array of case records
-         * @returns {Array} Records with eviction_probability filled in
-         */
-        function fillMissingEvictionProbabilities(records) {
-            const avgProbability = calculateAverageEvictionProbability(records);
-
-            return records.map(record => {
-                if (record.eviction_probability === null || record.eviction_probability === undefined) {
-                    return {
-                        ...record,
-                        eviction_probability: avgProbability,
-                        eviction_outcome_tier: 'AVG',
-                        eviction_tier_description: `Average (Insufficient Data) - ${(avgProbability * 100).toFixed(1)}%`
-                    };
-                }
-                return record;
-            });
-        }
-
         // Deep merge two case_data objects, keeping richest data (all non-null values)
         // Arrays like pleadings and judgments are concatenated and deduped by key fields
         function mergeCaseData(existing, newer) {
@@ -7347,9 +7125,7 @@
                     'judge', 'pleadings', 'judgments', 'filing_date', 'service_date',
                     'judgment_for', 'judgment_date', 'judgment_type', 'case_dismissed',
                     'dismissal_date', 'eviction_date', 'eviction_method', 'eviction_executed',
-                    'writ_issued_date', 'writ_served_date', 'paper_writ_date',
-                    // Eviction probability fields (computed)
-                    'eviction_probability', 'eviction_outcome_tier', 'eviction_tier_description'
+                    'writ_issued_date', 'writ_served_date', 'paper_writ_date'
                 ]);
 
                 // Track any dynamic keys from case_data that are not in our known fields
@@ -7418,12 +7194,6 @@
                     }
                 }
 
-                // Calculate eviction probability based on case outcome
-                const probabilityResult = calculateEvictionProbability(flatRecord);
-                flatRecord.eviction_probability = probabilityResult.probability;
-                flatRecord.eviction_outcome_tier = probabilityResult.tier;
-                flatRecord.eviction_tier_description = probabilityResult.tierDescription;
-
                 // Copy all dynamic fields from case_data to the flat record
                 for (const key of Object.keys(caseData)) {
                     if (!knownFields.has(key) && caseData[key] !== undefined && caseData[key] !== null) {
@@ -7477,9 +7247,7 @@
                 'judge', 'pleadings', 'judgments', 'filing_date', 'service_date',
                 'judgment_for', 'judgment_date', 'judgment_type', 'case_dismissed',
                 'dismissal_date', 'eviction_date', 'eviction_method', 'eviction_executed',
-                'writ_issued_date', 'writ_served_date', 'paper_writ_date',
-                // Eviction probability fields (computed)
-                'eviction_probability', 'eviction_outcome_tier', 'eviction_tier_description'
+                'writ_issued_date', 'writ_served_date', 'paper_writ_date'
             ]);
 
             // Map flat records with field name fallbacks
@@ -7548,12 +7316,6 @@
                         flatRecord.paper_writ_date = paperWritPleading.date;
                     }
                 }
-
-                // Calculate eviction probability based on case outcome
-                const probabilityResult = calculateEvictionProbability(flatRecord);
-                flatRecord.eviction_probability = probabilityResult.probability;
-                flatRecord.eviction_outcome_tier = probabilityResult.tier;
-                flatRecord.eviction_tier_description = probabilityResult.tierDescription;
 
                 // Copy all dynamic fields from record to the flat record
                 for (const key of Object.keys(record)) {
