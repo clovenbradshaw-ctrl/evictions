@@ -332,11 +332,44 @@ Dashboard widget showing:
 
 ---
 
-## Next Steps
+## Implementation Status
 
-1. [ ] Create `update_queue` table in Xano
-2. [ ] Implement staleness scoring function
-3. [ ] Add scheduled trigger for time-based staleness
-4. [ ] Build queue consumer/processor
-5. [ ] Add UI indicators for staleness
-6. [ ] Create dashboard metrics panel
+### Completed (Frontend - index.html)
+
+1. **Queue API Integration**
+   - `fetchQueueItems(options)` - GET queue items with optional date range filtering
+   - `addToProcessQueue(entries)` - POST new items to queue
+   - `queueRecordForUpdate(record, triggerType)` - Queue single record
+   - `queueStaleRecords(limit)` - Bulk queue stale records
+
+2. **Staleness Detection**
+   - `calculateStalenessScore(record)` - Score based on age and status thresholds
+   - `getStalenessIndicator(record)` - UI-friendly indicator (critical/warning/ok/fresh)
+   - `findStaleRecords(records)` - Find all records with score >= 1.0
+   - `getStalenessMetrics(records)` - Dashboard metrics
+
+3. **Queue Status Panel**
+   - Nav bar "Queue" button with pending badge
+   - Dropdown panel showing: Pending, Processing, Completed, Failed counts
+   - List of top 10 stale records with scores
+   - "Queue Top 25 Stale" bulk action button
+   - "Refresh Status" button
+
+4. **User Triggers**
+   - "Request Refresh" button in case detail modal
+   - Visual feedback (loading → success/error → reset)
+
+### Backend (Xano)
+
+- Table: `processQueue` with schema:
+  - `id`, `created_at`, `entity_id`, `trigger_type`, `priority`, `status`, `last_known_status`
+- API Endpoint: `GET/POST /api:3CsVHkZK/process_queue`
+  - GET: Supports `start_date` and `end_date` filtering
+  - POST: Creates new queue entries
+
+### Still Needed
+
+1. [ ] Backend queue consumer/processor (to actually fetch fresh court data)
+2. [ ] Scheduled job to detect and queue stale records automatically
+3. [ ] Notification system when queued updates find changes
+4. [ ] Admin interface for bulk queue operations

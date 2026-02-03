@@ -620,6 +620,214 @@
             box-shadow: 0 2px 8px rgba(21, 128, 61, 0.15);
         }
 
+        .nav-btn-queue {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+            position: relative;
+        }
+
+        .nav-btn-queue:hover {
+            background: #fde68a;
+            box-shadow: 0 2px 8px rgba(146, 64, 14, 0.15);
+        }
+
+        .queue-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+            background: #f59e0b;
+            border-radius: 9px;
+            margin-left: 4px;
+        }
+
+        .queue-badge.has-items {
+            background: #ef4444;
+            animation: pulse-badge 2s infinite;
+        }
+
+        @keyframes pulse-badge {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* Queue Panel Styles */
+        .queue-panel {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            width: 380px;
+            max-height: 80vh;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            overflow: hidden;
+            display: none;
+        }
+
+        .queue-panel.open {
+            display: block;
+        }
+
+        .queue-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-bottom: 1px solid #fcd34d;
+        }
+
+        .queue-panel-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #92400e;
+            margin: 0;
+        }
+
+        .queue-panel-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #92400e;
+            padding: 4px;
+        }
+
+        .queue-panel-body {
+            padding: 16px 20px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .queue-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .queue-stat {
+            text-align: center;
+            padding: 12px 8px;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .queue-stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .queue-stat-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .queue-stat.pending .queue-stat-value { color: #f59e0b; }
+        .queue-stat.processing .queue-stat-value { color: #3b82f6; }
+        .queue-stat.completed .queue-stat-value { color: #22c55e; }
+        .queue-stat.failed .queue-stat-value { color: #ef4444; }
+
+        .staleness-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .staleness-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .staleness-header h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1e293b;
+            margin: 0;
+        }
+
+        .staleness-summary {
+            font-size: 12px;
+            color: #64748b;
+        }
+
+        .stale-records-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .stale-record-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #fef2f2;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+
+        .stale-record-item.critical {
+            background: #fef2f2;
+            border-left: 3px solid #ef4444;
+        }
+
+        .stale-record-item.warning {
+            background: #fffbeb;
+            border-left: 3px solid #f59e0b;
+        }
+
+        .queue-actions {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 8px;
+        }
+
+        .queue-action-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .queue-action-btn.primary {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .queue-action-btn.primary:hover {
+            background: #d97706;
+        }
+
+        .queue-action-btn.secondary {
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+
+        .queue-action-btn.secondary:hover {
+            background: #e2e8f0;
+        }
+
         .nav-btn-download {
             background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
             color: white;
@@ -3330,6 +3538,12 @@
                         <span id="pollCountdown" class="text-xs text-gray-400"></span>
                     </div>
 
+                    <!-- Queue Status Indicator -->
+                    <button id="queueStatusBtn" onclick="toggleQueuePanel()" class="nav-action-btn nav-btn-queue" title="Update Queue Status">
+                        <span>Queue</span>
+                        <span id="queuePendingBadge" class="queue-badge" style="display: none;">0</span>
+                    </button>
+
                     <!-- Action Buttons -->
                     <button id="refreshBtn" onclick="manualRefresh()" class="nav-action-btn nav-btn-refresh" title="Refresh data">
                         <span>Refresh</span>
@@ -4157,9 +4371,14 @@
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Full Case Record</p>
                     <h3 id="caseModalTitle" class="text-xl font-bold text-gray-900">Docket #</h3>
                 </div>
-                <button class="text-gray-400 hover:text-gray-600 text-2xl leading-none p-2" onclick="hideCaseModal()" aria-label="Close case detail">
-                    &times;
-                </button>
+                <div class="flex items-center gap-2">
+                    <button id="requestRefreshBtn" onclick="requestCurrentRecordRefresh()" class="text-sm px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors flex items-center gap-1" title="Request fresh data from court system">
+                        <span>Request Refresh</span>
+                    </button>
+                    <button class="text-gray-400 hover:text-gray-600 text-2xl leading-none p-2" onclick="hideCaseModal()" aria-label="Close case detail">
+                        &times;
+                    </button>
+                </div>
             </div>
             <div id="caseModalContent" class="p-6 max-h-[80vh] overflow-y-auto">
                 <!-- Case Overview Meta Cards -->
@@ -4167,6 +4386,56 @@
 
                 <!-- Sections Container -->
                 <div id="caseModalSections" class="space-y-6"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Queue Status Panel -->
+    <div id="queuePanel" class="queue-panel">
+        <div class="queue-panel-header">
+            <h3>Update Queue</h3>
+            <button class="queue-panel-close" onclick="toggleQueuePanel()">&times;</button>
+        </div>
+        <div class="queue-panel-body">
+            <!-- Queue Stats -->
+            <div class="queue-stats">
+                <div class="queue-stat pending">
+                    <div id="queuePending" class="queue-stat-value">0</div>
+                    <div class="queue-stat-label">Pending</div>
+                </div>
+                <div class="queue-stat processing">
+                    <div id="queueProcessing" class="queue-stat-value">0</div>
+                    <div class="queue-stat-label">Processing</div>
+                </div>
+                <div class="queue-stat completed">
+                    <div id="queueCompleted" class="queue-stat-value">0</div>
+                    <div class="queue-stat-label">Completed</div>
+                </div>
+                <div class="queue-stat failed">
+                    <div id="queueFailed" class="queue-stat-value">0</div>
+                    <div class="queue-stat-label">Failed</div>
+                </div>
+            </div>
+
+            <!-- Staleness Section -->
+            <div class="staleness-section">
+                <div class="staleness-header">
+                    <h4>Stale Records</h4>
+                    <span id="stalenessCount" class="staleness-summary">0 records need refresh</span>
+                </div>
+                <div id="staleRecordsList" class="stale-records-list">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Queue Actions -->
+            <div class="queue-actions">
+                <button onclick="queueStaleRecords(25)" class="queue-action-btn primary">
+                    Queue Top 25 Stale
+                </button>
+                <button onclick="fetchQueueItems()" class="queue-action-btn secondary">
+                    Refresh Status
+                </button>
             </div>
         </div>
     </div>
@@ -6394,6 +6663,329 @@
             return queryString ? `${API_BASE}?${queryString}` : API_BASE;
         }
 
+        // =============================================
+        // PROCESS QUEUE API - Update Queue Management
+        // =============================================
+        const PROCESS_QUEUE_API = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/process_queue';
+
+        // Staleness thresholds in days by status
+        const STALENESS_THRESHOLDS = {
+            'Active': 7,      // Active cases: stale after 7 days
+            'Disposed': 30,   // Disposed cases: stale after 30 days
+            'Unknown': 14,    // Unknown status: check every 2 weeks
+            'default': 14     // Default threshold
+        };
+
+        // Queue state
+        let queueState = {
+            items: [],
+            pending: 0,
+            processing: 0,
+            completed: 0,
+            failed: 0,
+            lastFetched: null
+        };
+
+        /**
+         * Calculate staleness score for a record
+         * Score >= 1.0 means the record is considered stale
+         */
+        function calculateStalenessScore(record) {
+            const lastUpdated = record._last_updated;
+            if (!lastUpdated) return 2.0; // No timestamp = very stale
+
+            const daysSinceUpdate = (Date.now() - lastUpdated) / (1000 * 60 * 60 * 24);
+            const status = record.Status || 'Unknown';
+            const threshold = STALENESS_THRESHOLDS[status] || STALENESS_THRESHOLDS['default'];
+
+            // Base score: days since update / threshold
+            let score = daysSinceUpdate / threshold;
+
+            // Boost for upcoming important dates
+            if (record.eviction_date) {
+                const daysUntilEviction = (new Date(record.eviction_date) - Date.now()) / (1000 * 60 * 60 * 24);
+                if (daysUntilEviction > 0 && daysUntilEviction < 7) {
+                    score += 1.5; // Urgent: eviction within 7 days
+                }
+            }
+
+            return score;
+        }
+
+        /**
+         * Get staleness indicator for UI display
+         */
+        function getStalenessIndicator(record) {
+            const score = calculateStalenessScore(record);
+
+            if (score >= 2.0) return { level: 'critical', label: 'Very stale', class: 'stale-critical', color: '#ef4444' };
+            if (score >= 1.0) return { level: 'warning', label: 'Stale', class: 'stale-warning', color: '#f59e0b' };
+            if (score >= 0.7) return { level: 'ok', label: 'Aging', class: 'stale-ok', color: '#22c55e' };
+            return { level: 'fresh', label: 'Fresh', class: 'stale-fresh', color: '#3b82f6' };
+        }
+
+        /**
+         * Find all stale records in the dataset
+         */
+        function findStaleRecords(records = allData) {
+            return records
+                .map(r => ({ record: r, score: calculateStalenessScore(r) }))
+                .filter(({ score }) => score >= 1.0)
+                .sort((a, b) => b.score - a.score); // Most stale first
+        }
+
+        /**
+         * Get staleness metrics for the dataset
+         */
+        function getStalenessMetrics(records = allData) {
+            const stale = findStaleRecords(records);
+            const staleCount = stale.length;
+
+            return {
+                total: records.length,
+                staleCount: staleCount,
+                stalePercentage: records.length > 0 ? (staleCount / records.length * 100).toFixed(1) : '0',
+                byStatus: {
+                    'Active': stale.filter(s => s.record.Status === 'Active').length,
+                    'Disposed': stale.filter(s => s.record.Status === 'Disposed').length,
+                    'Other': stale.filter(s => !['Active', 'Disposed'].includes(s.record.Status)).length
+                },
+                mostStale: stale.slice(0, 10).map(s => ({
+                    docket: s.record.Docket_Number,
+                    status: s.record.Status,
+                    score: s.score.toFixed(2),
+                    lastUpdated: s.record._last_updated ? new Date(s.record._last_updated).toLocaleDateString() : 'Never'
+                }))
+            };
+        }
+
+        /**
+         * Fetch queue items from process_queue API
+         */
+        async function fetchQueueItems(options = {}) {
+            const params = new URLSearchParams();
+
+            if (options.start_date) {
+                params.append('start_date', options.start_date);
+            }
+            if (options.end_date) {
+                params.append('end_date', options.end_date);
+            }
+
+            const url = params.toString()
+                ? `${PROCESS_QUEUE_API}?${params.toString()}`
+                : PROCESS_QUEUE_API;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`Queue API error: ${response.status}`);
+                }
+                const items = await response.json();
+
+                // Update queue state
+                queueState.items = items;
+                queueState.pending = items.filter(i => i.status === 'pending').length;
+                queueState.processing = items.filter(i => i.status === 'processing').length;
+                queueState.completed = items.filter(i => i.status === 'completed').length;
+                queueState.failed = items.filter(i => i.status === 'failed').length;
+                queueState.lastFetched = Date.now();
+
+                updateQueueStatusUI();
+                return items;
+            } catch (error) {
+                console.error('Error fetching queue items:', error);
+                return [];
+            }
+        }
+
+        /**
+         * Add item(s) to the process queue
+         */
+        async function addToProcessQueue(entries) {
+            // Ensure entries is an array
+            const items = Array.isArray(entries) ? entries : [entries];
+
+            const results = [];
+            for (const entry of items) {
+                try {
+                    const response = await fetch(PROCESS_QUEUE_API, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            entity_id: entry.entity_id,
+                            trigger_type: entry.trigger_type || 'MANUAL',
+                            priority: entry.priority || 2,
+                            status: 'pending',
+                            last_known_status: entry.last_known_status || null
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Queue POST error: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    results.push({ success: true, data: result, entity_id: entry.entity_id });
+                } catch (error) {
+                    console.error('Error adding to queue:', error);
+                    results.push({ success: false, error: error.message, entity_id: entry.entity_id });
+                }
+            }
+
+            // Refresh queue state after adding
+            await fetchQueueItems();
+            return results;
+        }
+
+        /**
+         * Queue a single record for update
+         */
+        async function queueRecordForUpdate(record, triggerType = 'MANUAL') {
+            const docketNumber = record.Docket_Number || record._entity_id;
+            if (!docketNumber) {
+                console.error('Cannot queue record without Docket_Number');
+                return null;
+            }
+
+            return addToProcessQueue({
+                entity_id: docketNumber,
+                trigger_type: triggerType,
+                priority: triggerType === 'USER_REQUEST' ? 1 : 2,
+                last_known_status: record.Status || null
+            });
+        }
+
+        /**
+         * Queue all stale records for update
+         */
+        async function queueStaleRecords(limit = 50) {
+            const staleRecords = findStaleRecords();
+            const toQueue = staleRecords.slice(0, limit);
+
+            console.log(`Queueing ${toQueue.length} stale records for update`);
+
+            const entries = toQueue.map(({ record, score }) => ({
+                entity_id: record.Docket_Number || record._entity_id,
+                trigger_type: score >= 2.0 ? 'STALENESS_CRITICAL' : 'STALENESS_AGE',
+                priority: score >= 2.0 ? 1 : 2,
+                last_known_status: record.Status || null
+            }));
+
+            return addToProcessQueue(entries);
+        }
+
+        /**
+         * Check if a record is already in the queue
+         */
+        function isRecordInQueue(docketNumber) {
+            return queueState.items.some(
+                item => item.entity_id === docketNumber &&
+                       (item.status === 'pending' || item.status === 'processing')
+            );
+        }
+
+        /**
+         * Update queue status UI elements
+         */
+        function updateQueueStatusUI() {
+            const queueBadge = document.getElementById('queuePendingBadge');
+
+            if (queueBadge) {
+                const pendingCount = queueState.pending + queueState.processing;
+                queueBadge.textContent = pendingCount;
+                queueBadge.style.display = pendingCount > 0 ? 'inline-flex' : 'none';
+                queueBadge.classList.toggle('has-items', pendingCount > 0);
+            }
+
+            // Update panel stats if it exists
+            const pendingEl = document.getElementById('queuePending');
+            if (pendingEl) {
+                pendingEl.textContent = queueState.pending;
+                document.getElementById('queueProcessing').textContent = queueState.processing;
+                document.getElementById('queueCompleted').textContent = queueState.completed;
+                document.getElementById('queueFailed').textContent = queueState.failed;
+            }
+        }
+
+        /**
+         * Toggle queue panel visibility
+         */
+        function toggleQueuePanel() {
+            const panel = document.getElementById('queuePanel');
+            if (panel) {
+                const isOpening = !panel.classList.contains('open');
+                panel.classList.toggle('open');
+
+                // If opening, refresh the data
+                if (isOpening) {
+                    fetchQueueItems();
+                    updateStaleRecordsList();
+                }
+            }
+        }
+
+        /**
+         * Update the stale records list in the queue panel
+         */
+        function updateStaleRecordsList() {
+            const listEl = document.getElementById('staleRecordsList');
+            const countEl = document.getElementById('stalenessCount');
+
+            if (!listEl || !allData || allData.length === 0) return;
+
+            const staleRecords = findStaleRecords();
+            const top10 = staleRecords.slice(0, 10);
+
+            // Update count
+            if (countEl) {
+                countEl.textContent = `${staleRecords.length} records need refresh`;
+            }
+
+            // Build list HTML
+            if (top10.length === 0) {
+                listEl.innerHTML = '<div class="text-sm text-gray-500 text-center py-4">No stale records found</div>';
+                return;
+            }
+
+            listEl.innerHTML = top10.map(({ record, score }) => {
+                const isCritical = score >= 2.0;
+                const lastUpdated = record._last_updated
+                    ? new Date(record._last_updated).toLocaleDateString()
+                    : 'Never';
+                const inQueue = isRecordInQueue(record.Docket_Number || record._entity_id);
+
+                return `
+                    <div class="stale-record-item ${isCritical ? 'critical' : 'warning'}">
+                        <div>
+                            <div class="font-medium">${record.Docket_Number || 'Unknown'}</div>
+                            <div class="text-xs text-gray-500">${record.Status || 'Unknown'} | Updated: ${lastUpdated}</div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs px-2 py-1 rounded ${isCritical ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}">
+                                ${score.toFixed(1)}x
+                            </span>
+                            ${inQueue ? '<span class="text-xs text-blue-600">In Queue</span>' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /**
+         * Initialize queue system - call after data loads
+         */
+        async function initializeQueueSystem() {
+            try {
+                await fetchQueueItems();
+                console.log('Queue system initialized:', queueState);
+            } catch (error) {
+                console.error('Failed to initialize queue system:', error);
+            }
+        }
+
         // State for server-side pagination/filtering
         let serverPaginationState = {
             page: 1,
@@ -6844,6 +7436,11 @@
             } finally {
                 isLoadingData = false;
                 updateRefreshUI();
+
+                // Initialize queue system after data loads
+                if (allData && allData.length > 0) {
+                    initializeQueueSystem();
+                }
             }
         }
 
@@ -9937,8 +10534,14 @@
             return output || fallback;
         }
 
+        // Track current record being viewed in modal (for refresh requests)
+        let currentModalRecord = null;
+
         function showCaseModal(record) {
             if (!record) return;
+
+            // Store current record for refresh functionality
+            currentModalRecord = record;
 
             const modal = document.getElementById('caseModal');
             if (!modal) return;
@@ -10399,6 +11002,50 @@
             if (!modal) return;
             modal.classList.add('hidden');
             document.body.classList.remove('overflow-hidden');
+            currentModalRecord = null;
+        }
+
+        /**
+         * Request refresh for the current record being viewed in the modal
+         */
+        async function requestCurrentRecordRefresh() {
+            if (!currentModalRecord) {
+                console.error('No record currently being viewed');
+                return;
+            }
+
+            const btn = document.getElementById('requestRefreshBtn');
+            const originalText = btn.innerHTML;
+
+            try {
+                // Show loading state
+                btn.innerHTML = '<span class="animate-spin inline-block">...</span> Queuing...';
+                btn.disabled = true;
+
+                const result = await queueRecordForUpdate(currentModalRecord, 'USER_REQUEST');
+
+                if (result && result.length > 0 && result[0].success) {
+                    btn.innerHTML = '<span>Queued!</span>';
+                    btn.classList.remove('bg-amber-100', 'text-amber-700');
+                    btn.classList.add('bg-green-100', 'text-green-700');
+                    updateStatus(`Refresh requested for ${currentModalRecord.Docket_Number}`, 'success');
+                } else {
+                    throw new Error('Failed to queue record');
+                }
+            } catch (error) {
+                console.error('Error requesting refresh:', error);
+                btn.innerHTML = '<span>Error</span>';
+                btn.classList.remove('bg-amber-100', 'text-amber-700');
+                btn.classList.add('bg-red-100', 'text-red-700');
+            }
+
+            // Reset button after 2 seconds
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                btn.classList.remove('bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700');
+                btn.classList.add('bg-amber-100', 'text-amber-700');
+            }, 2000);
         }
 
         // District Demographics Modal
