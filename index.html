@@ -1030,7 +1030,39 @@
             -webkit-user-select: text;
             user-select: text;
         }
-        
+
+        /* Column group header colors */
+        .ag-theme-alpine .ag-header-cell.header-group-case {
+            background-color: #f3f4f6 !important; /* gray-100 */
+        }
+        .ag-theme-alpine .ag-header-cell.header-group-dates {
+            background-color: #dbeafe !important; /* blue-100 */
+        }
+        .ag-theme-alpine .ag-header-cell.header-group-parties {
+            background-color: #f3e8ff !important; /* purple-100 */
+        }
+        .ag-theme-alpine .ag-header-cell.header-group-location {
+            background-color: #dcfce7 !important; /* green-100 */
+        }
+        .ag-theme-alpine .ag-header-cell.header-group-district {
+            background-color: #ccfbf1 !important; /* teal-100 */
+        }
+        .ag-theme-alpine .ag-header-cell.header-group-judgment {
+            background-color: #ffedd5 !important; /* orange-100 */
+        }
+        .ag-theme-alpine .ag-header-cell.header-group-eviction {
+            background-color: #fee2e2 !important; /* red-100 */
+        }
+        .ag-theme-alpine .ag-header-cell.header-group-pleadings {
+            background-color: #fef9c3 !important; /* yellow-100 */
+        }
+        .ag-theme-alpine .ag-header-cell.header-group-judgments-array {
+            background-color: #fef3c7 !important; /* amber-100 */
+        }
+        .ag-theme-alpine .ag-header-cell.header-group-unknown {
+            background-color: #ffffff !important; /* white */
+        }
+
         .chart-container {
             position: relative;
             height: 320px;
@@ -4463,6 +4495,172 @@
         // Track dynamic case_data keys that appear in the Xano payload
         // These will be used to generate additional table columns and CSV export fields
         let dynamicCaseDataKeys = new Set();
+
+        // Track discovered array columns for expanded column generation
+        let discoveredArrayColumns = {
+            maxLengths: {},    // { pleadings: 11, judgments: 7 }
+            itemKeys: {}       // { pleadings: Set(['code','date','description',...]), judgments: Set([...]) }
+        };
+
+        // Column grouping configuration for color-coded headers
+        const columnGroups = {
+            case: {
+                headerClass: 'header-group-case',
+                keys: ['Docket_Number', 'Case_Number', 'Status', 'Office', 'Description']
+            },
+            dates: {
+                headerClass: 'header-group-dates',
+                keys: ['File_Date', 'filing_date', 'service_date', 'judgment_date', 'dismissal_date', 'paper_writ_date']
+            },
+            parties: {
+                headerClass: 'header-group-parties',
+                keys: ['Plaintiff_Petitioner', 'Plaintiff', 'Defendant_Respondent', 'Defendant', 'Attorney', 'Defense_Attorney']
+            },
+            location: {
+                headerClass: 'header-group-location',
+                keys: ['Address_1', 'Address_2', 'city_state_zip', 'address_formatted', 'Address', 'latitude', 'longitude', 'lat', 'lng']
+            },
+            district: {
+                headerClass: 'header-group-district',
+                keys: ['council_district', 'council_district_number', 'council_member', 'District']
+            },
+            judgment: {
+                headerClass: 'header-group-judgment',
+                keys: ['judgment_for', 'judgment_type', 'judge', 'case_dismissed']
+            },
+            eviction: {
+                headerClass: 'header-group-eviction',
+                keys: ['eviction_date', 'eviction_method', 'eviction_executed', 'writ_issued_date', 'writ_served_date']
+            },
+            pleadings: {
+                headerClass: 'header-group-pleadings',
+                pattern: /^pleadings(\[\d+\])?/
+            },
+            judgments_array: {
+                headerClass: 'header-group-judgments-array',
+                pattern: /^judgments(\[\d+\])?/
+            }
+        };
+
+        // Get the header CSS class for a column based on its field name
+        function getColumnHeaderClass(fieldName) {
+            for (const [group, config] of Object.entries(columnGroups)) {
+                if (config.keys && config.keys.includes(fieldName)) {
+                    return config.headerClass;
+                }
+                if (config.pattern && config.pattern.test(fieldName)) {
+                    return config.headerClass;
+                }
+            }
+            return 'header-group-unknown';
+        }
+
+        // Shorten array column names for display (pleadings[0].code → p0.code)
+        function shortColumnName(key) {
+            return key
+                .replace('pleadings[', 'p')
+                .replace('judgments[', 'j')
+                .replace('].', '.');
+        }
+
+        // Discover all columns from case data including array expansions
+        function discoverAllColumns(cases) {
+            const scalarKeys = new Set();
+
+            cases.forEach(record => {
+                Object.entries(record).forEach(([key, val]) => {
+                    if (Array.isArray(val)) {
+                        // Track max length
+                        discoveredArrayColumns.maxLengths[key] = Math.max(
+                            discoveredArrayColumns.maxLengths[key] || 0,
+                            val.length
+                        );
+
+                        // Discover keys within array items
+                        if (!discoveredArrayColumns.itemKeys[key]) {
+                            discoveredArrayColumns.itemKeys[key] = new Set();
+                        }
+                        val.forEach(item => {
+                            if (typeof item === 'object' && item !== null) {
+                                Object.keys(item).forEach(k => discoveredArrayColumns.itemKeys[key].add(k));
+                            }
+                        });
+                    } else if (typeof val === 'object' && val !== null) {
+                        // Nested object - flatten with dot notation
+                        Object.keys(val).forEach(k => scalarKeys.add(`${key}.${k}`));
+                    } else {
+                        scalarKeys.add(key);
+                    }
+                });
+            });
+
+            return {
+                scalarKeys: Array.from(scalarKeys),
+                arrayMaxLengths: discoveredArrayColumns.maxLengths,
+                arrayItemKeys: discoveredArrayColumns.itemKeys
+            };
+        }
+
+        // Generate expanded array column definitions
+        function getArrayColumnDefs() {
+            const arrayCols = [];
+
+            // Process each discovered array type
+            for (const [arrayName, maxLength] of Object.entries(discoveredArrayColumns.maxLengths)) {
+                const itemKeys = discoveredArrayColumns.itemKeys[arrayName];
+                if (!itemKeys || itemKeys.size === 0) continue;
+
+                // Sort item keys for consistent column order
+                const sortedItemKeys = Array.from(itemKeys).sort();
+
+                // Generate columns for each array index and each item key
+                for (let i = 0; i < maxLength; i++) {
+                    for (const itemKey of sortedItemKeys) {
+                        const fullFieldName = `${arrayName}[${i}].${itemKey}`;
+                        const shortName = shortColumnName(fullFieldName);
+
+                        arrayCols.push({
+                            field: fullFieldName,
+                            headerName: shortName,
+                            headerClass: getColumnHeaderClass(arrayName),
+                            width: itemKey === 'code' ? 70 : (itemKey === 'date' ? 90 : 120),
+                            valueGetter: params => {
+                                const arr = params.data[arrayName];
+                                if (!arr || !Array.isArray(arr) || !arr[i]) return null;
+                                return arr[i][itemKey];
+                            },
+                            cellRenderer: params => {
+                                if (params.value === null || params.value === undefined || params.value === '') {
+                                    return '<span class="text-gray-400">—</span>';
+                                }
+                                // Handle date fields
+                                if (itemKey.toLowerCase().includes('date') && params.value) {
+                                    try {
+                                        const date = new Date(params.value);
+                                        if (!isNaN(date.getTime())) {
+                                            return date.toLocaleDateString();
+                                        }
+                                    } catch (e) {}
+                                }
+                                // Handle boolean values
+                                if (typeof params.value === 'boolean') {
+                                    return params.value ? 'Yes' : 'No';
+                                }
+                                // Truncate long values
+                                const strVal = String(params.value);
+                                if (strVal.length > 30) {
+                                    return `<span title="${strVal.replace(/"/g, '&quot;')}">${strVal.substring(0, 27)}...</span>`;
+                                }
+                                return strVal;
+                            }
+                        });
+                    }
+                }
+            }
+
+            return arrayCols;
+        }
+
         let monthlyChart;
         let searchMatches = [];
         let pivotData = [];
@@ -5569,7 +5767,7 @@
         let nameFilter = null;
 
         const recordColumnDefs = [
-            { field: 'File_Date', headerName: 'File Date', width: 110,
+            { field: 'File_Date', headerName: 'File Date', headerClass: 'header-group-dates', width: 110,
               valueFormatter: params => new Date(params.value).toLocaleDateString(),
               comparator: (valueA, valueB) => {
                   const dateA = valueA ? new Date(valueA).getTime() : 0;
@@ -5577,15 +5775,15 @@
                   return dateA - dateB;
               },
               sort: 'desc', sortIndex: 0 },
-            { field: 'Case_Number', headerName: 'Docket #', width: 120 },
-            { field: 'Plaintiff', headerName: 'Plaintiff/Landlord', width: 250,
+            { field: 'Case_Number', headerName: 'Docket #', headerClass: 'header-group-case', width: 120 },
+            { field: 'Plaintiff', headerName: 'Plaintiff/Landlord', headerClass: 'header-group-parties', width: 250,
               cellRenderer: params => {
                   if (!params.value) return '';
                   const escapedValue = String(params.value).replace(/'/g, "\\'").replace(/"/g, '&quot;');
                   return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer" onclick="event.stopPropagation(); filterByName('${escapedValue}', 'plaintiff');">${params.value}</span>`;
               }
             },
-            { field: 'Defendant', headerName: 'Defendant/Tenant', width: 250,
+            { field: 'Defendant', headerName: 'Defendant/Tenant', headerClass: 'header-group-parties', width: 250,
               cellRenderer: params => {
                   if (!params.value) return '';
                   const displayName = getDefendantDisplayName(params.value);
@@ -5601,27 +5799,27 @@
                   }
               }
             },
-            { field: 'Attorney', headerName: 'Landlord Attorney', width: 200,
+            { field: 'Attorney', headerName: 'Landlord Attorney', headerClass: 'header-group-parties', width: 200,
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
                   const escapedValue = String(params.value).replace(/'/g, "\\'").replace(/"/g, '&quot;');
                   return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer" onclick="event.stopPropagation(); filterByName('${escapedValue}', 'attorney');">${params.value}</span>`;
               }
             },
-            { field: 'Defense_Attorney', headerName: 'Defense Attorney', width: 200,
+            { field: 'Defense_Attorney', headerName: 'Defense Attorney', headerClass: 'header-group-parties', width: 200,
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
                   const escapedValue = String(params.value).replace(/'/g, "\\'").replace(/"/g, '&quot;');
                   return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer" onclick="event.stopPropagation(); filterByName('${escapedValue}', 'defenseAttorney');">${params.value}</span>`;
               }
             },
-            { field: 'Address', headerName: 'Address', width: 250,
+            { field: 'Address', headerName: 'Address', headerClass: 'header-group-location', width: 250,
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
                   return `<span>${params.value}</span>`;
               }
             },
-            { field: 'District', headerName: 'Council District', width: 140,
+            { field: 'District', headerName: 'Council District', headerClass: 'header-group-district', width: 140,
               cellRenderer: params => {
                   if (!params.value || params.value === 'Unknown') return '<span class="text-gray-400">—</span>';
                   return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer" onclick="event.stopPropagation(); filterByDistrict('${params.value}');">District ${params.value}</span>`;
@@ -5633,7 +5831,7 @@
               }
             },
             // Backfill data columns
-            { field: 'Status', headerName: 'Status', width: 110,
+            { field: 'Status', headerName: 'Status', headerClass: 'header-group-case', width: 110,
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
                   const statusColors = {
@@ -5653,7 +5851,7 @@
                   </div>`;
               }
             },
-            { field: 'pleadings', headerName: 'Pleadings', width: 100,
+            { field: 'pleadings', headerName: 'Pleadings', headerClass: 'header-group-pleadings', width: 100,
               cellRenderer: params => {
                   if (!params.value || !Array.isArray(params.value) || params.value.length === 0) {
                       return '<span class="text-gray-400">—</span>';
@@ -5664,7 +5862,7 @@
                   return `<span class="text-indigo-600 cursor-help" title="${tooltip}">${count} filing${count > 1 ? 's' : ''}</span>`;
               }
             },
-            { field: 'judgments', headerName: 'Judgments', width: 100,
+            { field: 'judgments', headerName: 'Judgments', headerClass: 'header-group-judgments-array', width: 100,
               cellRenderer: params => {
                   if (!params.value || !Array.isArray(params.value) || params.value.length === 0) {
                       return '<span class="text-gray-400">—</span>';
@@ -5674,14 +5872,14 @@
                   return `<span class="text-red-600 cursor-help" title="${tooltip}">${count}</span>`;
               }
             },
-            { field: 'service_date', headerName: 'Service Date', width: 110,
+            { field: 'service_date', headerName: 'Service Date', headerClass: 'header-group-dates', width: 110,
               valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
                   return new Date(params.value).toLocaleDateString();
               }
             },
-            { field: 'paper_writ_date', headerName: 'Paper Writ Date', width: 120,
+            { field: 'paper_writ_date', headerName: 'Paper Writ Date', headerClass: 'header-group-eviction', width: 120,
               valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
@@ -5693,21 +5891,21 @@
                   return dateA - dateB;
               }
             },
-            { field: 'judgment_date', headerName: 'Judgment Date', width: 120,
+            { field: 'judgment_date', headerName: 'Judgment Date', headerClass: 'header-group-dates', width: 120,
               valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
                   return new Date(params.value).toLocaleDateString();
               }
             },
-            { field: 'judgment_for', headerName: 'Judgment For', width: 110,
+            { field: 'judgment_for', headerName: 'Judgment For', headerClass: 'header-group-judgment', width: 110,
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
                   const colorClass = params.value.toLowerCase().includes('plaintiff') ? 'text-red-600' : 'text-green-600';
                   return `<span class="${colorClass}">${params.value}</span>`;
               }
             },
-            { field: 'case_dismissed', headerName: 'Dismissed', width: 90,
+            { field: 'case_dismissed', headerName: 'Dismissed', headerClass: 'header-group-judgment', width: 90,
               cellRenderer: params => {
                   if (params.value === true) return '<span class="text-green-600 font-medium">Yes</span>';
                   if (params.value === false) return '<span class="text-gray-400">No</span>';
@@ -5716,7 +5914,7 @@
             },
             // eviction_executed, eviction_date, eviction_method removed - these were derived/interpreted fields
             // Raw data is in pleadings[] and writ_issued_date/writ_served_date
-            { field: 'judge', headerName: 'Judge', width: 150,
+            { field: 'judge', headerName: 'Judge', headerClass: 'header-group-judgment', width: 150,
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
                   return params.value;
@@ -5743,6 +5941,7 @@
                 dynamicCols.push({
                     field: key,
                     headerName: formatDynamicColumnHeader(key),
+                    headerClass: getColumnHeaderClass(key),
                     width: 150,
                     cellRenderer: params => {
                         if (params.value === null || params.value === undefined || params.value === '') {
@@ -5763,9 +5962,9 @@
             return dynamicCols;
         }
 
-        // Get full column definitions (base + dynamic)
+        // Get full column definitions (base + dynamic + expanded arrays)
         function getFullRecordColumnDefs() {
-            return [...recordColumnDefs, ...getDynamicColumnDefs()];
+            return [...recordColumnDefs, ...getDynamicColumnDefs(), ...getArrayColumnDefs()];
         }
 
         // Initialize on load
@@ -7455,6 +7654,53 @@
                 _logged_at: record._logged_at,
                 _action: record._action
             };
+
+            // Derive fields from pleadings array if not already set
+            if (Array.isArray(normalized.pleadings) && normalized.pleadings.length > 0) {
+                // Extract service_date from summons pleading
+                if (!normalized.service_date) {
+                    const summonsPleading = normalized.pleadings.find(p =>
+                        p.code && ['SP', 'SPD', 'SP1', 'SUMMONS'].includes(p.code.toUpperCase()) ||
+                        (p.description && p.description.toUpperCase().includes('SUMMONS'))
+                    );
+                    if (summonsPleading && summonsPleading.date) {
+                        normalized.service_date = summonsPleading.date;
+                    }
+                }
+
+                // Extract paper_writ_date from paper return pleading
+                if (!normalized.paper_writ_date) {
+                    const paperWritPleading = normalized.pleadings.find(p =>
+                        p.code === 'PRA' ||
+                        (p.description && p.description.toUpperCase().includes('PAPER RETURN'))
+                    );
+                    if (paperWritPleading && paperWritPleading.date) {
+                        normalized.paper_writ_date = paperWritPleading.date;
+                    }
+                }
+
+                // Extract judgment_date and judgment_for from judgment pleadings
+                if (!normalized.judgment_date || !normalized.judgment_for) {
+                    const judgmentPleading = normalized.pleadings.find(p =>
+                        p.code && ['DJD', 'JUD', 'JUDGMENT'].includes(p.code.toUpperCase()) ||
+                        (p.description && p.description.toUpperCase().includes('JUDGMENT'))
+                    );
+                    if (judgmentPleading) {
+                        if (!normalized.judgment_date && judgmentPleading.date) {
+                            normalized.judgment_date = judgmentPleading.date;
+                        }
+                        if (!normalized.judgment_for && judgmentPleading.detail) {
+                            // Try to extract who judgment is for from detail field
+                            const detail = String(judgmentPleading.detail).toUpperCase();
+                            if (detail.includes('PLAINTIFF') || detail.includes('POSSESSION')) {
+                                normalized.judgment_for = 'Plaintiff';
+                            } else if (detail.includes('DEFENDANT') || detail.includes('DISMISSED')) {
+                                normalized.judgment_for = 'Defendant';
+                            }
+                        }
+                    }
+                }
+            }
 
             return normalized;
         }
@@ -9576,6 +9822,32 @@
         }
 
         function initGrid() {
+            // Discover array column structure from current data
+            if (allData && allData.length > 0) {
+                discoverAllColumns(allData);
+
+                // Debug: Log sample record fields
+                const sampleRecord = allData[0];
+                console.group('📊 Column Discovery');
+                console.log('Sample record fields:', Object.keys(sampleRecord));
+                if (sampleRecord.pleadings) {
+                    console.log('  pleadings:', sampleRecord.pleadings.length, 'items');
+                    console.log('  pleadings[0] keys:', sampleRecord.pleadings[0] ? Object.keys(sampleRecord.pleadings[0]) : 'empty');
+                }
+                if (sampleRecord.judgments) {
+                    console.log('  judgments:', sampleRecord.judgments.length, 'items');
+                }
+
+                if (Object.keys(discoveredArrayColumns.maxLengths).length > 0) {
+                    console.log('Array max lengths:', discoveredArrayColumns.maxLengths);
+                    console.log('Array item keys:', Object.fromEntries(
+                        Object.entries(discoveredArrayColumns.itemKeys).map(([k, v]) => [k, Array.from(v)])
+                    ));
+                    console.log('Generated array columns:', getArrayColumnDefs().length);
+                }
+                console.groupEnd();
+            }
+
             const gridOptions = {
                 columnDefs: getFullRecordColumnDefs(),
                 rowData: filteredData,
