@@ -5176,7 +5176,8 @@
         }
 
         // Generate expanded array column definitions
-        function getArrayColumnDefs() {
+        // Also registers them as discovered columns for the column selector
+        function getArrayColumnDefs(filterByVisibility = true) {
             const arrayCols = [];
 
             // Process each discovered array type
@@ -5192,42 +5193,50 @@
                     for (const itemKey of sortedItemKeys) {
                         const fullFieldName = `${arrayName}[${i}].${itemKey}`;
                         const shortName = shortColumnName(fullFieldName);
+                        // Readable label for column selector: "Pleading 1 Code" instead of "p0.code"
+                        const readableLabel = `${arrayName.charAt(0).toUpperCase() + arrayName.slice(1, -1)} ${i + 1} ${itemKey.charAt(0).toUpperCase() + itemKey.slice(1).replace(/_/g, ' ')}`;
 
-                        arrayCols.push({
-                            field: fullFieldName,
-                            headerName: shortName,
-                            headerClass: getColumnHeaderClass(arrayName),
-                            width: itemKey === 'code' ? 70 : (itemKey === 'date' ? 90 : 120),
-                            valueGetter: params => {
-                                const arr = params.data[arrayName];
-                                if (!arr || !Array.isArray(arr) || !arr[i]) return null;
-                                return arr[i][itemKey];
-                            },
-                            cellRenderer: params => {
-                                if (params.value === null || params.value === undefined || params.value === '') {
-                                    return '<span class="text-gray-400">—</span>';
+                        // Register as discovered column (non-core, hidden by default)
+                        addDiscoveredColumn(fullFieldName, readableLabel, 'arrays');
+
+                        // Only include if visible (or if not filtering)
+                        if (!filterByVisibility || isColumnVisible(fullFieldName)) {
+                            arrayCols.push({
+                                field: fullFieldName,
+                                headerName: readableLabel,
+                                headerClass: getColumnHeaderClass(arrayName),
+                                width: itemKey === 'code' ? 100 : (itemKey === 'date' ? 120 : 150),
+                                valueGetter: params => {
+                                    const arr = params.data[arrayName];
+                                    if (!arr || !Array.isArray(arr) || !arr[i]) return null;
+                                    return arr[i][itemKey];
+                                },
+                                cellRenderer: params => {
+                                    if (params.value === null || params.value === undefined || params.value === '') {
+                                        return '<span class="text-gray-400">—</span>';
+                                    }
+                                    // Handle date fields
+                                    if (itemKey.toLowerCase().includes('date') && params.value) {
+                                        try {
+                                            const date = new Date(params.value);
+                                            if (!isNaN(date.getTime())) {
+                                                return date.toLocaleDateString();
+                                            }
+                                        } catch (e) {}
+                                    }
+                                    // Handle boolean values
+                                    if (typeof params.value === 'boolean') {
+                                        return params.value ? 'Yes' : 'No';
+                                    }
+                                    // Truncate long values
+                                    const strVal = String(params.value);
+                                    if (strVal.length > 30) {
+                                        return `<span title="${strVal.replace(/"/g, '&quot;')}">${strVal.substring(0, 27)}...</span>`;
+                                    }
+                                    return strVal;
                                 }
-                                // Handle date fields
-                                if (itemKey.toLowerCase().includes('date') && params.value) {
-                                    try {
-                                        const date = new Date(params.value);
-                                        if (!isNaN(date.getTime())) {
-                                            return date.toLocaleDateString();
-                                        }
-                                    } catch (e) {}
-                                }
-                                // Handle boolean values
-                                if (typeof params.value === 'boolean') {
-                                    return params.value ? 'Yes' : 'No';
-                                }
-                                // Truncate long values
-                                const strVal = String(params.value);
-                                if (strVal.length > 30) {
-                                    return `<span title="${strVal.replace(/"/g, '&quot;')}">${strVal.substring(0, 27)}...</span>`;
-                                }
-                                return strVal;
-                            }
-                        });
+                            });
+                        }
                     }
                 }
             }
@@ -5502,8 +5511,35 @@
             judgment: { label: 'Judgment', bgColor: '#fee2e2', textColor: '#dc2626' },
             eviction: { label: 'Eviction', bgColor: '#ffe4e6', textColor: '#e11d48' },
             pleadings: { label: 'Pleadings', bgColor: '#e0e7ff', textColor: '#4f46e5' },
-            judgments: { label: 'Judgments', bgColor: '#fce7f3', textColor: '#db2777' }
+            judgments: { label: 'Judgments', bgColor: '#fce7f3', textColor: '#db2777' },
+            discovered: { label: 'JSON Fields', bgColor: '#f5f5f4', textColor: '#57534e' },
+            arrays: { label: 'Expanded Arrays', bgColor: '#fef3c7', textColor: '#92400e' }
         };
+
+        // Dynamically discovered columns from JSON data (non-core, hidden by default)
+        let discoveredTableColumns = [];
+        let discoveredExportColumns = [];
+
+        // Add a discovered column if it doesn't already exist
+        function addDiscoveredColumn(field, label, category = 'discovered') {
+            // Check if already in ALL_COLUMNS or discoveredTableColumns
+            const existsInAll = ALL_COLUMNS.some(c => c.field === field);
+            const existsInDiscovered = discoveredTableColumns.some(c => c.field === field);
+
+            if (!existsInAll && !existsInDiscovered) {
+                discoveredTableColumns.push({
+                    field: field,
+                    label: label,
+                    category: category,
+                    isCore: false
+                });
+            }
+        }
+
+        // Get all columns including discovered ones
+        function getAllColumnsWithDiscovered() {
+            return [...ALL_COLUMNS, ...discoveredTableColumns];
+        }
 
         // Current visible columns (loaded from localStorage or defaults)
         let visibleTableColumns = null;
@@ -6679,37 +6715,46 @@
         }
 
         // Get dynamic column definitions based on discovered case_data keys
-        function getDynamicColumnDefs() {
+        // Also registers them as discovered columns for the column selector
+        function getDynamicColumnDefs(filterByVisibility = true) {
             const dynamicCols = [];
             // Sort keys alphabetically for consistent column order
             const sortedKeys = Array.from(dynamicCaseDataKeys).sort();
 
             for (const key of sortedKeys) {
-                dynamicCols.push({
-                    field: key,
-                    headerName: formatDynamicColumnHeader(key),
-                    headerClass: getColumnHeaderClass(key),
-                    width: 150,
-                    cellRenderer: params => {
-                        if (params.value === null || params.value === undefined || params.value === '') {
-                            return '<span class="text-gray-400">—</span>';
+                const label = formatDynamicColumnHeader(key);
+                // Register as discovered column (non-core, hidden by default)
+                addDiscoveredColumn(key, label, 'discovered');
+
+                // Only include if visible (or if not filtering)
+                if (!filterByVisibility || isColumnVisible(key)) {
+                    dynamicCols.push({
+                        field: key,
+                        headerName: label,
+                        headerClass: getColumnHeaderClass(key),
+                        width: 150,
+                        cellRenderer: params => {
+                            if (params.value === null || params.value === undefined || params.value === '') {
+                                return '<span class="text-gray-400">—</span>';
+                            }
+                            // Handle boolean values
+                            if (typeof params.value === 'boolean') {
+                                return params.value ? 'Yes' : 'No';
+                            }
+                            // Handle objects/arrays - display as JSON
+                            if (typeof params.value === 'object') {
+                                return `<span title="${JSON.stringify(params.value).replace(/"/g, '&quot;')}">[Object]</span>`;
+                            }
+                            return String(params.value);
                         }
-                        // Handle boolean values
-                        if (typeof params.value === 'boolean') {
-                            return params.value ? 'Yes' : 'No';
-                        }
-                        // Handle objects/arrays - display as JSON
-                        if (typeof params.value === 'object') {
-                            return `<span title="${JSON.stringify(params.value).replace(/"/g, '&quot;')}">[Object]</span>`;
-                        }
-                        return String(params.value);
-                    }
-                });
+                    });
+                }
             }
             return dynamicCols;
         }
 
         // Get full column definitions (base + dynamic + expanded arrays)
+        // All columns are filtered by visibility preferences
         function getFullRecordColumnDefs() {
             // Load column preferences if not already loaded
             if (!visibleTableColumns) loadColumnPreferences();
@@ -6717,8 +6762,7 @@
             // Filter base columns by visibility
             const filteredBaseCols = recordColumnDefs.filter(col => isColumnVisible(col.field));
 
-            // Dynamic and array columns are always included if they exist
-            // (these are auto-discovered and not part of the standard column config)
+            // Dynamic and array columns are also filtered by visibility (default hidden)
             return [...filteredBaseCols, ...getDynamicColumnDefs(), ...getArrayColumnDefs()];
         }
 
@@ -10928,7 +10972,11 @@
                     console.log('Array item keys:', Object.fromEntries(
                         Object.entries(discoveredArrayColumns.itemKeys).map(([k, v]) => [k, Array.from(v)])
                     ));
-                    console.log('Generated array columns:', getArrayColumnDefs().length);
+                    // Register all discovered columns (without filtering) so they appear in column selector
+                    // This ensures they're available for the column selector even if hidden by default
+                    getArrayColumnDefs(false);
+                    getDynamicColumnDefs(false);
+                    console.log('Registered discovered columns:', discoveredTableColumns.length);
                 }
                 console.groupEnd();
             }
@@ -13945,11 +13993,12 @@
 
         function renderColumnSelector() {
             const container = document.getElementById('columnSelectorContent');
-            const categoryOrder = ['case', 'dates', 'parties', 'location', 'district', 'judgment', 'eviction', 'pleadings', 'judgments'];
+            const categoryOrder = ['case', 'dates', 'parties', 'location', 'district', 'judgment', 'eviction', 'pleadings', 'judgments', 'discovered', 'arrays'];
 
-            // Group columns by category
+            // Group columns by category (including discovered columns)
+            const allColumns = getAllColumnsWithDiscovered();
             const grouped = {};
-            ALL_COLUMNS.forEach(col => {
+            allColumns.forEach(col => {
                 if (!grouped[col.category]) grouped[col.category] = [];
                 grouped[col.category].push(col);
             });
@@ -13998,7 +14047,7 @@
         }
 
         function selectAllTableColumns() {
-            tempTableColumns = ALL_COLUMNS.map(c => c.field);
+            tempTableColumns = getAllColumnsWithDiscovered().map(c => c.field);
             renderColumnSelector();
         }
 
