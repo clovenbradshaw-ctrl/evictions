@@ -1100,6 +1100,36 @@
             50% { opacity: 0.7; transform: scale(1.2); }
         }
 
+        /* Status "as of" timestamp card - shows when data was observed */
+        .status-as-of {
+            display: inline-block;
+            margin-top: 2px;
+            padding: 1px 4px;
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 3px;
+            font-size: 9px;
+            color: #6b7280;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        .status-as-of-label {
+            font-style: italic;
+        }
+
+        /* For the modal meta card version */
+        .meta-status-as-of {
+            margin-top: 4px;
+            padding: 2px 6px;
+            background: rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 4px;
+            font-size: 10px;
+            color: #6b7280;
+            font-style: italic;
+        }
+
         /* Animate spin for refresh button */
         .animate-spin {
             animation: spin 1s linear infinite;
@@ -5603,7 +5633,7 @@
               }
             },
             // Backfill data columns
-            { field: 'Status', headerName: 'Status', width: 100,
+            { field: 'Status', headerName: 'Status', width: 110,
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
                   const statusColors = {
@@ -5613,7 +5643,14 @@
                       'JUDGMENT': 'bg-red-100 text-red-800'
                   };
                   const colorClass = statusColors[params.value.toUpperCase()] || 'bg-blue-100 text-blue-800';
-                  return `<span class="px-2 py-0.5 rounded text-xs font-medium ${colorClass}">${params.value}</span>`;
+                  // Get the "as of" timestamp for when data was observed
+                  const storedTs = localStorage.getItem('evictionDataTimestamp');
+                  const asOfDate = storedTs ? new Date(parseInt(storedTs)).toLocaleDateString() : '';
+                  const asOfHtml = asOfDate ? `<div class="status-as-of"><span class="status-as-of-label">as of</span> ${asOfDate}</div>` : '';
+                  return `<div style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
+                      <span class="px-2 py-0.5 rounded text-xs font-medium ${colorClass}">${params.value}</span>
+                      ${asOfHtml}
+                  </div>`;
               }
             },
             { field: 'pleadings', headerName: 'Pleadings', width: 100,
@@ -9711,6 +9748,18 @@
 
                 card.appendChild(labelEl);
                 card.appendChild(valueEl);
+
+                // Add "as of" timestamp for Status field (observation, not fact)
+                if (entry.label === 'Status') {
+                    const storedTs = localStorage.getItem('evictionDataTimestamp');
+                    if (storedTs) {
+                        const asOfEl = document.createElement('p');
+                        asOfEl.className = 'meta-status-as-of';
+                        asOfEl.textContent = `as of ${new Date(parseInt(storedTs)).toLocaleDateString()}`;
+                        card.appendChild(asOfEl);
+                    }
+                }
+
                 metaContainer.appendChild(card);
             });
 
