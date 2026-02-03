@@ -7655,6 +7655,53 @@
                 _action: record._action
             };
 
+            // Derive fields from pleadings array if not already set
+            if (Array.isArray(normalized.pleadings) && normalized.pleadings.length > 0) {
+                // Extract service_date from summons pleading
+                if (!normalized.service_date) {
+                    const summonsPleading = normalized.pleadings.find(p =>
+                        p.code && ['SP', 'SPD', 'SP1', 'SUMMONS'].includes(p.code.toUpperCase()) ||
+                        (p.description && p.description.toUpperCase().includes('SUMMONS'))
+                    );
+                    if (summonsPleading && summonsPleading.date) {
+                        normalized.service_date = summonsPleading.date;
+                    }
+                }
+
+                // Extract paper_writ_date from paper return pleading
+                if (!normalized.paper_writ_date) {
+                    const paperWritPleading = normalized.pleadings.find(p =>
+                        p.code === 'PRA' ||
+                        (p.description && p.description.toUpperCase().includes('PAPER RETURN'))
+                    );
+                    if (paperWritPleading && paperWritPleading.date) {
+                        normalized.paper_writ_date = paperWritPleading.date;
+                    }
+                }
+
+                // Extract judgment_date and judgment_for from judgment pleadings
+                if (!normalized.judgment_date || !normalized.judgment_for) {
+                    const judgmentPleading = normalized.pleadings.find(p =>
+                        p.code && ['DJD', 'JUD', 'JUDGMENT'].includes(p.code.toUpperCase()) ||
+                        (p.description && p.description.toUpperCase().includes('JUDGMENT'))
+                    );
+                    if (judgmentPleading) {
+                        if (!normalized.judgment_date && judgmentPleading.date) {
+                            normalized.judgment_date = judgmentPleading.date;
+                        }
+                        if (!normalized.judgment_for && judgmentPleading.detail) {
+                            // Try to extract who judgment is for from detail field
+                            const detail = String(judgmentPleading.detail).toUpperCase();
+                            if (detail.includes('PLAINTIFF') || detail.includes('POSSESSION')) {
+                                normalized.judgment_for = 'Plaintiff';
+                            } else if (detail.includes('DEFENDANT') || detail.includes('DISMISSED')) {
+                                normalized.judgment_for = 'Defendant';
+                            }
+                        }
+                    }
+                }
+            }
+
             return normalized;
         }
 
