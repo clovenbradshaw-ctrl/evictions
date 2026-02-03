@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/ag-grid-community.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="eo-migration.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/styles/ag-grid.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/styles/ag-theme-alpine.css">
@@ -3267,6 +3268,87 @@
                 border-width: 0.5px;
             }
         }
+
+        /* Docket Processing Styles */
+        .docket-filter-chip {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid #e5e7eb;
+            background: #f9fafb;
+            color: #374151;
+            transition: all 0.2s ease;
+        }
+
+        .docket-filter-chip:hover {
+            border-color: #10b981;
+            background: #ecfdf5;
+            color: #059669;
+        }
+
+        .docket-filter-chip.active {
+            border-color: #10b981;
+            background: #10b981;
+            color: white;
+        }
+
+        .docket-status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .docket-status-badge.new {
+            background: #d1fae5;
+            color: #047857;
+        }
+
+        .docket-status-badge.updated {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .docket-status-badge.unchanged {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .docket-case-type {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .docket-case-type.GT {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .docket-case-type.GC {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        #docketUploadZone.dragover {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+
+        .docket-change-detail {
+            font-size: 10px;
+            color: #6b7280;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -3748,6 +3830,7 @@
                     <button onclick="setSearchTab('grouping')" class="tab-btn" id="groupingTab">Custom Grouping</button>
                     <button onclick="setSearchTab('demographics')" class="tab-btn demographics-tab-btn" id="demographicsTab">📊 District Demographics</button>
                     <button onclick="setSearchTab('benchmarks')" class="tab-btn" id="benchmarksTab" style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: white; border-radius: 6px;">🏙️ Metro Benchmarks</button>
+                    <button onclick="setSearchTab('docket')" class="tab-btn" id="docketTab" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; border-radius: 6px;">📋 Docket Processing</button>
                 </div>
             </div>
 
@@ -4103,6 +4186,145 @@
                         Sources: <a href="https://evictionlab.org" target="_blank" class="text-indigo-600 hover:underline">Princeton Eviction Lab</a>,
                         <a href="https://evictionlab.org/eviction-tracking" target="_blank" class="text-indigo-600 hover:underline">Eviction Tracking System 2024</a>,
                         Collinson et al. QJE 2024
+                    </div>
+                </div>
+            </div>
+
+            <!-- Docket Processing Panel -->
+            <div id="docketSearch" class="search-panel hidden">
+                <!-- Login Required State -->
+                <div id="docketProcessingLocked" class="text-center py-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-4">
+                        <span class="text-3xl">🔒</span>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Login Required</h3>
+                    <p class="text-gray-600 mb-4 max-w-md mx-auto">
+                        Docket processing requires authentication to upload data to the database.
+                    </p>
+                    <button onclick="showLoginModal()" class="btn btn-primary" style="background: #dc2626;">
+                        🔓 Login to Access Docket Processing
+                    </button>
+                </div>
+
+                <!-- Actual Docket Processing Content (hidden until logged in) -->
+                <div id="docketProcessingContent" class="hidden">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-bold text-gray-900 mb-2">📋 Process Court Docket PDF</h3>
+                        <p class="text-sm text-gray-600">Upload a Nashville court docket PDF to extract eviction cases. Cases will be compared against existing records - new cases will be inserted (INS), existing cases with changes will be updated (ALT).</p>
+                    </div>
+
+                    <!-- Upload Zone -->
+                    <div id="docketUploadZone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/30 transition-all mb-6">
+                        <input type="file" id="docketFileInput" class="hidden" accept=".pdf" onchange="handleDocketFile(event)">
+                        <div class="text-5xl mb-3">📄</div>
+                        <p class="text-gray-700 font-semibold mb-1">Drop Court Docket PDF here</p>
+                        <p class="text-sm text-gray-500">or click to browse</p>
+                    </div>
+
+                    <!-- Processing Progress -->
+                    <div id="docketProgress" class="hidden mb-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-700">Processing PDF...</span>
+                            <span id="docketProgressText" class="text-sm text-gray-500">0%</span>
+                        </div>
+                        <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div id="docketProgressBar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Parsed Results Preview -->
+                    <div id="docketResults" class="hidden">
+                        <!-- Stats Cards -->
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+                            <div class="bg-gray-50 rounded-lg p-4 text-center">
+                                <div class="text-2xl font-bold text-gray-900" id="docketStatTotal">0</div>
+                                <div class="text-xs text-gray-500 uppercase tracking-wide">Total Parsed</div>
+                            </div>
+                            <div class="bg-emerald-50 rounded-lg p-4 text-center">
+                                <div class="text-2xl font-bold text-emerald-600" id="docketStatNew">0</div>
+                                <div class="text-xs text-emerald-600 uppercase tracking-wide">New (INS)</div>
+                            </div>
+                            <div class="bg-amber-50 rounded-lg p-4 text-center">
+                                <div class="text-2xl font-bold text-amber-600" id="docketStatUpdated">0</div>
+                                <div class="text-xs text-amber-600 uppercase tracking-wide">Updated (ALT)</div>
+                            </div>
+                            <div class="bg-gray-100 rounded-lg p-4 text-center">
+                                <div class="text-2xl font-bold text-gray-500" id="docketStatUnchanged">0</div>
+                                <div class="text-xs text-gray-500 uppercase tracking-wide">Unchanged</div>
+                            </div>
+                            <div class="bg-red-50 rounded-lg p-4 text-center">
+                                <div class="text-2xl font-bold text-red-600" id="docketStatEvictions">0</div>
+                                <div class="text-xs text-red-600 uppercase tracking-wide">Evictions (GT)</div>
+                            </div>
+                        </div>
+
+                        <!-- Court Info -->
+                        <div id="docketCourtInfo" class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4 hidden">
+                            <div class="flex flex-wrap gap-4 text-sm">
+                                <div><span class="font-semibold text-indigo-700">Court Date:</span> <span id="docketCourtDate">-</span></div>
+                                <div><span class="font-semibold text-indigo-700">Time:</span> <span id="docketCourtTime">-</span></div>
+                                <div><span class="font-semibold text-indigo-700">Courtroom:</span> <span id="docketCourtRoom">-</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Filter Chips -->
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <button onclick="filterDocketResults('all')" class="docket-filter-chip active" data-filter="all">All Cases</button>
+                            <button onclick="filterDocketResults('new')" class="docket-filter-chip" data-filter="new">New (INS)</button>
+                            <button onclick="filterDocketResults('updated')" class="docket-filter-chip" data-filter="updated">Updated (ALT)</button>
+                            <button onclick="filterDocketResults('unchanged')" class="docket-filter-chip" data-filter="unchanged">Unchanged</button>
+                            <button onclick="filterDocketResults('GT')" class="docket-filter-chip" data-filter="GT">Evictions Only</button>
+                        </div>
+
+                        <!-- Preview Table -->
+                        <div class="border rounded-lg overflow-hidden mb-4" style="max-height: 400px; overflow-y: auto;">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-100 sticky top-0">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left font-semibold text-gray-700">Status</th>
+                                        <th class="px-3 py-2 text-left font-semibold text-gray-700">Docket #</th>
+                                        <th class="px-3 py-2 text-left font-semibold text-gray-700">Type</th>
+                                        <th class="px-3 py-2 text-left font-semibold text-gray-700">Plaintiff</th>
+                                        <th class="px-3 py-2 text-left font-semibold text-gray-700">Defendant</th>
+                                        <th class="px-3 py-2 text-left font-semibold text-gray-700">Address</th>
+                                        <th class="px-3 py-2 text-left font-semibold text-gray-700">Changes</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="docketPreviewBody"></tbody>
+                            </table>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex flex-wrap gap-3 items-center justify-between">
+                            <div class="flex gap-2">
+                                <button onclick="resetDocketProcessing()" class="btn btn-secondary">
+                                    ↩ Reset
+                                </button>
+                                <button onclick="exportDocketJson()" class="btn btn-secondary">
+                                    📥 Export JSON
+                                </button>
+                            </div>
+                            <div class="flex gap-2 items-center">
+                                <span id="docketUploadNote" class="text-sm text-gray-500"></span>
+                                <button onclick="uploadDocketChanges()" id="docketUploadBtn" class="btn btn-primary" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+                                    🚀 Upload Changes
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Upload Progress -->
+                        <div id="docketUploadProgress" class="hidden mt-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-gray-700">Uploading to database...</span>
+                                <span id="docketUploadProgressText" class="text-sm text-gray-500">0 / 0</span>
+                            </div>
+                            <div class="h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
+                                <div id="docketUploadProgressBar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                            <div id="docketUploadLog" class="max-h-40 overflow-y-auto bg-gray-50 rounded-lg p-3 text-sm font-mono">
+                                <!-- Upload log entries -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -12114,6 +12336,7 @@
             document.getElementById('groupingSearch').classList.toggle('hidden', tab !== 'grouping');
             document.getElementById('demographicsSearch').classList.toggle('hidden', tab !== 'demographics');
             document.getElementById('benchmarksSearch').classList.toggle('hidden', tab !== 'benchmarks');
+            document.getElementById('docketSearch').classList.toggle('hidden', tab !== 'docket');
 
             // Load saved groupings when opening grouping tab
             if (tab === 'grouping') {
@@ -12128,6 +12351,11 @@
             // Initialize benchmarks panel when opening benchmarks tab
             if (tab === 'benchmarks') {
                 loadAndRenderBenchmarks();
+            }
+
+            // Initialize docket processing panel when opening docket tab
+            if (tab === 'docket') {
+                initDocketProcessing();
             }
         }
 
@@ -14726,6 +14954,788 @@
                 renderFilterGroups();
                 applyAdvancedFilters();
             }
+        }
+
+        // =============================================================================
+        // DOCKET PROCESSING FUNCTIONS
+        // =============================================================================
+
+        // Initialize PDF.js worker
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        // Docket processing state
+        let docketParsedCases = [];
+        let docketComparedCases = [];
+        let docketCurrentFilter = 'all';
+
+        /**
+         * Initialize docket processing panel
+         */
+        function initDocketProcessing() {
+            // Check login state
+            const locked = document.getElementById('docketProcessingLocked');
+            const content = document.getElementById('docketProcessingContent');
+
+            if (isLoggedIn && decryptedPostEndpoint) {
+                locked.classList.add('hidden');
+                content.classList.remove('hidden');
+            } else {
+                locked.classList.remove('hidden');
+                content.classList.add('hidden');
+            }
+
+            // Set up drag and drop
+            const uploadZone = document.getElementById('docketUploadZone');
+            const fileInput = document.getElementById('docketFileInput');
+
+            uploadZone.onclick = () => fileInput.click();
+
+            uploadZone.ondragover = (e) => {
+                e.preventDefault();
+                uploadZone.classList.add('dragover');
+            };
+
+            uploadZone.ondragleave = () => {
+                uploadZone.classList.remove('dragover');
+            };
+
+            uploadZone.ondrop = (e) => {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file && file.type === 'application/pdf') {
+                    processDocketPDF(file);
+                }
+            };
+        }
+
+        /**
+         * Handle docket file selection
+         */
+        function handleDocketFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processDocketPDF(file);
+            }
+        }
+
+        /**
+         * Process docket PDF file
+         */
+        async function processDocketPDF(file) {
+            const progressContainer = document.getElementById('docketProgress');
+            const progressBar = document.getElementById('docketProgressBar');
+            const progressText = document.getElementById('docketProgressText');
+            const resultsContainer = document.getElementById('docketResults');
+            const uploadZone = document.getElementById('docketUploadZone');
+
+            // Show progress, hide upload zone
+            progressContainer.classList.remove('hidden');
+            uploadZone.style.display = 'none';
+            resultsContainer.classList.add('hidden');
+
+            function updateProgress(percent, text) {
+                progressBar.style.width = percent + '%';
+                progressText.textContent = text;
+            }
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+
+                updateProgress(10, 'Loading PDF...');
+
+                let allText = [];
+                const totalPages = pdf.numPages;
+
+                for (let i = 1; i <= totalPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageWidth = page.getViewport({ scale: 1 }).width;
+
+                    const items = textContent.items.map(item => ({
+                        text: item.str,
+                        x: item.transform[4],
+                        y: item.transform[5],
+                        width: item.width
+                    }));
+
+                    allText.push({ items, pageWidth, pageNum: i });
+                    updateProgress(10 + (i / totalPages) * 40, `Reading page ${i} of ${totalPages}...`);
+                }
+
+                updateProgress(60, 'Parsing cases...');
+                docketParsedCases = parseDocketText(allText);
+
+                updateProgress(80, 'Comparing with existing records...');
+                docketComparedCases = compareDocketCases(docketParsedCases);
+
+                updateProgress(95, 'Rendering results...');
+                renderDocketResults();
+
+                updateProgress(100, 'Complete!');
+
+                setTimeout(() => {
+                    progressContainer.classList.add('hidden');
+                    resultsContainer.classList.remove('hidden');
+                }, 300);
+
+            } catch (error) {
+                console.error('Error processing PDF:', error);
+                progressText.textContent = 'Error: ' + error.message;
+                progressBar.style.background = '#ef4444';
+
+                setTimeout(() => {
+                    progressContainer.classList.add('hidden');
+                    uploadZone.style.display = '';
+                }, 2000);
+            }
+        }
+
+        /**
+         * Parse docket from extracted text
+         */
+        function parseDocketText(pages) {
+            const cases = [];
+
+            let courtDate = null;
+            let courtTime = null;
+            let courtroom = null;
+
+            for (const page of pages) {
+                const { items, pageWidth } = page;
+                const midpoint = pageWidth * 0.49;
+
+                // Group items into lines by Y position
+                const lineHeight = 12;
+                const lines = {};
+
+                for (const item of items) {
+                    const yBucket = Math.round(item.y / lineHeight) * lineHeight;
+                    if (!lines[yBucket]) {
+                        lines[yBucket] = { left: [], right: [] };
+                    }
+                    if (item.x < midpoint) {
+                        lines[yBucket].left.push(item);
+                    } else {
+                        lines[yBucket].right.push(item);
+                    }
+                }
+
+                // Sort lines by Y (descending because PDF coordinates start from bottom)
+                const sortedYs = Object.keys(lines).map(Number).sort((a, b) => b - a);
+
+                // Extract header info
+                for (const y of sortedYs.slice(0, 15)) {
+                    const lineText = [...lines[y].left, ...lines[y].right]
+                        .sort((a, b) => a.x - b.x)
+                        .map(i => i.text)
+                        .join(' ');
+
+                    const dateMatch = lineText.match(/Court Date:\s*(\d{2}\/\d{2}\/\d{4})/i);
+                    if (dateMatch) courtDate = dateMatch[1];
+
+                    const timeMatch = lineText.match(/Time:\s*(\d{1,2}:\d{2}(?:am|pm)?)/i);
+                    if (timeMatch) courtTime = timeMatch[1];
+
+                    const roomMatch = lineText.match(/Court Room\s+(\w+)/i);
+                    if (roomMatch) courtroom = roomMatch[1];
+                }
+
+                // Parse cases
+                let currentCase = null;
+                let currentDefendant = null;
+                let defendantAddressLines = [];
+
+                for (const y of sortedYs) {
+                    const leftText = lines[y].left
+                        .sort((a, b) => a.x - b.x)
+                        .map(i => i.text)
+                        .join(' ')
+                        .trim();
+
+                    const rightText = lines[y].right
+                        .sort((a, b) => a.x - b.x)
+                        .map(i => i.text)
+                        .join(' ')
+                        .trim();
+
+                    // Skip headers
+                    if (isDocketPageHeader(leftText) || isDocketPageHeader(rightText)) continue;
+
+                    // Check for docket number
+                    const docketMatch = leftText.match(/^(\d{2})(GC|GT)(\d+)\s*(?:\((\d+)\))?\s*(.*)/);
+                    if (docketMatch) {
+                        // Save previous case
+                        if (currentCase) {
+                            if (currentDefendant) {
+                                if (defendantAddressLines.length > 0) {
+                                    currentDefendant.address = defendantAddressLines.join(', ');
+                                }
+                                currentCase.defendants.push(currentDefendant);
+                            }
+                            cases.push(currentCase);
+                        }
+
+                        // Start new case
+                        currentCase = {
+                            docket_number: `${docketMatch[1]}${docketMatch[2]}${docketMatch[3]}`,
+                            case_type: docketMatch[2],
+                            year: docketMatch[1],
+                            continuation: docketMatch[4] ? parseInt(docketMatch[4]) : null,
+                            court_date: courtDate,
+                            court_time: courtTime,
+                            courtroom: courtroom,
+                            plaintiff_name: docketMatch[5] || '',
+                            plaintiff_lawyer: null,
+                            defendants: []
+                        };
+
+                        currentDefendant = rightText ? { name: rightText, address: null, lawyer: null } : null;
+                        defendantAddressLines = [];
+                        continue;
+                    }
+
+                    // Check for defendant separator
+                    if (leftText.startsWith('---') || rightText.startsWith('---')) {
+                        if (currentCase && currentDefendant) {
+                            if (defendantAddressLines.length > 0) {
+                                currentDefendant.address = defendantAddressLines.join(', ');
+                            }
+                            currentCase.defendants.push(currentDefendant);
+                        }
+                        currentDefendant = null;
+                        defendantAddressLines = [];
+                        continue;
+                    }
+
+                    // Process within a case
+                    if (currentCase) {
+                        // Left column - plaintiff lawyer
+                        if (leftText && !currentCase.plaintiff_lawyer && looksLikeDocketLawyerName(leftText)) {
+                            currentCase.plaintiff_lawyer = leftText;
+                        }
+
+                        // Right column - defendant info
+                        if (rightText) {
+                            if (!currentDefendant) {
+                                currentDefendant = { name: rightText, address: null, lawyer: null };
+                            } else if (looksLikeDocketAddress(rightText)) {
+                                defendantAddressLines.push(rightText);
+                            } else if (looksLikeDocketLawyerName(rightText) && defendantAddressLines.length > 0) {
+                                currentDefendant.address = defendantAddressLines.join(', ');
+                                currentDefendant.lawyer = rightText;
+                                currentCase.defendants.push(currentDefendant);
+                                currentDefendant = null;
+                                defendantAddressLines = [];
+                            }
+                        }
+                    }
+                }
+
+                // Don't forget the last case on the page
+                if (currentCase) {
+                    if (currentDefendant) {
+                        if (defendantAddressLines.length > 0) {
+                            currentDefendant.address = defendantAddressLines.join(', ');
+                        }
+                        currentCase.defendants.push(currentDefendant);
+                    }
+                    cases.push(currentCase);
+                    currentCase = null;
+                }
+            }
+
+            return cases;
+        }
+
+        function isDocketPageHeader(text) {
+            const skipPatterns = [
+                'Davidson County', 'General Sessions', 'Metropolitan',
+                'Civil Division', 'Court Date:', 'Court Room',
+                'Docket Num', "Plaintiff's Name", "Defendant's Name",
+                "Lawyer's Name", "Defendant's Address", 'Page '
+            ];
+            return skipPatterns.some(p => text.includes(p));
+        }
+
+        function looksLikeDocketAddress(text) {
+            return /^\d+/.test(text) ||
+                   /\b(UNIT|APT|SUITE)\b/i.test(text) ||
+                   /,\s*[A-Z]{2}\s+\d{5}/.test(text);
+        }
+
+        function looksLikeDocketLawyerName(text) {
+            if (/^\d/.test(text)) return false;
+            if (/,\s*[A-Z]{2}\s+\d{5}/.test(text)) return false;
+            if (/\b(UNIT|APT|SUITE)\b/i.test(text)) return false;
+            const words = text.split(/\s+/);
+            if (words.length < 2) return false;
+            const titleCaseCount = words.filter(w => /^[A-Z][a-z]/.test(w)).length;
+            return titleCaseCount >= 2;
+        }
+
+        /**
+         * Compare parsed cases against existing records
+         */
+        function compareDocketCases(parsedCases) {
+            const results = [];
+
+            // Build lookup map from existing data
+            const existingMap = new Map();
+            allData.forEach(record => {
+                const docket = record.Docket_Number || record.docket_number;
+                if (docket) {
+                    existingMap.set(docket, record);
+                }
+            });
+
+            for (const parsed of parsedCases) {
+                const docketNumber = parsed.docket_number;
+                const existing = existingMap.get(docketNumber);
+
+                // Convert parsed case to record format for comparison
+                const parsedRecord = convertParsedToRecord(parsed);
+
+                if (!existing) {
+                    // New case - INS
+                    results.push({
+                        status: 'new',
+                        operation: 'INS',
+                        docketNumber: docketNumber,
+                        parsed: parsed,
+                        record: parsedRecord,
+                        existing: null,
+                        changes: null
+                    });
+                } else {
+                    // Existing case - check for meaningful changes
+                    const changes = findMeaningfulChanges(existing, parsedRecord);
+
+                    if (changes && Object.keys(changes).length > 0) {
+                        // Has changes - ALT
+                        results.push({
+                            status: 'updated',
+                            operation: 'ALT',
+                            docketNumber: docketNumber,
+                            parsed: parsed,
+                            record: parsedRecord,
+                            existing: existing,
+                            changes: changes
+                        });
+                    } else {
+                        // No meaningful changes - skip
+                        results.push({
+                            status: 'unchanged',
+                            operation: null,
+                            docketNumber: docketNumber,
+                            parsed: parsed,
+                            record: parsedRecord,
+                            existing: existing,
+                            changes: null
+                        });
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        /**
+         * Convert parsed docket case to standard record format
+         */
+        function convertParsedToRecord(parsed) {
+            const defendant = parsed.defendants[0] || {};
+
+            // Parse court date to ISO format
+            let fileDate = null;
+            if (parsed.court_date) {
+                const parts = parsed.court_date.split('/');
+                if (parts.length === 3) {
+                    fileDate = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+                }
+            }
+
+            return {
+                Docket_Number: parsed.docket_number,
+                case_type: parsed.case_type,
+                File_Date: fileDate,
+                court_date: parsed.court_date,
+                court_time: parsed.court_time,
+                courtroom: parsed.courtroom,
+                Plaintiff_Petitioner: parsed.plaintiff_name,
+                Attorney: parsed.plaintiff_lawyer,
+                Defendant_Respondent: defendant.name || null,
+                address_formatted: defendant.address || null,
+                Defendant_Attorney: defendant.lawyer || null,
+                // Additional defendants stored separately
+                all_defendants: parsed.defendants
+            };
+        }
+
+        /**
+         * Find meaningful changes between existing and new record
+         * Only considers changes that add new information or correct existing data
+         */
+        function findMeaningfulChanges(existing, newRecord) {
+            const changes = {};
+
+            // Fields to compare for meaningful changes
+            const fieldsToCompare = [
+                'Plaintiff_Petitioner',
+                'Attorney',
+                'Defendant_Respondent',
+                'address_formatted',
+                'Defendant_Attorney',
+                'court_date',
+                'court_time',
+                'courtroom',
+                'case_type'
+            ];
+
+            for (const field of fieldsToCompare) {
+                const oldVal = existing[field];
+                const newVal = newRecord[field];
+
+                // Skip if new value is null/empty
+                if (!newVal) continue;
+
+                // Normalize for comparison
+                const oldNorm = normalizeValue(oldVal);
+                const newNorm = normalizeValue(newVal);
+
+                // Skip if values are effectively the same
+                if (oldNorm === newNorm) continue;
+
+                // New value exists where old was empty - definitely meaningful
+                if (!oldNorm && newNorm) {
+                    changes[field] = { old: oldVal, new: newVal };
+                    continue;
+                }
+
+                // Both values exist - check if significantly different
+                // Skip minor formatting differences
+                if (oldNorm && newNorm && oldNorm !== newNorm) {
+                    // Check string similarity - if very similar, might be formatting
+                    const similarity = stringSimilarity(oldNorm, newNorm);
+                    if (similarity < 0.9) {
+                        changes[field] = { old: oldVal, new: newVal };
+                    }
+                }
+            }
+
+            return Object.keys(changes).length > 0 ? changes : null;
+        }
+
+        /**
+         * Normalize value for comparison
+         */
+        function normalizeValue(val) {
+            if (val === null || val === undefined) return '';
+            return String(val).toLowerCase().trim().replace(/\s+/g, ' ');
+        }
+
+        /**
+         * Simple string similarity calculation
+         */
+        function stringSimilarity(str1, str2) {
+            if (str1 === str2) return 1;
+            if (!str1 || !str2) return 0;
+
+            const longer = str1.length > str2.length ? str1 : str2;
+            const shorter = str1.length > str2.length ? str2 : str1;
+
+            if (longer.length === 0) return 1;
+
+            // Levenshtein distance
+            const costs = [];
+            for (let i = 0; i <= shorter.length; i++) {
+                let lastValue = i;
+                for (let j = 0; j <= longer.length; j++) {
+                    if (i === 0) {
+                        costs[j] = j;
+                    } else if (j > 0) {
+                        let newValue = costs[j - 1];
+                        if (shorter[i - 1] !== longer[j - 1]) {
+                            newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
+                        }
+                        costs[j - 1] = lastValue;
+                        lastValue = newValue;
+                    }
+                }
+                if (i > 0) costs[longer.length] = lastValue;
+            }
+
+            return (longer.length - costs[longer.length]) / longer.length;
+        }
+
+        /**
+         * Render docket processing results
+         */
+        function renderDocketResults() {
+            const stats = {
+                total: docketComparedCases.length,
+                new: docketComparedCases.filter(c => c.status === 'new').length,
+                updated: docketComparedCases.filter(c => c.status === 'updated').length,
+                unchanged: docketComparedCases.filter(c => c.status === 'unchanged').length,
+                evictions: docketComparedCases.filter(c => c.parsed.case_type === 'GT').length
+            };
+
+            // Update stats
+            document.getElementById('docketStatTotal').textContent = stats.total;
+            document.getElementById('docketStatNew').textContent = stats.new;
+            document.getElementById('docketStatUpdated').textContent = stats.updated;
+            document.getElementById('docketStatUnchanged').textContent = stats.unchanged;
+            document.getElementById('docketStatEvictions').textContent = stats.evictions;
+
+            // Show court info if available
+            const firstCase = docketParsedCases[0];
+            if (firstCase && (firstCase.court_date || firstCase.court_time || firstCase.courtroom)) {
+                const courtInfo = document.getElementById('docketCourtInfo');
+                document.getElementById('docketCourtDate').textContent = firstCase.court_date || '-';
+                document.getElementById('docketCourtTime').textContent = firstCase.court_time || '-';
+                document.getElementById('docketCourtRoom').textContent = firstCase.courtroom || '-';
+                courtInfo.classList.remove('hidden');
+            }
+
+            // Update upload note
+            const uploadCount = stats.new + stats.updated;
+            document.getElementById('docketUploadNote').textContent =
+                uploadCount > 0 ? `${uploadCount} records will be uploaded` : 'No changes to upload';
+            document.getElementById('docketUploadBtn').disabled = uploadCount === 0;
+
+            // Render preview table
+            renderDocketPreview();
+        }
+
+        /**
+         * Filter docket results
+         */
+        function filterDocketResults(filter) {
+            docketCurrentFilter = filter;
+
+            // Update chip styles
+            document.querySelectorAll('.docket-filter-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.filter === filter);
+            });
+
+            renderDocketPreview();
+        }
+
+        /**
+         * Render docket preview table
+         */
+        function renderDocketPreview() {
+            let filtered = docketComparedCases;
+
+            switch (docketCurrentFilter) {
+                case 'new':
+                    filtered = docketComparedCases.filter(c => c.status === 'new');
+                    break;
+                case 'updated':
+                    filtered = docketComparedCases.filter(c => c.status === 'updated');
+                    break;
+                case 'unchanged':
+                    filtered = docketComparedCases.filter(c => c.status === 'unchanged');
+                    break;
+                case 'GT':
+                    filtered = docketComparedCases.filter(c => c.parsed.case_type === 'GT');
+                    break;
+            }
+
+            const tbody = document.getElementById('docketPreviewBody');
+            tbody.innerHTML = filtered.map(item => {
+                const defendant = item.parsed.defendants[0] || {};
+                const statusBadge = item.status === 'new'
+                    ? '<span class="docket-status-badge new">INS</span>'
+                    : item.status === 'updated'
+                    ? '<span class="docket-status-badge updated">ALT</span>'
+                    : '<span class="docket-status-badge unchanged">—</span>';
+
+                const changesText = item.changes
+                    ? Object.keys(item.changes).join(', ')
+                    : '—';
+
+                return `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-3 py-2">${statusBadge}</td>
+                        <td class="px-3 py-2 font-mono font-semibold">${item.docketNumber}</td>
+                        <td class="px-3 py-2">
+                            <span class="docket-case-type ${item.parsed.case_type}">${item.parsed.case_type}</span>
+                        </td>
+                        <td class="px-3 py-2 truncate max-w-[150px]" title="${item.parsed.plaintiff_name || ''}">${item.parsed.plaintiff_name || '—'}</td>
+                        <td class="px-3 py-2 truncate max-w-[150px]" title="${defendant.name || ''}">${defendant.name || '—'}</td>
+                        <td class="px-3 py-2 truncate max-w-[180px]" title="${defendant.address || ''}">${defendant.address || '—'}</td>
+                        <td class="px-3 py-2">
+                            <span class="docket-change-detail" title="${changesText}">${changesText}</span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        /**
+         * Upload docket changes to database
+         */
+        async function uploadDocketChanges() {
+            if (!isLoggedIn || !decryptedPostEndpoint) {
+                alert('Please login first to upload data.');
+                return;
+            }
+
+            const toUpload = docketComparedCases.filter(c => c.status === 'new' || c.status === 'updated');
+
+            if (toUpload.length === 0) {
+                alert('No changes to upload.');
+                return;
+            }
+
+            const progressSection = document.getElementById('docketUploadProgress');
+            const progressBar = document.getElementById('docketUploadProgressBar');
+            const progressText = document.getElementById('docketUploadProgressText');
+            const uploadLog = document.getElementById('docketUploadLog');
+            const uploadBtn = document.getElementById('docketUploadBtn');
+
+            progressSection.classList.remove('hidden');
+            uploadBtn.disabled = true;
+            uploadLog.innerHTML = '';
+
+            let successCount = 0;
+            let failCount = 0;
+
+            for (let i = 0; i < toUpload.length; i++) {
+                const item = toUpload[i];
+                const percent = ((i + 1) / toUpload.length) * 100;
+
+                progressBar.style.width = percent + '%';
+                progressText.textContent = `${i + 1} / ${toUpload.length}`;
+
+                try {
+                    let event;
+
+                    if (item.operation === 'INS') {
+                        // Create INSERT event
+                        event = EOMigration.createInsertEvent(item.record, {
+                            source: 'docket_processing',
+                            version: '1.0',
+                            court_date: item.parsed.court_date
+                        });
+                    } else {
+                        // Create ALTER event
+                        event = EOMigration.createBulkUpdateEvent(
+                            item.docketNumber,
+                            item.changes,
+                            {
+                                source: 'docket_processing',
+                                version: '1.0',
+                                court_date: item.parsed.court_date
+                            }
+                        );
+                    }
+
+                    // Convert to Xano format
+                    const xanoEvent = EOMigration.toXanoFormat(event);
+
+                    // Upload to API
+                    const response = await fetch(decryptedPostEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(xanoEvent)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    successCount++;
+                    uploadLog.innerHTML += `<div class="text-green-600">✓ ${item.operation} ${item.docketNumber}</div>`;
+
+                } catch (error) {
+                    failCount++;
+                    uploadLog.innerHTML += `<div class="text-red-600">✗ ${item.operation} ${item.docketNumber}: ${error.message}</div>`;
+                }
+
+                // Scroll log to bottom
+                uploadLog.scrollTop = uploadLog.scrollHeight;
+            }
+
+            // Show summary
+            const summary = `Upload complete: ${successCount} succeeded, ${failCount} failed`;
+            uploadLog.innerHTML += `<div class="mt-2 pt-2 border-t font-semibold">${summary}</div>`;
+
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = '✓ Upload Complete';
+
+            // Refresh data if any succeeded
+            if (successCount > 0) {
+                setTimeout(() => {
+                    if (confirm('Upload complete! Would you like to refresh the data to see the changes?')) {
+                        loadData(true);
+                    }
+                }, 500);
+            }
+        }
+
+        /**
+         * Reset docket processing
+         */
+        function resetDocketProcessing() {
+            docketParsedCases = [];
+            docketComparedCases = [];
+            docketCurrentFilter = 'all';
+
+            document.getElementById('docketResults').classList.add('hidden');
+            document.getElementById('docketProgress').classList.add('hidden');
+            document.getElementById('docketUploadProgress').classList.add('hidden');
+            document.getElementById('docketUploadZone').style.display = '';
+            document.getElementById('docketFileInput').value = '';
+            document.getElementById('docketCourtInfo').classList.add('hidden');
+            document.getElementById('docketUploadBtn').textContent = '🚀 Upload Changes';
+            document.getElementById('docketUploadBtn').disabled = false;
+
+            // Reset filter chips
+            document.querySelectorAll('.docket-filter-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.filter === 'all');
+            });
+        }
+
+        /**
+         * Export docket results to JSON
+         */
+        function exportDocketJson() {
+            const data = {
+                parsed_at: new Date().toISOString(),
+                court_date: docketParsedCases[0]?.court_date,
+                court_time: docketParsedCases[0]?.court_time,
+                courtroom: docketParsedCases[0]?.courtroom,
+                summary: {
+                    total: docketComparedCases.length,
+                    new: docketComparedCases.filter(c => c.status === 'new').length,
+                    updated: docketComparedCases.filter(c => c.status === 'updated').length,
+                    unchanged: docketComparedCases.filter(c => c.status === 'unchanged').length
+                },
+                cases: docketComparedCases.map(c => ({
+                    status: c.status,
+                    operation: c.operation,
+                    docket_number: c.docketNumber,
+                    parsed: c.parsed,
+                    changes: c.changes
+                }))
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `docket_processed_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
     </script>
 </body>
