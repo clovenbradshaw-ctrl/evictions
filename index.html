@@ -4360,8 +4360,12 @@
                             View All Attorneys
                         </button>
                     </div>
-                    <div>
-                        <button onclick="exportCSV()" class="btn btn-primary">
+                    <div class="flex items-center gap-2">
+                        <button onclick="openColumnSelector()" class="btn btn-secondary flex items-center gap-1" title="Choose which columns to display">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"></path></svg>
+                            Columns
+                        </button>
+                        <button onclick="openExportModal()" class="btn btn-primary flex items-center gap-1">
                             📥 Export CSV
                         </button>
                     </div>
@@ -4496,6 +4500,85 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Column Selector Modal -->
+    <div id="columnSelectorModal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-start justify-center px-4 py-6 z-[60] hidden overflow-y-auto" onclick="if (event.target === this) closeColumnSelector()">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all my-auto">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+                <div>
+                    <p class="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Customize View</p>
+                    <h3 class="text-xl font-bold text-gray-900">Table Columns</h3>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600 text-2xl leading-none p-2" onclick="closeColumnSelector()" aria-label="Close column selector">
+                    &times;
+                </button>
+            </div>
+            <div class="p-6 max-h-[70vh] overflow-y-auto">
+                <div class="flex items-center justify-between mb-4">
+                    <p class="text-sm text-gray-600">Select which columns to display in the table</p>
+                    <div class="flex gap-2">
+                        <button onclick="selectAllTableColumns()" class="text-xs px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-full hover:bg-indigo-200 transition-colors font-medium">Select All</button>
+                        <button onclick="selectCoreTableColumns()" class="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors font-medium">Reset to Default</button>
+                    </div>
+                </div>
+                <div id="columnSelectorContent" class="space-y-4">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+                <button onclick="closeColumnSelector()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    Cancel
+                </button>
+                <button onclick="applyTableColumns()" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
+                    Apply Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Column Selector Modal -->
+    <div id="exportModal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-start justify-center px-4 py-6 z-[60] hidden overflow-y-auto" onclick="if (event.target === this) closeExportModal()">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all my-auto">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
+                <div>
+                    <p class="text-xs font-semibold text-green-600 uppercase tracking-wide">Export Data</p>
+                    <h3 class="text-xl font-bold text-gray-900">Export to CSV</h3>
+                </div>
+                <button class="text-gray-400 hover:text-gray-600 text-2xl leading-none p-2" onclick="closeExportModal()" aria-label="Close export modal">
+                    &times;
+                </button>
+            </div>
+            <div class="p-6 max-h-[70vh] overflow-y-auto">
+                <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">Records to export</p>
+                            <p class="text-xs text-gray-500" id="exportRecordCount">0 records (filtered)</p>
+                        </div>
+                        <div class="text-2xl">📥</div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between mb-4">
+                    <p class="text-sm text-gray-600">Select which columns to include in the export</p>
+                    <div class="flex gap-2">
+                        <button onclick="selectAllExportColumns()" class="text-xs px-3 py-1.5 bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-colors font-medium">Select All</button>
+                        <button onclick="selectCoreExportColumns()" class="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors font-medium">Reset to Default</button>
+                    </div>
+                </div>
+                <div id="exportColumnContent" class="space-y-4">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+                <button onclick="closeExportModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                    Cancel
+                </button>
+                <button onclick="executeExport()" class="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                    <span>📥</span> Download CSV
+                </button>
             </div>
         </div>
     </div>
@@ -5068,8 +5151,140 @@
             CHART_FILTER: 'eviction_chart_filter',
             SCROLL_POSITION: 'eviction_scroll_position',
             FILTER_GROUPS: 'eviction_active_filter_groups',
-            LAST_SESSION: 'eviction_last_session'
+            LAST_SESSION: 'eviction_last_session',
+            TABLE_COLUMNS: 'eviction_table_columns',
+            EXPORT_COLUMNS: 'eviction_export_columns'
         };
+
+        // ============================================
+        // COLUMN CONFIGURATION
+        // ============================================
+
+        // All available columns with metadata
+        // isCore: true = shown by default, false = hidden by default
+        const ALL_COLUMNS = [
+            // Core columns (shown by default)
+            { field: 'File_Date', label: 'File Date', category: 'dates', isCore: true },
+            { field: 'Case_Number', label: 'Docket #', category: 'case', isCore: true },
+            { field: 'Plaintiff', label: 'Plaintiff/Landlord', category: 'parties', isCore: true },
+            { field: 'Defendant', label: 'Defendant/Tenant', category: 'parties', isCore: true },
+            { field: 'Address', label: 'Address', category: 'location', isCore: true },
+            { field: 'District', label: 'Council District', category: 'district', isCore: true },
+            { field: 'Status', label: 'Status', category: 'case', isCore: true },
+            { field: 'judgment_date', label: 'Judgment Date', category: 'dates', isCore: true },
+            { field: 'judgment_for', label: 'Judgment For', category: 'judgment', isCore: true },
+            { field: 'service_date', label: 'Service Date', category: 'dates', isCore: true },
+            { field: 'paper_writ_date', label: 'Paper Writ Date', category: 'eviction', isCore: true },
+            { field: 'Attorney', label: 'Landlord Attorney', category: 'parties', isCore: true },
+
+            // Optional columns (hidden by default)
+            { field: 'Defense_Attorney', label: 'Defense Attorney', category: 'parties', isCore: false },
+            { field: 'CouncilMember', label: 'Council Member', category: 'district', isCore: false },
+            { field: 'pleadings', label: 'Pleadings', category: 'pleadings', isCore: false },
+            { field: 'judgments', label: 'Judgments', category: 'judgments', isCore: false },
+            { field: 'case_dismissed', label: 'Dismissed', category: 'judgment', isCore: false },
+            { field: 'judge', label: 'Judge', category: 'judgment', isCore: false },
+            { field: 'individual_ll', label: 'Individual Landlord', category: 'parties', isCore: false },
+            { field: 'judgment_type', label: 'Judgment Type', category: 'judgment', isCore: false },
+            { field: 'dismissal_date', label: 'Dismissal Date', category: 'dates', isCore: false },
+            { field: 'writ_issued_date', label: 'Writ Issued Date', category: 'eviction', isCore: false },
+            { field: 'writ_served_date', label: 'Writ Served Date', category: 'eviction', isCore: false }
+        ];
+
+        // Export-specific columns (includes some fields not in table)
+        const ALL_EXPORT_COLUMNS = [
+            // Core export columns (exported by default)
+            { field: 'File_Date', label: 'File Date', category: 'dates', isCore: true },
+            { field: 'Case_Number', label: 'Docket Number', category: 'case', isCore: true },
+            { field: 'Plaintiff', label: 'Plaintiff', category: 'parties', isCore: true },
+            { field: 'Defendant', label: 'Defendant', category: 'parties', isCore: true },
+            { field: 'Address', label: 'Address', category: 'location', isCore: true },
+            { field: 'District', label: 'Council District', category: 'district', isCore: true },
+            { field: 'CouncilMember', label: 'Council Member', category: 'district', isCore: true },
+            { field: 'Status', label: 'Status', category: 'case', isCore: true },
+            { field: 'judgment_date', label: 'Judgment Date', category: 'dates', isCore: true },
+            { field: 'judgment_for', label: 'Judgment For', category: 'judgment', isCore: true },
+            { field: 'service_date', label: 'Service Date', category: 'dates', isCore: true },
+            { field: 'paper_writ_date', label: 'Paper Writ Date', category: 'eviction', isCore: true },
+
+            // Optional export columns
+            { field: 'Attorney', label: 'Landlord Attorney', category: 'parties', isCore: false },
+            { field: 'Defense_Attorney', label: 'Defense Attorney', category: 'parties', isCore: false },
+            { field: 'individual_ll', label: 'Individual Landlord', category: 'parties', isCore: false },
+            { field: 'judge', label: 'Judge', category: 'judgment', isCore: false },
+            { field: 'judgment_type', label: 'Judgment Type', category: 'judgment', isCore: false },
+            { field: 'case_dismissed', label: 'Case Dismissed', category: 'judgment', isCore: false },
+            { field: 'dismissal_date', label: 'Dismissal Date', category: 'dates', isCore: false },
+            { field: 'writ_issued_date', label: 'Writ Issued Date', category: 'eviction', isCore: false },
+            { field: 'writ_served_date', label: 'Writ Served Date', category: 'eviction', isCore: false },
+            { field: 'pleadings_count', label: 'Pleadings Count', category: 'pleadings', isCore: false },
+            { field: 'pleadings', label: 'Pleadings (JSON)', category: 'pleadings', isCore: false },
+            { field: 'judgments_count', label: 'Judgments Count', category: 'judgments', isCore: false },
+            { field: 'judgments', label: 'Judgments (JSON)', category: 'judgments', isCore: false }
+        ];
+
+        // Category display names and colors (using hex codes for dynamic rendering)
+        const COLUMN_CATEGORIES = {
+            case: { label: 'Case Info', bgColor: '#dbeafe', textColor: '#1e40af' },
+            dates: { label: 'Dates', bgColor: '#dcfce7', textColor: '#166534' },
+            parties: { label: 'Parties', bgColor: '#f3e8ff', textColor: '#7c3aed' },
+            location: { label: 'Location', bgColor: '#ffedd5', textColor: '#c2410c' },
+            district: { label: 'District', bgColor: '#cffafe', textColor: '#0e7490' },
+            judgment: { label: 'Judgment', bgColor: '#fee2e2', textColor: '#dc2626' },
+            eviction: { label: 'Eviction', bgColor: '#ffe4e6', textColor: '#e11d48' },
+            pleadings: { label: 'Pleadings', bgColor: '#e0e7ff', textColor: '#4f46e5' },
+            judgments: { label: 'Judgments', bgColor: '#fce7f3', textColor: '#db2777' }
+        };
+
+        // Current visible columns (loaded from localStorage or defaults)
+        let visibleTableColumns = null;
+        let visibleExportColumns = null;
+
+        // Get default visible columns
+        function getDefaultTableColumns() {
+            return ALL_COLUMNS.filter(c => c.isCore).map(c => c.field);
+        }
+
+        function getDefaultExportColumns() {
+            return ALL_EXPORT_COLUMNS.filter(c => c.isCore).map(c => c.field);
+        }
+
+        // Load column preferences from localStorage
+        function loadColumnPreferences() {
+            try {
+                const savedTableCols = localStorage.getItem(STORAGE_KEYS.TABLE_COLUMNS);
+                const savedExportCols = localStorage.getItem(STORAGE_KEYS.EXPORT_COLUMNS);
+
+                visibleTableColumns = savedTableCols ? JSON.parse(savedTableCols) : getDefaultTableColumns();
+                visibleExportColumns = savedExportCols ? JSON.parse(savedExportCols) : getDefaultExportColumns();
+            } catch (e) {
+                console.warn('Failed to load column preferences:', e);
+                visibleTableColumns = getDefaultTableColumns();
+                visibleExportColumns = getDefaultExportColumns();
+            }
+        }
+
+        // Save column preferences to localStorage
+        function saveColumnPreferences() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.TABLE_COLUMNS, JSON.stringify(visibleTableColumns));
+                localStorage.setItem(STORAGE_KEYS.EXPORT_COLUMNS, JSON.stringify(visibleExportColumns));
+            } catch (e) {
+                console.warn('Failed to save column preferences:', e);
+            }
+        }
+
+        // Check if a column is visible in table
+        function isColumnVisible(field) {
+            if (!visibleTableColumns) loadColumnPreferences();
+            return visibleTableColumns.includes(field);
+        }
+
+        // Check if a column is visible in export
+        function isExportColumnVisible(field) {
+            if (!visibleExportColumns) loadColumnPreferences();
+            return visibleExportColumns.includes(field);
+        }
 
         // ============================================
         // URL-BASED FILTER SYSTEM
@@ -6141,6 +6356,47 @@
                   if (!params.value) return '<span class="text-gray-400">—</span>';
                   return params.value;
               }
+            },
+            // Additional optional columns (hidden by default, user can enable)
+            { field: 'CouncilMember', headerName: 'Council Member', headerClass: 'header-group-district', width: 180,
+              cellRenderer: params => {
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
+                  return params.value;
+              }
+            },
+            { field: 'individual_ll', headerName: 'Individual Landlord', headerClass: 'header-group-parties', width: 130,
+              cellRenderer: params => {
+                  if (params.value === true) return '<span class="text-green-600 font-medium">Yes</span>';
+                  if (params.value === false) return '<span class="text-gray-500">No</span>';
+                  return '<span class="text-gray-400">—</span>';
+              }
+            },
+            { field: 'judgment_type', headerName: 'Judgment Type', headerClass: 'header-group-judgment', width: 130,
+              cellRenderer: params => {
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
+                  return params.value;
+              }
+            },
+            { field: 'dismissal_date', headerName: 'Dismissal Date', headerClass: 'header-group-dates', width: 120,
+              valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+              cellRenderer: params => {
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
+                  return `<span class="text-green-600">${new Date(params.value).toLocaleDateString()}</span>`;
+              }
+            },
+            { field: 'writ_issued_date', headerName: 'Writ Issued Date', headerClass: 'header-group-eviction', width: 130,
+              valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+              cellRenderer: params => {
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
+                  return `<span class="text-red-600">${new Date(params.value).toLocaleDateString()}</span>`;
+              }
+            },
+            { field: 'writ_served_date', headerName: 'Writ Served Date', headerClass: 'header-group-eviction', width: 130,
+              valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+              cellRenderer: params => {
+                  if (!params.value) return '<span class="text-gray-400">—</span>';
+                  return `<span class="text-red-700 font-medium">${new Date(params.value).toLocaleDateString()}</span>`;
+              }
             }
         ];
 
@@ -6186,11 +6442,21 @@
 
         // Get full column definitions (base + dynamic + expanded arrays)
         function getFullRecordColumnDefs() {
-            return [...recordColumnDefs, ...getDynamicColumnDefs(), ...getArrayColumnDefs()];
+            // Load column preferences if not already loaded
+            if (!visibleTableColumns) loadColumnPreferences();
+
+            // Filter base columns by visibility
+            const filteredBaseCols = recordColumnDefs.filter(col => isColumnVisible(col.field));
+
+            // Dynamic and array columns are always included if they exist
+            // (these are auto-discovered and not part of the standard column config)
+            return [...filteredBaseCols, ...getDynamicColumnDefs(), ...getArrayColumnDefs()];
         }
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', async function() {
+            // Load column preferences early
+            loadColumnPreferences();
             // Restore saved UI state first
             const savedState = loadUIState();
             if (savedState) {
@@ -12999,6 +13265,331 @@
                 // Combine and format as CSV row
                 const allValues = [...baseValues, ...dynamicValues];
                 csv += allValues.map(v => `"${v}"`).join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `eviction_data_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        // ============================================
+        // COLUMN SELECTOR FUNCTIONS
+        // ============================================
+
+        // Temporary state for modal editing
+        let tempTableColumns = [];
+        let tempExportColumns = [];
+
+        function openColumnSelector() {
+            if (!visibleTableColumns) loadColumnPreferences();
+            tempTableColumns = [...visibleTableColumns];
+            renderColumnSelector();
+            document.getElementById('columnSelectorModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeColumnSelector() {
+            document.getElementById('columnSelectorModal').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        function renderColumnSelector() {
+            const container = document.getElementById('columnSelectorContent');
+            const categoryOrder = ['case', 'dates', 'parties', 'location', 'district', 'judgment', 'eviction', 'pleadings', 'judgments'];
+
+            // Group columns by category
+            const grouped = {};
+            ALL_COLUMNS.forEach(col => {
+                if (!grouped[col.category]) grouped[col.category] = [];
+                grouped[col.category].push(col);
+            });
+
+            let html = '';
+            categoryOrder.forEach(cat => {
+                if (!grouped[cat] || grouped[cat].length === 0) return;
+                const catInfo = COLUMN_CATEGORIES[cat];
+                const columns = grouped[cat];
+                const selectedCount = columns.filter(c => tempTableColumns.includes(c.field)).length;
+
+                html += `
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <div style="background-color: ${catInfo.bgColor};" class="px-4 py-2 border-b border-gray-200">
+                            <span class="text-sm font-semibold" style="color: ${catInfo.textColor};">${catInfo.label}</span>
+                            <span class="text-xs ml-2" style="color: ${catInfo.textColor}; opacity: 0.8;">(${selectedCount}/${columns.length})</span>
+                        </div>
+                        <div class="p-3 grid grid-cols-2 gap-2">
+                            ${columns.map(col => `
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded">
+                                    <input type="checkbox"
+                                        class="table-col-checkbox rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        data-field="${col.field}"
+                                        ${tempTableColumns.includes(col.field) ? 'checked' : ''}
+                                        onchange="toggleTableColumn('${col.field}', this.checked)"
+                                    >
+                                    <span class="text-sm text-gray-700">${col.label}</span>
+                                    ${col.isCore ? '<span class="text-xs text-gray-400">(default)</span>' : ''}
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function toggleTableColumn(field, checked) {
+            if (checked && !tempTableColumns.includes(field)) {
+                tempTableColumns.push(field);
+            } else if (!checked) {
+                tempTableColumns = tempTableColumns.filter(f => f !== field);
+            }
+            renderColumnSelector();
+        }
+
+        function selectAllTableColumns() {
+            tempTableColumns = ALL_COLUMNS.map(c => c.field);
+            renderColumnSelector();
+        }
+
+        function selectCoreTableColumns() {
+            tempTableColumns = getDefaultTableColumns();
+            renderColumnSelector();
+        }
+
+        function applyTableColumns() {
+            visibleTableColumns = [...tempTableColumns];
+            saveColumnPreferences();
+            closeColumnSelector();
+
+            // Refresh the grid with new columns
+            if (gridApi && viewMode !== 'pivot') {
+                gridApi.setColumnDefs(getFullRecordColumnDefs());
+            }
+        }
+
+        // ============================================
+        // EXPORT MODAL FUNCTIONS
+        // ============================================
+
+        function openExportModal() {
+            if (!visibleExportColumns) loadColumnPreferences();
+            tempExportColumns = [...visibleExportColumns];
+            document.getElementById('exportRecordCount').textContent = `${filteredData.length} records (filtered)`;
+            renderExportColumnSelector();
+            document.getElementById('exportModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeExportModal() {
+            document.getElementById('exportModal').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        function renderExportColumnSelector() {
+            const container = document.getElementById('exportColumnContent');
+            const categoryOrder = ['case', 'dates', 'parties', 'location', 'district', 'judgment', 'eviction', 'pleadings', 'judgments'];
+
+            // Group columns by category
+            const grouped = {};
+            ALL_EXPORT_COLUMNS.forEach(col => {
+                if (!grouped[col.category]) grouped[col.category] = [];
+                grouped[col.category].push(col);
+            });
+
+            let html = '';
+            categoryOrder.forEach(cat => {
+                if (!grouped[cat] || grouped[cat].length === 0) return;
+                const catInfo = COLUMN_CATEGORIES[cat];
+                const columns = grouped[cat];
+                const selectedCount = columns.filter(c => tempExportColumns.includes(c.field)).length;
+
+                html += `
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <div style="background-color: ${catInfo.bgColor};" class="px-4 py-2 border-b border-gray-200">
+                            <span class="text-sm font-semibold" style="color: ${catInfo.textColor};">${catInfo.label}</span>
+                            <span class="text-xs ml-2" style="color: ${catInfo.textColor}; opacity: 0.8;">(${selectedCount}/${columns.length})</span>
+                        </div>
+                        <div class="p-3 grid grid-cols-2 gap-2">
+                            ${columns.map(col => `
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded">
+                                    <input type="checkbox"
+                                        class="export-col-checkbox rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                        data-field="${col.field}"
+                                        ${tempExportColumns.includes(col.field) ? 'checked' : ''}
+                                        onchange="toggleExportColumn('${col.field}', this.checked)"
+                                    >
+                                    <span class="text-sm text-gray-700">${col.label}</span>
+                                    ${col.isCore ? '<span class="text-xs text-gray-400">(default)</span>' : ''}
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function toggleExportColumn(field, checked) {
+            if (checked && !tempExportColumns.includes(field)) {
+                tempExportColumns.push(field);
+            } else if (!checked) {
+                tempExportColumns = tempExportColumns.filter(f => f !== field);
+            }
+            renderExportColumnSelector();
+        }
+
+        function selectAllExportColumns() {
+            tempExportColumns = ALL_EXPORT_COLUMNS.map(c => c.field);
+            renderExportColumnSelector();
+        }
+
+        function selectCoreExportColumns() {
+            tempExportColumns = getDefaultExportColumns();
+            renderExportColumnSelector();
+        }
+
+        function executeExport() {
+            // Save current export column preferences
+            visibleExportColumns = [...tempExportColumns];
+            saveColumnPreferences();
+            closeExportModal();
+
+            // Perform export with selected columns
+            exportCSVWithColumns(visibleExportColumns);
+        }
+
+        // Export CSV with specific columns
+        function exportCSVWithColumns(columns) {
+            // Field to header name mapping
+            const fieldToHeader = {
+                'File_Date': 'File Date',
+                'Case_Number': 'Docket Number',
+                'Plaintiff': 'Plaintiff',
+                'Defendant': 'Defendant',
+                'Attorney': 'Landlord Attorney',
+                'Defense_Attorney': 'Defense Attorney',
+                'Address': 'Address',
+                'District': 'Council District',
+                'CouncilMember': 'Council Member',
+                'individual_ll': 'Individual Landlord',
+                'Status': 'Status',
+                'judge': 'Judge',
+                'service_date': 'Service Date',
+                'paper_writ_date': 'Paper Writ Date',
+                'judgment_date': 'Judgment Date',
+                'judgment_for': 'Judgment For',
+                'judgment_type': 'Judgment Type',
+                'case_dismissed': 'Case Dismissed',
+                'dismissal_date': 'Dismissal Date',
+                'writ_issued_date': 'Writ Issued Date',
+                'writ_served_date': 'Writ Served Date',
+                'pleadings_count': 'Pleadings Count',
+                'pleadings': 'Pleadings',
+                'judgments_count': 'Judgments Count',
+                'judgments': 'Judgments'
+            };
+
+            // Build header row
+            const headers = columns.map(field => fieldToHeader[field] || formatDynamicColumnHeader(field));
+            let csv = headers.join(',') + '\n';
+
+            // Build data rows
+            filteredData.forEach(row => {
+                const values = columns.map(field => {
+                    let value = '';
+                    switch (field) {
+                        case 'File_Date':
+                            value = row.File_Date ? new Date(row.File_Date).toLocaleDateString() : '';
+                            break;
+                        case 'Case_Number':
+                            value = (row.Case_Number || '').replace(/"/g, '""');
+                            break;
+                        case 'Plaintiff':
+                            value = (row.Plaintiff || '').replace(/"/g, '""');
+                            break;
+                        case 'Defendant':
+                            value = getDefendantDisplayName(row.Defendant).replace(/"/g, '""');
+                            break;
+                        case 'Attorney':
+                            value = (row.Attorney || '').replace(/"/g, '""');
+                            break;
+                        case 'Defense_Attorney':
+                            value = (row.Defense_Attorney || '').replace(/"/g, '""');
+                            break;
+                        case 'Address':
+                            value = (row.Address || '').replace(/"/g, '""');
+                            break;
+                        case 'District':
+                            value = row.District && row.District !== 'Unknown' ? row.District : '';
+                            break;
+                        case 'CouncilMember':
+                            value = (row.CouncilMember || '').replace(/"/g, '""');
+                            break;
+                        case 'individual_ll':
+                            value = row.individual_ll ? 'Yes' : 'No';
+                            break;
+                        case 'Status':
+                            value = (row.Status || '').replace(/"/g, '""');
+                            break;
+                        case 'judge':
+                            value = (row.judge || '').replace(/"/g, '""');
+                            break;
+                        case 'service_date':
+                            value = row.service_date ? new Date(row.service_date).toLocaleDateString() : '';
+                            break;
+                        case 'paper_writ_date':
+                            value = row.paper_writ_date ? new Date(row.paper_writ_date).toLocaleDateString() : '';
+                            break;
+                        case 'judgment_date':
+                            value = row.judgment_date ? new Date(row.judgment_date).toLocaleDateString() : '';
+                            break;
+                        case 'judgment_for':
+                            value = (row.judgment_for || '').replace(/"/g, '""');
+                            break;
+                        case 'judgment_type':
+                            value = (row.judgment_type || '').replace(/"/g, '""');
+                            break;
+                        case 'case_dismissed':
+                            value = row.case_dismissed === true ? 'Yes' : '';
+                            break;
+                        case 'dismissal_date':
+                            value = row.dismissal_date ? new Date(row.dismissal_date).toLocaleDateString() : '';
+                            break;
+                        case 'writ_issued_date':
+                            value = row.writ_issued_date ? new Date(row.writ_issued_date).toLocaleDateString() : '';
+                            break;
+                        case 'writ_served_date':
+                            value = row.writ_served_date ? new Date(row.writ_served_date).toLocaleDateString() : '';
+                            break;
+                        case 'pleadings_count':
+                            value = Array.isArray(row.pleadings) ? row.pleadings.length : 0;
+                            break;
+                        case 'pleadings':
+                            value = Array.isArray(row.pleadings) && row.pleadings.length > 0
+                                ? JSON.stringify(row.pleadings).replace(/"/g, '""')
+                                : '';
+                            break;
+                        case 'judgments_count':
+                            value = Array.isArray(row.judgments) ? row.judgments.length : 0;
+                            break;
+                        case 'judgments':
+                            value = Array.isArray(row.judgments) && row.judgments.length > 0
+                                ? JSON.stringify(row.judgments).replace(/"/g, '""')
+                                : '';
+                            break;
+                        default:
+                            // Handle dynamic fields
+                            value = formatCSVValue(row[field]);
+                    }
+                    return value;
+                });
+
+                csv += values.map(v => `"${v}"`).join(',') + '\n';
             });
 
             const blob = new Blob([csv], { type: 'text/csv' });
