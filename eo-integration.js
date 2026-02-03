@@ -207,6 +207,11 @@ const EOIntegration = (function() {
 
   /**
    * Apply a single event to the state cache
+   *
+   * Proper event sourcing implementation:
+   * - Handles ALT events even without prior INS event (upsert behavior)
+   * - Creates entity from ALT data if it doesn't exist
+   * - Tracks changes for all available data
    */
   function applyEventToStateCache(event) {
     const entityId = event.target.id;
@@ -214,25 +219,49 @@ const EOIntegration = (function() {
 
     switch (event.op) {
       case EOMigration.OPERATORS.INS:
-        // New entity
-        state = { ...event.context.data };
+        // New entity or update existing
+        if (state) {
+          // Merge into existing state (INS can be re-applied or come out of order)
+          Object.assign(state, event.context.data);
+        } else {
+          state = { ...event.context.data };
+          state.Docket_Number = entityId;
+        }
         state._entity_id = entityId;
         state._last_updated = event.ts;
         stateCache.set(entityId, state);
         break;
 
       case EOMigration.OPERATORS.ALT:
-        if (state) {
-          // Apply changes
-          if (event.context.changes) {
-            for (const [field, change] of Object.entries(event.context.changes)) {
-              state[field] = change.new;
-            }
-          } else if (event.target.field) {
-            state[event.target.field] = event.context.new;
-          }
-          state._last_updated = event.ts;
+        // Ensure state exists for ALT - create if needed (upsert)
+        if (!state) {
+          state = {
+            Docket_Number: entityId,
+            _entity_id: entityId
+          };
         }
+
+        // ALT with context.data = full record upsert
+        if (event.context.data) {
+          Object.assign(state, event.context.data);
+        }
+
+        // ALT with context.changes = delta update
+        if (event.context.changes) {
+          for (const [field, change] of Object.entries(event.context.changes)) {
+            // change can be { old, new } or just a new value
+            const newValue = change.new !== undefined ? change.new : change;
+            state[field] = newValue;
+          }
+        }
+
+        // ALT with single field update via target.field
+        if (event.target.field && event.context.new !== undefined) {
+          state[event.target.field] = event.context.new;
+        }
+
+        state._last_updated = event.ts;
+        stateCache.set(entityId, state);
         break;
 
       case EOMigration.OPERATORS.NUL:
@@ -389,6 +418,22 @@ const EOIntegration = (function() {
    */
   function getCasePattern(docket) {
     return EOMigration.getOperatorPattern(docket, eventsCache);
+  }
+
+  /**
+   * Get the complete field-level history for a case
+   * Useful for understanding how each field evolved over time.
+   */
+  function getCaseFieldHistory(docket) {
+    return EOMigration.getFieldHistory(docket, eventsCache);
+  }
+
+  /**
+   * Get the latest values for all fields of a case
+   * This is the definitive current state based on all available events.
+   */
+  function getCaseLatestFieldValues(docket) {
+    return EOMigration.getLatestFieldValues(docket, eventsCache);
   }
 
   /**
@@ -561,6 +606,8 @@ const EOIntegration = (function() {
     getCases,
     getCaseAuditTrail,
     getCasePattern,
+    getCaseFieldHistory,
+    getCaseLatestFieldValues,
     getCasesCreatedInRange,
     getRecentlyUpdatedCases,
 
