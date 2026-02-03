@@ -5907,8 +5907,8 @@
             },
             { field: 'case_dismissed', headerName: 'Dismissed', headerClass: 'header-group-judgment', width: 90,
               cellRenderer: params => {
+                  // Only show "Yes" if we definitively know the case was dismissed
                   if (params.value === true) return '<span class="text-green-600 font-medium">Yes</span>';
-                  if (params.value === false) return '<span class="text-gray-400">No</span>';
                   return '<span class="text-gray-400">—</span>';
               }
             },
@@ -10274,7 +10274,8 @@
                 { label: 'Disposition Date', value: formatDate(getFieldValue(record, 'Disposition_Date', 'disposition_date')) },
                 {
                     label: 'Case Dismissed',
-                    value: formatBoolean(getFieldValue(record, 'case_dismissed', 'Case_Dismissed')),
+                    // Only show "Yes" if we definitively know the case was dismissed
+                    value: record.case_dismissed === true ? 'Yes' : null,
                     valueClass: record.case_dismissed === true ? 'text-green-600 font-semibold' : 'text-gray-900'
                 },
                 { label: 'Dismissal Date', value: formatDate(getFieldValue(record, 'dismissal_date', 'Dismissal_Date')) }
@@ -12739,7 +12740,8 @@
                 const judgmentDate = row.judgment_date ? new Date(row.judgment_date).toLocaleDateString() : '';
                 const judgmentFor = (row.judgment_for || '').replace(/"/g, '""');
                 const judgmentType = (row.judgment_type || '').replace(/"/g, '""');
-                const caseDismissed = row.case_dismissed === true ? 'Yes' : row.case_dismissed === false ? 'No' : '';
+                // Only export "Yes" if we definitively know the case was dismissed
+                const caseDismissed = row.case_dismissed === true ? 'Yes' : '';
                 const dismissalDate = row.dismissal_date ? new Date(row.dismissal_date).toLocaleDateString() : '';
                 // evictionDate, evictionMethod, evictionExecuted removed - derived/interpreted fields
                 const writIssuedDate = row.writ_issued_date ? new Date(row.writ_issued_date).toLocaleDateString() : '';
