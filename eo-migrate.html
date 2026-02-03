@@ -429,7 +429,8 @@ API Endpoints:
     function reconstructAllStates(events) {
       const byEntity = new Map();
       for (const event of events) {
-        const entityId = event.entity_id || event.target.id;
+        const entityId = event.entity_id || event.target?.id;
+        if (!entityId) continue; // Skip events without valid entity ID
         if (!byEntity.has(entityId)) byEntity.set(entityId, []);
         byEntity.get(entityId).push(event);
       }

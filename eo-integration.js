@@ -214,7 +214,8 @@ const EOIntegration = (function() {
    * - Tracks changes for all available data
    */
   function applyEventToStateCache(event) {
-    const entityId = event.target.id;
+    const entityId = event.entity_id || event.target?.id;
+    if (!entityId) return; // Skip events without valid entity ID
     let state = stateCache.get(entityId);
 
     switch (event.op) {
@@ -222,9 +223,9 @@ const EOIntegration = (function() {
         // New entity or update existing
         if (state) {
           // Merge into existing state (INS can be re-applied or come out of order)
-          Object.assign(state, event.context.data);
+          if (event.context?.data) Object.assign(state, event.context.data);
         } else {
-          state = { ...event.context.data };
+          state = { ...(event.context?.data || {}) };
           state.Docket_Number = entityId;
         }
         state._entity_id = entityId;
@@ -242,12 +243,12 @@ const EOIntegration = (function() {
         }
 
         // ALT with context.data = full record upsert
-        if (event.context.data) {
+        if (event.context?.data) {
           Object.assign(state, event.context.data);
         }
 
         // ALT with context.changes = delta update
-        if (event.context.changes) {
+        if (event.context?.changes) {
           for (const [field, change] of Object.entries(event.context.changes)) {
             // change can be { old, new } or just a new value
             const newValue = change.new !== undefined ? change.new : change;
@@ -256,7 +257,7 @@ const EOIntegration = (function() {
         }
 
         // ALT with single field update via target.field
-        if (event.target.field && event.context.new !== undefined) {
+        if (event.target?.field && event.context?.new !== undefined) {
           state[event.target.field] = event.context.new;
         }
 
@@ -455,7 +456,7 @@ const EOIntegration = (function() {
       e.ts >= sinceTs && e.op === EOMigration.OPERATORS.ALT
     );
 
-    const dockets = [...new Set(recentEvents.map(e => e.target.id))];
+    const dockets = [...new Set(recentEvents.map(e => e.entity_id || e.target?.id).filter(Boolean))];
     return dockets.map(d => stateCache.get(d)).filter(Boolean);
   }
 

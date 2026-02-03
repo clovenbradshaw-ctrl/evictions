@@ -6236,7 +6236,7 @@
                     case 'SYN':
                         // Merge - mark absorbed entities
                         if (event.context?.merged && state) {
-                            state._merged_into = event.target.id;
+                            state._merged_into = event.entity_id || event.target?.id;
                         }
                         break;
                 }
