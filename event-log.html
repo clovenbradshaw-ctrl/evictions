@@ -1123,6 +1123,51 @@
 
     <script>
         // =============================================================================
+        // TIMEZONE UTILITIES - US Central Time (CT)
+        // =============================================================================
+
+        const CT_TIMEZONE = 'America/Chicago';
+
+        /**
+         * Format a timestamp to US Central Time
+         * @param {number|Date} timestamp - Unix timestamp in ms or Date object
+         * @param {Object} options - Additional Intl.DateTimeFormat options
+         * @returns {string} Formatted date/time string in Central Time
+         */
+        function formatToCentralTime(timestamp, options = {}) {
+            const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+            const defaultOptions = {
+                timeZone: CT_TIMEZONE,
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            };
+            return date.toLocaleString('en-US', { ...defaultOptions, ...options });
+        }
+
+        /**
+         * Format a date to US Central Time (date only, no time)
+         * @param {number|Date|string} timestamp - Unix timestamp in ms, Date object, or date string
+         * @param {Object} options - Additional Intl.DateTimeFormat options
+         * @returns {string} Formatted date string in Central Time
+         */
+        function formatDateToCentralTime(timestamp, options = {}) {
+            const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+            if (isNaN(date.getTime())) return null;
+            const defaultOptions = {
+                timeZone: CT_TIMEZONE,
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            };
+            return date.toLocaleDateString('en-US', { ...defaultOptions, ...options });
+        }
+
+        // =============================================================================
         // REDACTION UTILITIES
         // =============================================================================
 
@@ -1314,7 +1359,7 @@
          * Render a single event item
          */
         function renderEvent(event) {
-            const timestamp = new Date(event.ts).toLocaleString();
+            const timestamp = formatToCentralTime(event.ts);
             const meaning = OPERATOR_MEANINGS[event.op] || event.op;
 
             let detailsHtml = '';
@@ -1810,15 +1855,11 @@
                     const displayField = field.replace(/_/g, ' ');
                     let displayValue = redactedState[field];
 
-                    // Format dates
+                    // Format dates in Central Time
                     if (field.toLowerCase().includes('date') && displayValue) {
-                        const dateVal = new Date(displayValue);
-                        if (!isNaN(dateVal)) {
-                            displayValue = dateVal.toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                            });
+                        const formattedDate = formatDateToCentralTime(displayValue);
+                        if (formattedDate) {
+                            displayValue = formattedDate;
                         }
                     }
 
@@ -1914,7 +1955,7 @@
             let html = '';
 
             for (const event of sortedEvents) {
-                const timestamp = new Date(event.ts).toLocaleString();
+                const timestamp = formatToCentralTime(event.ts);
                 const meaning = OPERATOR_MEANINGS[event.op] || event.op;
 
                 let changesHtml = '';
@@ -2008,12 +2049,12 @@
         // =============================================================================
 
         document.addEventListener('DOMContentLoaded', function() {
-            // Set last updated date
-            document.getElementById('last-updated').textContent = new Date().toLocaleDateString('en-US', {
+            // Set last updated date in Central Time
+            document.getElementById('last-updated').textContent = formatDateToCentralTime(new Date(), {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
-            });
+            }) + ' (CT)';
 
             // Load initial events
             loadEvents();
