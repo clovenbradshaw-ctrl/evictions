@@ -1442,25 +1442,55 @@
          * Render insert event details
          */
         function renderInsertDetails(data) {
-            const importantFields = ['Docket_Number', 'File_Date', 'Status', 'Plaintiff_Petitioner', 'Defendant_Respondent', 'Address_1', 'council_district'];
+            // Define field mappings with display names and alternative field names
+            const fieldConfig = [
+                { display: 'Docket Number', keys: ['Docket_Number', 'docket_number'] },
+                { display: 'File Date', keys: ['File_Date', 'file_date'] },
+                { display: 'Status', keys: ['Status', 'status'] },
+                { display: 'Plaintiff', keys: ['Plaintiff_Petitioner', 'plaintiff_petitioner', 'Plaintiff'] },
+                { display: 'Defendant', keys: ['Defendant_Respondent', 'defendant_respondent', 'Defendant'] },
+                { display: 'Attorney', keys: ['Attorney', 'attorney'] },
+                { display: 'Address', keys: ['address_formatted', 'formatted_address', 'Address_1', 'address_1', 'address'] },
+                { display: 'District', keys: ['council_district_number', 'council_district', 'District'] },
+                { display: 'Office', keys: ['Office', 'office'] },
+                { display: 'Description', keys: ['Description', 'description'] },
+                { display: 'Judge', keys: ['judge', 'Judge'] },
+                { display: 'Pleadings', keys: ['pleadings'], isArray: true },
+                { display: 'Judgments', keys: ['judgments'], isArray: true }
+            ];
+
             let html = '';
 
-            for (const field of importantFields) {
-                if (data[field] !== undefined && data[field] !== null) {
-                    const displayField = field.replace(/_/g, ' ');
-                    let displayValue;
-
-                    if (isSensitiveField(field)) {
-                        displayValue = `<span class="redacted">${escapeHtml(String(data[field]))}</span>`;
-                    } else {
-                        displayValue = escapeHtml(String(data[field]));
+            for (const config of fieldConfig) {
+                // Find the first matching key that has a value
+                let value = null;
+                for (const key of config.keys) {
+                    if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
+                        value = data[key];
+                        break;
                     }
-
-                    html += `<div class="event-detail-row">
-                        <span class="detail-label">${escapeHtml(displayField)}:</span>
-                        <span class="detail-value">${displayValue}</span>
-                    </div>`;
                 }
+
+                if (value === null) continue;
+
+                let displayValue;
+
+                if (config.isArray && Array.isArray(value)) {
+                    if (value.length === 0) {
+                        displayValue = '<span style="color: #9ca3af;">None</span>';
+                    } else {
+                        displayValue = `${value.length} item${value.length !== 1 ? 's' : ''}`;
+                    }
+                } else if (isSensitiveField(config.keys[0])) {
+                    displayValue = `<span class="redacted">${escapeHtml(String(value))}</span>`;
+                } else {
+                    displayValue = escapeHtml(String(value));
+                }
+
+                html += `<div class="event-detail-row">
+                    <span class="detail-label">${escapeHtml(config.display)}:</span>
+                    <span class="detail-value">${displayValue}</span>
+                </div>`;
             }
 
             return html;
