@@ -6405,6 +6405,10 @@
                 if (gridApi) {
                     gridApi.refreshCells({ force: true });
                 }
+                // Update docket processing panel if it exists
+                if (document.getElementById('docketProcessingLocked')) {
+                    initDocketProcessing();
+                }
             } else {
                 document.getElementById('loginError').classList.remove('hidden');
             }
@@ -6423,6 +6427,10 @@
             // Refresh grid to scramble names again
             if (gridApi) {
                 gridApi.refreshCells({ force: true });
+            }
+            // Lock docket processing panel if it exists
+            if (document.getElementById('docketProcessingLocked')) {
+                initDocketProcessing();
             }
         }
 
