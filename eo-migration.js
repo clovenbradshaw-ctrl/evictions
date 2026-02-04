@@ -109,6 +109,36 @@ const EOMigration = (function() {
   }
 
   // =============================================================================
+  // DOCKET NUMBER NORMALIZATION
+  // =============================================================================
+
+  /**
+   * Normalize a docket number for consistent deduplication
+   * Handles whitespace, case sensitivity, and common formatting variations
+   *
+   * @param {string} docketNumber - The raw docket number
+   * @returns {string} - Normalized docket number
+   */
+  function normalizeDocketNumber(docketNumber) {
+    if (!docketNumber) return '';
+
+    // Convert to string if needed
+    let normalized = String(docketNumber);
+
+    // Trim whitespace
+    normalized = normalized.trim();
+
+    // Remove any internal multiple spaces
+    normalized = normalized.replace(/\s+/g, ' ');
+
+    // Docket numbers are typically uppercase, normalize case
+    // Note: Nashville docket format is typically like "24GC1-12345"
+    normalized = normalized.toUpperCase();
+
+    return normalized;
+  }
+
+  // =============================================================================
   // EVENT CREATION
   // =============================================================================
 
@@ -225,15 +255,27 @@ const EOMigration = (function() {
    * @param {number} observationTS - Optional timestamp when data was observed (e.g., PDF creation date)
    */
   function createInsertEvent(caseData, frame = null, observationTS = null) {
-    const docketNumber = caseData.Docket_Number || caseData.docket_number;
+    const rawDocketNumber = caseData.Docket_Number || caseData.docket_number;
 
-    if (!docketNumber) {
+    if (!rawDocketNumber) {
       throw new Error('Cannot create INS event: missing docket number');
+    }
+
+    // Normalize docket number for consistent deduplication during replay
+    const docketNumber = normalizeDocketNumber(rawDocketNumber);
+
+    // Normalize the docket in the case data too for consistency
+    const normalizedCaseData = { ...caseData };
+    if (normalizedCaseData.Docket_Number) {
+      normalizedCaseData.Docket_Number = docketNumber;
+    }
+    if (normalizedCaseData.docket_number) {
+      normalizedCaseData.docket_number = docketNumber;
     }
 
     const payload = {
       table: CONFIG.SOURCE_TABLE,
-      data: caseData
+      data: normalizedCaseData
     };
 
     // Add observationTS if provided
@@ -259,10 +301,13 @@ const EOMigration = (function() {
    * Create an ALT (update/transition) event for case field changes
    */
   function createUpdateEvent(docketNumber, fieldName, oldValue, newValue, frame = null) {
+    // Normalize docket number for consistent deduplication during replay
+    const normalizedDocket = normalizeDocketNumber(docketNumber);
+
     return createEvent(
       OPERATORS.ALT,
       {
-        id: docketNumber,
+        id: normalizedDocket,
         field: fieldName
       },
       {
@@ -286,6 +331,9 @@ const EOMigration = (function() {
    * @param {number} observationTS - Optional timestamp when data was observed (e.g., PDF creation date)
    */
   function createBulkUpdateEvent(docketNumber, changes, frame = null, observationTS = null) {
+    // Normalize docket number for consistent deduplication during replay
+    const normalizedDocket = normalizeDocketNumber(docketNumber);
+
     // changes = { fieldName: { old: oldValue, new: newValue }, ... }
     const payload = {
       table: CONFIG.SOURCE_TABLE,
@@ -300,7 +348,7 @@ const EOMigration = (function() {
     return createEvent(
       OPERATORS.ALT,
       {
-        id: docketNumber,
+        id: normalizedDocket,
         type: 'eviction_case'
       },
       payload,
@@ -315,10 +363,13 @@ const EOMigration = (function() {
    * Create a NUL (delete/nullify) event
    */
   function createDeleteEvent(docketNumber, reason = null, frame = null) {
+    // Normalize docket number for consistent deduplication during replay
+    const normalizedDocket = normalizeDocketNumber(docketNumber);
+
     return createEvent(
       OPERATORS.NUL,
       {
-        id: docketNumber
+        id: normalizedDocket
       },
       {
         table: CONFIG.SOURCE_TABLE,
@@ -335,15 +386,19 @@ const EOMigration = (function() {
    * Create a CON (connect) event for linking related cases
    */
   function createConnectionEvent(docketNumber1, docketNumber2, relationshipType, frame = null) {
+    // Normalize docket numbers for consistent deduplication during replay
+    const normalizedDocket1 = normalizeDocketNumber(docketNumber1);
+    const normalizedDocket2 = normalizeDocketNumber(docketNumber2);
+
     return createEvent(
       OPERATORS.CON,
       {
-        id: docketNumber1,
+        id: normalizedDocket1,
         type: 'eviction_case'
       },
       {
         table: CONFIG.SOURCE_TABLE,
-        related: docketNumber2,
+        related: normalizedDocket2,
         relationship: relationshipType // e.g., 'same_property', 'same_plaintiff', 'same_defendant'
       },
       frame || {
@@ -357,15 +412,19 @@ const EOMigration = (function() {
    * Create a SYN (synthesize/merge) event for merging duplicate cases
    */
   function createMergeEvent(primaryDocket, mergedDockets, frame = null) {
+    // Normalize all docket numbers for consistent deduplication during replay
+    const normalizedPrimary = normalizeDocketNumber(primaryDocket);
+    const normalizedMerged = mergedDockets.map(d => normalizeDocketNumber(d));
+
     return createEvent(
       OPERATORS.SYN,
       {
-        id: primaryDocket,
+        id: normalizedPrimary,
         type: 'eviction_case'
       },
       {
         table: CONFIG.SOURCE_TABLE,
-        merged: mergedDockets, // Array of docket numbers being merged
+        merged: normalizedMerged, // Array of docket numbers being merged
         action: 'merge_duplicates'
       },
       frame || {
@@ -610,8 +669,15 @@ const EOMigration = (function() {
    * - Supports both legacy 'context' and new 'payload' field names
    */
   function reconstructEntityState(entityId, events) {
+    // Normalize the entityId for comparison to handle legacy data variations
+    const normalizedEntityId = normalizeDocketNumber(entityId);
+
     const entityEvents = events
-      .filter(e => (e.entity_id || e.target?.id) === entityId)
+      .filter(e => {
+        const eventEntityId = e.entity_id || e.target?.id;
+        // Compare normalized IDs to properly group events with formatting variations
+        return normalizeDocketNumber(eventEntityId) === normalizedEntityId;
+      })
       // Sort by observationTS for proper replay ordering
       .sort((a, b) => getObservationTS(a) - getObservationTS(b));
 
@@ -715,15 +781,18 @@ const EOMigration = (function() {
         state[field] = versionInfo.value;
       }
 
-      // Ensure Docket_Number is set
+      // Ensure Docket_Number is set with normalized value
       if (!state.Docket_Number) {
-        state.Docket_Number = entityId;
+        state.Docket_Number = normalizedEntityId;
+      } else {
+        // Normalize any existing Docket_Number for consistency
+        state.Docket_Number = normalizeDocketNumber(state.Docket_Number);
       }
     }
 
-    // Add metadata
+    // Add metadata using normalized entity ID
     if (state) {
-      state._entity_id = entityId;
+      state._entity_id = normalizedEntityId;
       // Use the latest observationTS for _last_updated
       state._last_updated = getObservationTS(entityEvents[entityEvents.length - 1]);
       state._event_count = entityEvents.length;
@@ -734,25 +803,34 @@ const EOMigration = (function() {
 
   /**
    * Reconstruct current state of all entities
+   *
+   * IMPORTANT: Normalizes entity IDs (docket numbers) during grouping to ensure
+   * events with slightly different formatting (whitespace, case) are properly
+   * grouped together. This handles legacy events that may not have been normalized.
    */
   function reconstructAllStates(events) {
-    // Group events by entity ID
+    // Group events by NORMALIZED entity ID to handle legacy data variations
     const byEntity = new Map();
 
     for (const event of events) {
       // Handle events with missing or null target - use entity_id as fallback
-      const entityId = event.entity_id || event.target?.id;
-      if (!entityId) {
+      const rawEntityId = event.entity_id || event.target?.id;
+      if (!rawEntityId) {
         // Skip events without a valid entity ID
         continue;
       }
-      if (!byEntity.has(entityId)) {
-        byEntity.set(entityId, []);
+
+      // Normalize the entity ID to group events consistently
+      // This ensures "24GC1-12345" and " 24GC1-12345 " and "24gc1-12345" all group together
+      const normalizedEntityId = normalizeDocketNumber(rawEntityId);
+
+      if (!byEntity.has(normalizedEntityId)) {
+        byEntity.set(normalizedEntityId, []);
       }
-      byEntity.get(entityId).push(event);
+      byEntity.get(normalizedEntityId).push(event);
     }
 
-    // Reconstruct each entity
+    // Reconstruct each entity using the normalized ID
     const states = [];
     for (const [entityId, entityEvents] of byEntity) {
       const state = reconstructEntityState(entityId, entityEvents);
@@ -768,8 +846,9 @@ const EOMigration = (function() {
    * Get the audit trail for an entity
    */
   function getAuditTrail(entityId, events) {
+    const normalizedEntityId = normalizeDocketNumber(entityId);
     return events
-      .filter(e => (e.entity_id || e.target?.id) === entityId)
+      .filter(e => normalizeDocketNumber(e.entity_id || e.target?.id) === normalizedEntityId)
       .sort((a, b) => getObservationTS(a) - getObservationTS(b))
       .map(e => ({
         id: e.id,
@@ -786,8 +865,9 @@ const EOMigration = (function() {
    * Get the operator pattern for an entity (for causal analysis)
    */
   function getOperatorPattern(entityId, events) {
+    const normalizedEntityId = normalizeDocketNumber(entityId);
     const ops = events
-      .filter(e => (e.entity_id || e.target?.id) === entityId)
+      .filter(e => normalizeDocketNumber(e.entity_id || e.target?.id) === normalizedEntityId)
       .sort((a, b) => a.ts - b.ts)
       .map(e => e.op);
 
@@ -814,8 +894,9 @@ const EOMigration = (function() {
    * Sorted by observationTS for proper temporal ordering.
    */
   function getFieldHistory(entityId, events) {
+    const normalizedEntityId = normalizeDocketNumber(entityId);
     const entityEvents = events
-      .filter(e => (e.entity_id || e.target?.id) === entityId)
+      .filter(e => normalizeDocketNumber(e.entity_id || e.target?.id) === normalizedEntityId)
       // Sort by observationTS for proper replay ordering
       .sort((a, b) => getObservationTS(a) - getObservationTS(b));
 
@@ -932,35 +1013,39 @@ const EOMigration = (function() {
   }
 
   /**
-   * Get all entity IDs that have events
+   * Get all unique entity IDs that have events (normalized for deduplication)
    */
   function getAllEntityIds(events) {
-    return [...new Set(events.map(e => e.entity_id || e.target?.id).filter(Boolean))];
+    return [...new Set(events.map(e => normalizeDocketNumber(e.entity_id || e.target?.id)).filter(Boolean))];
   }
 
   /**
-   * Get entities created in a time range
+   * Get entities created in a time range (normalized for deduplication)
    */
   function getCreatedInRange(events, startTs, endTs) {
-    return filterByOperator(events, OPERATORS.INS)
-      .filter(e => e.ts >= startTs && e.ts <= endTs)
-      .map(e => e.entity_id || e.target?.id)
-      .filter(Boolean);
+    return [...new Set(
+      filterByOperator(events, OPERATORS.INS)
+        .filter(e => e.ts >= startTs && e.ts <= endTs)
+        .map(e => normalizeDocketNumber(e.entity_id || e.target?.id))
+        .filter(Boolean)
+    )];
   }
 
   /**
-   * Get entities with specific field changes
+   * Get entities with specific field changes (normalized for deduplication)
    */
   function getEntitiesWithFieldChange(events, fieldName) {
-    return filterByOperator(events, OPERATORS.ALT)
-      .filter(e => {
-        if (e.target?.field === fieldName) return true;
-        const payload = e.payload || e.context || {};
-        if (payload.changes && payload.changes[fieldName]) return true;
-        return false;
-      })
-      .map(e => e.entity_id || e.target?.id)
-      .filter(Boolean);
+    return [...new Set(
+      filterByOperator(events, OPERATORS.ALT)
+        .filter(e => {
+          if (e.target?.field === fieldName) return true;
+          const payload = e.payload || e.context || {};
+          if (payload.changes && payload.changes[fieldName]) return true;
+          return false;
+        })
+        .map(e => normalizeDocketNumber(e.entity_id || e.target?.id))
+        .filter(Boolean)
+    )];
   }
 
   // =============================================================================
@@ -1244,6 +1329,7 @@ const EOMigration = (function() {
     createMergeEvent,
 
     // Data normalization
+    normalizeDocketNumber,
     normalizeCase,
     diffCases,
 

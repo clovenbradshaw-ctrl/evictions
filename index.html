@@ -8522,12 +8522,17 @@
             return merged;
         }
 
+        // Reduce activity stream records to get current state per docket
+        // IMPORTANT: Uses normalized docket numbers to handle case/whitespace variations
         function reduceActivityStream(activityRecords) {
             const byDocket = new Map();
 
             for (const record of activityRecords) {
-                const docket = record.docket_number;
-                if (!docket) continue;
+                const rawDocket = record.docket_number;
+                if (!rawDocket) continue;
+
+                // Normalize docket for consistent grouping
+                const docket = normalizeDocketNumber(rawDocket);
 
                 const existing = byDocket.get(docket);
                 if (!existing) {
@@ -8677,12 +8682,16 @@
         }
 
         // Reduce activity stream records when data fields are at top level (no case_data wrapper)
+        // IMPORTANT: Uses normalized docket numbers to handle case/whitespace variations
         function reduceActivityStreamFlat(activityRecords) {
             const byDocket = new Map();
 
             for (const record of activityRecords) {
-                const docket = record.docket_number;
-                if (!docket) continue;
+                const rawDocket = record.docket_number;
+                if (!rawDocket) continue;
+
+                // Normalize docket for consistent grouping
+                const docket = normalizeDocketNumber(rawDocket);
 
                 const existing = byDocket.get(docket);
                 if (!existing) {
@@ -8799,13 +8808,30 @@
             });
         }
 
+        /**
+         * Normalize a docket number for consistent deduplication
+         * Handles whitespace, case sensitivity, and common formatting variations
+         * This must match the normalization in EOMigration.normalizeDocketNumber
+         */
+        function normalizeDocketNumber(docketNumber) {
+            if (!docketNumber) return '';
+            let normalized = String(docketNumber);
+            normalized = normalized.trim();
+            normalized = normalized.replace(/\s+/g, ' ');
+            normalized = normalized.toUpperCase();
+            return normalized;
+        }
+
         // Deduplicate records by docket number (Case_Number), merging fields to preserve non-null values
         // Uses _logged_at (activity stream timestamp) if available, otherwise falls back to File_Date
+        // IMPORTANT: Uses normalized docket numbers to handle case/whitespace variations
         function dedupeByDocketNumber(records) {
             const seen = new Map();
 
             for (const record of records) {
-                const docketNumber = (record.Case_Number || '').trim();
+                // Normalize docket number for consistent deduplication
+                const rawDocket = record.Case_Number || '';
+                const docketNumber = normalizeDocketNumber(rawDocket);
 
                 // Skip records with empty docket numbers
                 if (!docketNumber) {
@@ -8813,6 +8839,8 @@
                 }
 
                 if (!seen.has(docketNumber)) {
+                    // Update the record's Case_Number to the normalized version for consistency
+                    record.Case_Number = docketNumber;
                     seen.set(docketNumber, record);
                 } else {
                     // Merge records, preferring non-null values from either
@@ -8843,7 +8871,10 @@
                     }
 
                     // Merge: newer record is base, but preserve non-null values from older
-                    seen.set(docketNumber, mergeRecordFields(olderRecord, newerRecord));
+                    const merged = mergeRecordFields(olderRecord, newerRecord);
+                    // Ensure normalized docket number is preserved
+                    merged.Case_Number = docketNumber;
+                    seen.set(docketNumber, merged);
                 }
             }
 
