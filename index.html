@@ -8084,9 +8084,16 @@
                 isLoadingData = false;
                 updateRefreshUI();
 
-                // Initialize queue system after data loads
+                // Initialize queue system after data loads and auto-queue stale records
                 if (allData && allData.length > 0) {
-                    initializeQueueSystem();
+                    initializeQueueSystem().then(() => {
+                        // Automatically queue stale records without requiring user to open individual cases
+                        queueStaleRecords(25).then(result => {
+                            if (result && result.queued > 0) {
+                                console.log(`Auto-queued ${result.queued} stale records on load`);
+                            }
+                        }).catch(err => console.error('Auto-queue failed:', err));
+                    });
                 }
             }
         }
