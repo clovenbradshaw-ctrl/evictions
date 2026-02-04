@@ -14135,7 +14135,114 @@
                 `;
             });
 
+            // Add section for discovered/additional fields from case_data
+            const discoveredFields = Array.from(dynamicCaseDataKeys).sort();
+            if (discoveredFields.length > 0) {
+                const allDiscoveredSelected = discoveredFields.every(f => tempExportColumns.includes(f));
+                const someDiscoveredSelected = discoveredFields.some(f => tempExportColumns.includes(f));
+                const selectedDiscoveredCount = discoveredFields.filter(f => tempExportColumns.includes(f)).length;
+
+                // Get example values from actual data
+                const exampleRows = getDiscoveredFieldExamples(discoveredFields, 3);
+
+                html += `
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <div style="background-color: #f5f5f4;" class="px-4 py-2 border-b border-gray-200">
+                            <span class="text-sm font-semibold" style="color: #57534e;">Additional Fields</span>
+                            <span class="text-xs ml-2" style="color: #57534e; opacity: 0.8;">(${selectedDiscoveredCount}/${discoveredFields.length} fields)</span>
+                        </div>
+                        <div class="p-3">
+                            <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded border border-gray-100 bg-gray-50">
+                                <input type="checkbox"
+                                    class="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                    id="toggleAllDiscoveredExport"
+                                    ${allDiscoveredSelected ? 'checked' : ''}
+                                    ${someDiscoveredSelected && !allDiscoveredSelected ? 'indeterminate' : ''}
+                                    onchange="toggleAllDiscoveredExportColumns(this.checked)"
+                                >
+                                <div class="flex-1">
+                                    <span class="text-sm font-medium text-gray-700">All additional fields</span>
+                                    <span class="text-xs text-gray-500 ml-1">(${discoveredFields.length} fields from docket data)</span>
+                                </div>
+                            </label>
+                            ${exampleRows.length > 0 ? `
+                            <div class="mt-3 text-xs text-gray-500">
+                                <div class="font-medium text-gray-600 mb-2">Example content:</div>
+                                <div class="bg-white rounded border border-gray-200 overflow-hidden">
+                                    <table class="w-full text-left">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                ${exampleRows[0].fields.slice(0, 4).map(f => `<th class="px-2 py-1 border-b border-gray-200 font-medium">${f.label}</th>`).join('')}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${exampleRows.map(row => `
+                                                <tr class="border-b border-gray-100 last:border-0">
+                                                    ${row.fields.slice(0, 4).map(f => `<td class="px-2 py-1 truncate max-w-[120px]" title="${String(f.value || '').replace(/"/g, '&quot;')}">${f.value || '<span class="text-gray-300">—</span>'}</td>`).join('')}
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                ${exampleRows[0].fields.length > 4 ? `<div class="mt-1 text-gray-400">+ ${exampleRows[0].fields.length - 4} more fields...</div>` : ''}
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+
+                // Set indeterminate state after render
+                setTimeout(() => {
+                    const checkbox = document.getElementById('toggleAllDiscoveredExport');
+                    if (checkbox && someDiscoveredSelected && !allDiscoveredSelected) {
+                        checkbox.indeterminate = true;
+                    }
+                }, 0);
+            }
+
             container.innerHTML = html;
+        }
+
+        // Get example values for discovered fields from actual data
+        function getDiscoveredFieldExamples(fields, numRows = 3) {
+            const examples = [];
+            const dataToSample = filteredData && filteredData.length > 0 ? filteredData : (rawData || []);
+
+            // Find rows that have values for discovered fields
+            let rowsWithData = 0;
+            for (let i = 0; i < dataToSample.length && rowsWithData < numRows; i++) {
+                const row = dataToSample[i];
+                const fieldValues = fields.map(field => ({
+                    field: field,
+                    label: formatDynamicColumnHeader(field),
+                    value: row[field] !== undefined && row[field] !== null && row[field] !== ''
+                        ? (typeof row[field] === 'object' ? JSON.stringify(row[field]) : String(row[field]))
+                        : null
+                }));
+
+                // Only include rows that have at least some values
+                if (fieldValues.some(fv => fv.value !== null)) {
+                    examples.push({ fields: fieldValues });
+                    rowsWithData++;
+                }
+            }
+
+            return examples;
+        }
+
+        // Toggle all discovered columns for export
+        function toggleAllDiscoveredExportColumns(checked) {
+            const discoveredFields = Array.from(dynamicCaseDataKeys);
+            if (checked) {
+                discoveredFields.forEach(field => {
+                    if (!tempExportColumns.includes(field)) {
+                        tempExportColumns.push(field);
+                    }
+                });
+            } else {
+                tempExportColumns = tempExportColumns.filter(f => !discoveredFields.includes(f));
+            }
+            renderExportColumnSelector();
         }
 
         function toggleExportColumn(field, checked) {
@@ -14148,7 +14255,9 @@
         }
 
         function selectAllExportColumns() {
-            tempExportColumns = ALL_EXPORT_COLUMNS.map(c => c.field);
+            // Include all defined columns plus all discovered columns
+            const discoveredFields = Array.from(dynamicCaseDataKeys);
+            tempExportColumns = [...ALL_EXPORT_COLUMNS.map(c => c.field), ...discoveredFields];
             renderExportColumnSelector();
         }
 
