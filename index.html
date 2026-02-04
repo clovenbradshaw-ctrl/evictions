@@ -14628,12 +14628,8 @@
                         secretInputBuffer = '';
                         secretModeActive = false;
                         hideSecretModeIndicator();
-                        // Reveal and switch to docket processing tab
-                        const docketTab = document.getElementById('docketTab');
-                        if (docketTab) {
-                            docketTab.classList.remove('hidden');
-                            setSearchTab('docket');
-                        }
+                        // Show bulk upload modal
+                        showBulkUploadModal();
                     }
                 }
                 return;
