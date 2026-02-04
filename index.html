@@ -7377,22 +7377,76 @@
         }
 
         /**
-         * Add item(s) to the process queue
+         * Add item(s) to the process queue with deduplication
          */
         async function addToProcessQueue(entries) {
             // Ensure entries is an array
             const items = Array.isArray(entries) ? entries : [entries];
 
+            // Ensure we have fresh queue state for deduplication check
+            if (!queueState.lastFetched || Date.now() - queueState.lastFetched > 5000) {
+                await fetchQueueItems();
+            }
+
             const results = [];
             for (const entry of items) {
                 try {
+                    const entityId = entry.entity_id;
+
+                    // Check for existing pending/processing entry (deduplication)
+                    const existingItem = queueState.items.find(
+                        item => item.entity_id === entityId &&
+                               (item.status === 'pending' || item.status === 'processing')
+                    );
+
+                    if (existingItem) {
+                        const newPriority = entry.priority || 2;
+
+                        // If new request has higher priority (lower number), upgrade existing
+                        if (newPriority < existingItem.priority) {
+                            console.log(`Upgrading priority for ${entityId} from ${existingItem.priority} to ${newPriority}`);
+                            try {
+                                const patchResponse = await fetch(`${PROCESS_QUEUE_API}/${existingItem.id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ priority: newPriority })
+                                });
+                                if (patchResponse.ok) {
+                                    existingItem.priority = newPriority; // Update local state
+                                    results.push({
+                                        success: true,
+                                        skipped: false,
+                                        upgraded: true,
+                                        entity_id: entityId,
+                                        message: `Priority upgraded to ${newPriority}`
+                                    });
+                                    continue;
+                                }
+                            } catch (patchError) {
+                                console.warn('Could not upgrade priority:', patchError);
+                            }
+                        }
+
+                        // Already in queue with same or higher priority - skip
+                        console.log(`Skipping duplicate queue entry for ${entityId} (already ${existingItem.status})`);
+                        results.push({
+                            success: true,
+                            skipped: true,
+                            entity_id: entityId,
+                            existing_status: existingItem.status,
+                            message: 'Already in queue'
+                        });
+                        continue;
+                    }
+
+                    // No existing entry - create new one
                     const response = await fetch(PROCESS_QUEUE_API, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            entity_id: entry.entity_id,
+                            entity_id: entityId,
                             trigger_type: entry.trigger_type || 'MANUAL',
                             priority: entry.priority || 2,
                             status: 'pending',
@@ -7405,7 +7459,7 @@
                     }
 
                     const result = await response.json();
-                    results.push({ success: true, data: result, entity_id: entry.entity_id });
+                    results.push({ success: true, skipped: false, data: result, entity_id: entityId });
                 } catch (error) {
                     console.error('Error adding to queue:', error);
                     results.push({ success: false, error: error.message, entity_id: entry.entity_id });
