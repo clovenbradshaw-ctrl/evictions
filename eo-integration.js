@@ -160,8 +160,11 @@ const EOIntegration = (function() {
 
   /**
    * Sync new events from the EO operations table
+   *
+   * @param {object} options - Sync options
+   * @param {boolean} options.usePaginated - Use paginated endpoint (default: false for incremental sync)
    */
-  async function syncFromEO() {
+  async function syncFromEO(options = {}) {
     console.log('🔄 Syncing from EO...');
 
     try {
@@ -201,6 +204,76 @@ const EOIntegration = (function() {
       return { synced: newEvents.length };
     } catch (e) {
       console.error('Sync failed:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * Full sync using the paginated endpoint
+   * More efficient for initial sync or full rebuilds
+   *
+   * @param {object} options - Sync options
+   * @param {function} options.onProgress - Progress callback ({ page, pageTotal, itemsFetched, itemsTotal })
+   * @param {number} options.perPage - Items per page (default: 3000)
+   * @param {boolean} options.incrementalFromLastSync - If true, only fetches events since last sync timestamp
+   * @returns {object} { synced, pages, totalItems }
+   */
+  async function syncFromEOPaginated(options = {}) {
+    console.log('🔄 Syncing from EO (paginated)...');
+
+    try {
+      const fetchOptions = {
+        onProgress: options.onProgress,
+        perPage: options.perPage || EOMigration.CONFIG.DEFAULT_PAGE_SIZE,
+        log: console.log
+      };
+
+      // Optionally do incremental sync from last timestamp
+      if (options.incrementalFromLastSync && lastSyncTimestamp > 0) {
+        fetchOptions.since_ts = lastSyncTimestamp;
+        console.log(`  Incremental sync from: ${new Date(lastSyncTimestamp).toISOString()}`);
+      }
+
+      const result = await EOMigration.fetchAllEventsPaginated(fetchOptions);
+
+      if (result.events.length === 0) {
+        console.log('  No events found');
+        return { synced: 0, pages: 0, totalItems: 0 };
+      }
+
+      console.log(`  Fetched ${result.events.length} events across ${result.pagesFetched} pages`);
+
+      // Replace or merge events cache
+      if (options.incrementalFromLastSync && eventsCache.length > 0) {
+        // Merge new events with existing
+        eventsCache = eventsCache.concat(result.events);
+      } else {
+        // Full sync - replace entire cache
+        eventsCache = result.events;
+      }
+
+      // Update last sync timestamp
+      if (result.events.length > 0) {
+        const maxTs = Math.max(...result.events.map(e => e.ts));
+        lastSyncTimestamp = maxTs;
+        localStorage.setItem(CONFIG.LAST_SYNC_KEY, lastSyncTimestamp.toString());
+      }
+
+      // Rebuild state cache from all events
+      rebuildStateCache();
+
+      // Save to local cache
+      saveEventsToCache();
+
+      console.log(`✅ Synced ${result.events.length} events, ${stateCache.size} entities`);
+      return {
+        synced: result.events.length,
+        pages: result.pagesFetched,
+        totalItems: result.itemsTotal,
+        entities: stateCache.size
+      };
+    } catch (e) {
+      console.error('Paginated sync failed:', e);
       throw e;
     }
   }
@@ -596,6 +669,7 @@ const EOIntegration = (function() {
 
     // Sync
     syncFromEO,
+    syncFromEOPaginated,
     startBackgroundSync,
     stopBackgroundSync,
 
