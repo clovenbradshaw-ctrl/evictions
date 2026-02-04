@@ -3727,23 +3727,41 @@
         </div>
 
         <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 gap-6 mb-6">
-            <!-- Monthly Trend Chart -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- Monthly Trend Chart (By Month Across Years) -->
             <div class="data-card p-6">
                 <div class="flex justify-between items-center mb-4">
                     <div class="flex items-center gap-3">
-                        <h2 class="text-xl font-bold text-gray-900">Eviction Filings by Month</h2>
+                        <h2 class="text-lg font-bold text-gray-900">Filings by Month</h2>
                         <span id="chartFilterIndicator" class="hidden"></span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="text-xs text-gray-500">Click a point to filter table</span>
+                        <span class="text-xs text-gray-500">Click to filter</span>
                         <button onclick="downloadChart('monthly')" class="text-gray-500 hover:text-gray-700">
-                            📊 Export
+                            📊
                         </button>
                     </div>
                 </div>
                 <div class="chart-container">
                     <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Timeline Trendline Chart (All Months Chronologically) -->
+            <div class="data-card p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-lg font-bold text-gray-900">Timeline Trend</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">Click to filter</span>
+                        <button onclick="downloadChart('timeline')" class="text-gray-500 hover:text-gray-700">
+                            📊
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="timelineChart"></canvas>
                 </div>
             </div>
 
@@ -5296,6 +5314,7 @@
         }
 
         let monthlyChart;
+        let timelineChart;
         let searchMatches = [];
         let pivotData = [];
         let viewMode = 'records';
@@ -6876,6 +6895,7 @@
             }
 
             initCharts();  // Initialize charts before loading data
+            initTimelineChart();  // Initialize timeline trendline chart
             await loadData();
 
             // Initialize event sourcing integration
@@ -9944,6 +9964,153 @@
             });
         }
 
+        function initTimelineChart() {
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+            timelineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'point',
+                        intersect: true
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                padding: 10,
+                                boxWidth: 12,
+                                font: { size: 10 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.parsed.y} filings`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Filings',
+                                font: { size: 10 }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month',
+                                font: { size: 10 }
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                font: { size: 9 }
+                            }
+                        }
+                    },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const label = timelineChart.data.labels[element.index];
+                            // Label format: "Jan 2024"
+                            const parts = label.split(' ');
+                            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                            const month = monthNames.indexOf(parts[0]) + 1;
+                            const year = parseInt(parts[1]);
+                            if (month > 0 && year) {
+                                filterByChartClick(year, month);
+                            }
+                        }
+                    },
+                    onHover: function(event, elements) {
+                        event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                    }
+                }
+            });
+        }
+
+        function updateTimelineChart() {
+            if (!timelineChart) {
+                console.warn('⚠️ timelineChart not initialized yet, skipping update');
+                return;
+            }
+
+            // Group data by year and month
+            const yearMonthCounts = {};
+
+            allData.forEach(record => {
+                const date = new Date(record.File_Date);
+                if (isNaN(date.getTime())) return;
+
+                const year = date.getFullYear();
+                const month = date.getMonth(); // 0-11
+
+                const key = `${year}-${String(month).padStart(2, '0')}`;
+                yearMonthCounts[key] = (yearMonthCounts[key] || 0) + 1;
+            });
+
+            // Sort keys chronologically
+            const sortedKeys = Object.keys(yearMonthCounts).sort();
+
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const labels = sortedKeys.map(key => {
+                const [year, month] = key.split('-');
+                return `${monthNames[parseInt(month)]} ${year}`;
+            });
+            const counts = sortedKeys.map(key => yearMonthCounts[key]);
+
+            // Calculate trendline (linear regression)
+            const n = counts.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+            counts.forEach((y, x) => {
+                sumX += x;
+                sumY += y;
+                sumXY += x * y;
+                sumX2 += x * x;
+            });
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            const trendlineData = counts.map((_, x) => slope * x + intercept);
+
+            timelineChart.data.labels = labels;
+            timelineChart.data.datasets = [
+                {
+                    label: 'Monthly Filings',
+                    data: counts,
+                    borderColor: '#4f46e5',
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#4f46e5'
+                },
+                {
+                    label: 'Trend',
+                    data: trendlineData,
+                    borderColor: '#ef4444',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false,
+                    pointRadius: 0,
+                    tension: 0
+                }
+            ];
+            timelineChart.update();
+        }
+
         function updateCharts() {
             // Group data by year and month
             const yearMonthCounts = {};
@@ -9994,6 +10161,9 @@
             }
             monthlyChart.data.datasets = datasets;
             monthlyChart.update();
+
+            // Also update the timeline chart
+            updateTimelineChart();
         }
 
         function filterByChartClick(year, month) {
@@ -10038,6 +10208,8 @@
         function downloadChart(chartType) {
             if (chartType === 'monthly') {
                 downloadMonthlyChartData();
+            } else if (chartType === 'timeline') {
+                downloadTimelineChartData();
             }
         }
 
@@ -10104,6 +10276,53 @@
             window.URL.revokeObjectURL(url);
 
             console.log('Monthly chart data exported successfully');
+        }
+
+        function downloadTimelineChartData() {
+            if (!timelineChart || !timelineChart.data) {
+                alert('Timeline chart data not available. Please wait for data to load.');
+                return;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+
+            // Build CSV from chart data
+            let csv = 'Nashville Eviction Filings Timeline - Export\n';
+            csv += `Generated: ${new Date().toLocaleString()}\n`;
+            csv += 'Privacy Notice: This export contains aggregate statistical data only. Individual tenant information is redacted.\n\n';
+
+            // Get labels and datasets
+            const labels = timelineChart.data.labels;
+            const filingsData = timelineChart.data.datasets[0]?.data || [];
+            const trendData = timelineChart.data.datasets[1]?.data || [];
+
+            // Header row
+            csv += 'Month,Filings,Trend\n';
+
+            // Data rows
+            labels.forEach((label, idx) => {
+                csv += `${label},${filingsData[idx] || 0},${(trendData[idx] || 0).toFixed(1)}\n`;
+            });
+
+            // Add summary statistics
+            csv += '\n\nSUMMARY STATISTICS\n';
+            csv += 'Metric,Value\n';
+            const total = filingsData.reduce((sum, val) => sum + (val || 0), 0);
+            const avg = total / filingsData.length;
+            csv += `Total Filings,${total}\n`;
+            csv += `Average Monthly Filings,${Math.round(avg)}\n`;
+            csv += `Date Range,"${labels[0]} - ${labels[labels.length - 1]}"\n`;
+
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `nashville_timeline_evictions_${today}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            console.log('Timeline chart data exported successfully');
         }
 
         function getDateRange() {
