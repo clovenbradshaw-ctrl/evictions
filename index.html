@@ -4974,22 +4974,8 @@
             <div id="adminTabDocket" class="admin-tab-content flex-1 flex flex-col overflow-hidden hidden">
                 <!-- Content -->
                 <div class="flex-1 overflow-y-auto p-6">
-                    <!-- Login Required State -->
-                    <div id="docketProcessingLocked" class="text-center py-8">
-                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-4">
-                            <span class="text-3xl">🔒</span>
-                        </div>
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Login Required</h3>
-                        <p class="text-gray-600 mb-4 max-w-md mx-auto">
-                            Docket processing requires authentication to upload data to the database.
-                        </p>
-                        <button onclick="showLoginModal()" class="btn btn-primary" style="background: #dc2626;">
-                            🔓 Login to Access Docket Processing
-                        </button>
-                    </div>
-
-                    <!-- Actual Docket Processing Content (hidden until logged in) -->
-                    <div id="docketProcessingContent" class="hidden">
+                    <!-- Docket Processing Content -->
+                    <div id="docketProcessingContent">
                         <div class="mb-4">
                             <p class="text-sm text-gray-600">Upload a Nashville court docket PDF to extract eviction cases. Cases will be compared against existing records - new cases will be inserted (INS), existing cases with changes will be updated (ALT).</p>
                         </div>
@@ -6494,10 +6480,6 @@
                 if (gridApi) {
                     gridApi.refreshCells({ force: true });
                 }
-                // Update docket processing panel if it exists
-                if (document.getElementById('docketProcessingLocked')) {
-                    initDocketProcessing();
-                }
             } else {
                 document.getElementById('loginError').classList.remove('hidden');
             }
@@ -6516,10 +6498,6 @@
             // Refresh grid to scramble names again
             if (gridApi) {
                 gridApi.refreshCells({ force: true });
-            }
-            // Lock docket processing panel if it exists
-            if (document.getElementById('docketProcessingLocked')) {
-                initDocketProcessing();
             }
         }
 
@@ -16580,18 +16558,6 @@
          * Initialize docket processing panel
          */
         function initDocketProcessing() {
-            // Check login state
-            const locked = document.getElementById('docketProcessingLocked');
-            const content = document.getElementById('docketProcessingContent');
-
-            if (isLoggedIn && decryptedPostEndpoint) {
-                locked.classList.add('hidden');
-                content.classList.remove('hidden');
-            } else {
-                locked.classList.remove('hidden');
-                content.classList.add('hidden');
-            }
-
             // Set up drag and drop
             const uploadZone = document.getElementById('docketUploadZone');
             const fileInput = document.getElementById('docketFileInput');
