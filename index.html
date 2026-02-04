@@ -5303,7 +5303,10 @@
         // SHA-256 hash of the password (hashed in lowercase)
         const LOGIN_PASSWORD_HASH = 'fac97e07e2a67586b26047d8862db7306133ca2e1d033013fea044177d584404';
 
-        // Encrypted POST endpoint (AES-GCM, decrypted on login)
+        // POST endpoint for eviction operations
+        const POST_ENDPOINT = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_operations';
+
+        // Encrypted POST endpoint (AES-GCM, decrypted on login) - kept for backward compatibility
         const ENCRYPTED_POST_ENDPOINT = 'tRfLwLSLvPZ9HGJXfB8xR7xBMoawRXcN3L+0Y1K/yFaF3HhKPiAI5n4RIHMpqZVN38uaSxp3e3uTsChVBF2XZLQV8WfNJNqwmm+8oCRvIHqw94mTbfE8gQ==';
         let decryptedPostEndpoint = null;
 
@@ -17159,11 +17162,6 @@
          * Upload docket changes to database
          */
         async function uploadDocketChanges() {
-            if (!isLoggedIn || !decryptedPostEndpoint) {
-                alert('Please login first to upload data.');
-                return;
-            }
-
             const toUpload = docketComparedCases.filter(c => c.status === 'new' || c.status === 'updated');
 
             if (toUpload.length === 0) {
@@ -17218,7 +17216,7 @@
                     const xanoEvent = EOMigration.toXanoFormat(event);
 
                     // Upload to API
-                    const response = await fetch(decryptedPostEndpoint, {
+                    const response = await fetch(POST_ENDPOINT, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
