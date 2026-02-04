@@ -10061,7 +10061,12 @@
             });
 
             // Sort keys chronologically
-            const sortedKeys = Object.keys(yearMonthCounts).sort();
+            const allSortedKeys = Object.keys(yearMonthCounts).sort();
+
+            // Exclude current month (incomplete data)
+            const now = new Date();
+            const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
+            const sortedKeys = allSortedKeys.filter(key => key !== currentMonthKey);
 
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             const labels = sortedKeys.map(key => {
