@@ -9962,39 +9962,37 @@
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                                'July', 'August', 'September', 'October', 'November', 'December'];
 
-            chartFilter = { year: parseInt(year), month: month };
+            // Use advanced filter builder instead of separate chartFilter
+            // Clear existing groups and create a new filter for the month/year
+            filterGroups = [];
+            filterGroupIdCounter = 0;
+            chartFilter = null; // Clear the old chart filter system
 
-            filteredData = allData.filter(record => {
-                const date = new Date(record.File_Date);
-                if (isNaN(date.getTime())) return false;
-                return date.getFullYear() === chartFilter.year &&
-                       (date.getMonth() + 1) === chartFilter.month;
+            const groupId = addFilterGroup();
+            const group = findGroupById(groupId);
+
+            // Remove the default empty condition
+            group.conditions = [];
+
+            // Calculate date range for the selected month
+            const startDate = new Date(year, month - 1, 1);
+            const endDate = new Date(year, month, 0); // Last day of the month
+            const startStr = startDate.toISOString().split('T')[0];
+            const endStr = endDate.toISOString().split('T')[0];
+
+            // Add a between condition for the file date
+            group.conditions.push({
+                id: Date.now(),
+                field: 'File_Date',
+                operator: 'between',
+                value: startStr,
+                value2: endStr
             });
 
-            if (viewMode === 'pivot') {
-                pivotData = buildPivotData(pivotDimension);
-            }
+            renderFilterGroups();
+            applyAdvancedFilters();
 
-            if (gridApi) {
-                if (viewMode === 'pivot') {
-                    gridApi.setRowData(pivotData);
-                } else {
-                    gridApi.setRowData(filteredData);
-                }
-            }
-
-            updateRecordCount();
-            updateChartFilterIndicator();
-            updateDemographicsCharts();
-            updateDemoFilterIndicator();
-            updateMetrics();
-            updateStatus(`Filtered to ${monthNames[month - 1]} ${year} - ${filteredData.length} records`, 'success');
-
-            // Persist chart filter state
-            debouncedSaveUIState();
-
-            // Update URL with filter state
-            updateUrlWithFilters();
+            updateStatus(`Filtered to ${monthNames[month - 1]} ${year}`, 'success');
         }
 
         function downloadChart(chartType) {
@@ -10874,41 +10872,32 @@
             const field = fieldMap[type] || 'Plaintiff';
             const label = labelMap[type] || 'Name';
 
-            // Clear chart filter when filtering by name
+            // Use advanced filter builder instead of separate nameFilter
+            filterGroups = [];
+            filterGroupIdCounter = 0;
             chartFilter = null;
+            nameFilter = null;
             updateChartFilterIndicator();
 
-            nameFilter = { name: trimmedName, type: type, field: field, label: label };
+            const groupId = addFilterGroup();
+            const group = findGroupById(groupId);
 
-            filteredData = allData.filter(record => {
-                const recordValue = record[field];
-                return recordValue && String(recordValue).trim() === trimmedName;
+            // Remove the default empty condition
+            group.conditions = [];
+
+            // Add an equals condition for the name field
+            group.conditions.push({
+                id: Date.now(),
+                field: field,
+                operator: 'equals',
+                value: trimmedName,
+                value2: ''
             });
 
-            if (viewMode === 'pivot') {
-                pivotData = buildPivotData(pivotDimension);
-            }
+            renderFilterGroups();
+            applyAdvancedFilters();
 
-            if (gridApi) {
-                if (viewMode === 'pivot') {
-                    gridApi.setRowData(pivotData);
-                } else {
-                    gridApi.setRowData(filteredData);
-                }
-            }
-
-            updateRecordCount();
-            updateNameFilterIndicator();
-            updateDemographicsCharts();
-            updateDemoFilterIndicator();
-            updateMetrics();
-            updateStatus(`Showing ${filteredData.length} records for ${label}: ${trimmedName}`, 'success');
-
-            // Persist filter state
-            debouncedSaveUIState();
-
-            // Update URL with filter state
-            updateUrlWithFilters();
+            updateStatus(`Showing records for ${label}: ${trimmedName}`, 'success');
         }
 
         function clearNameFilter() {
@@ -15780,6 +15769,9 @@
 
             group.conditions = group.conditions.filter(c => c.id !== conditionId);
             renderFilterGroups();
+
+            // Auto-apply filter to keep active filter in sync with builder
+            applyAdvancedFilters();
         }
 
         function removeGroup(groupId) {
@@ -15796,6 +15788,9 @@
             removeNested(filterGroups);
 
             renderFilterGroups();
+
+            // Auto-apply filter to keep active filter in sync with builder
+            applyAdvancedFilters();
         }
 
         function toggleGroupLogic(groupId) {
