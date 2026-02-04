@@ -383,7 +383,7 @@ API Endpoints:
             source_table: sourceTable,
             target: { id: docket, type: 'eviction_case' },
             context: { table: sourceTable, data: normalizeCase(record) },
-            frame: { source: 'migration', legacy_id: record.id, legacy_action: action, version: '1.0' }
+            frame: { source: 'migration', legacy_id: record.id, legacy_action: OPERATORS.INS, version: '1.0' }
           });
         } else {
           const previousRecord = caseFirstSeen.get(docket);
@@ -399,7 +399,7 @@ API Endpoints:
               source_table: sourceTable,
               target: { id: docket, type: 'eviction_case' },
               context: { table: sourceTable, changes: changes },
-              frame: { source: 'migration', legacy_id: record.id, legacy_action: action, version: '1.0' }
+              frame: { source: 'migration', legacy_id: record.id, legacy_action: OPERATORS.ALT, version: '1.0' }
             });
             caseFirstSeen.set(docket, record);
           }
