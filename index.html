@@ -6563,7 +6563,12 @@
 
         const recordColumnDefs = [
             { field: 'File_Date', headerName: 'File Date', headerClass: 'header-group-dates', width: 110,
-              valueFormatter: params => new Date(params.value).toLocaleDateString(),
+              valueFormatter: params => {
+                  if (!params.value) return '';
+                  const date = new Date(params.value);
+                  if (isNaN(date.getTime()) || date.getFullYear() < 2024) return '';
+                  return date.toLocaleDateString();
+              },
               comparator: (valueA, valueB) => {
                   const dateA = valueA ? new Date(valueA).getTime() : 0;
                   const dateB = valueB ? new Date(valueB).getTime() : 0;
@@ -11258,7 +11263,8 @@
             const formatDate = value => {
                 if (!value) return null;
                 const date = new Date(value);
-                if (Number.isNaN(date.getTime())) return String(value);
+                if (Number.isNaN(date.getTime())) return null;
+                if (date.getFullYear() < 2024) return null;
                 return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
             };
 
@@ -13776,7 +13782,13 @@
                 const rows = results.map(r => {
                     const confClass = r.confidence > 0.9 ? 'confidence-high' :
                                      r.confidence > 0.8 ? 'confidence-med' : 'confidence-low';
-                    const fileDate = r.record.File_Date ? new Date(r.record.File_Date).toLocaleDateString() : '—';
+                    let fileDate = '—';
+                    if (r.record.File_Date) {
+                        const date = new Date(r.record.File_Date);
+                        if (!isNaN(date.getTime()) && date.getFullYear() >= 2024) {
+                            fileDate = date.toLocaleDateString();
+                        }
+                    }
 
                     return `
                         <tr>
@@ -14644,7 +14656,12 @@
                     let value = '';
                     switch (field) {
                         case 'File_Date':
-                            value = row.File_Date ? new Date(row.File_Date).toLocaleDateString() : '';
+                            if (row.File_Date) {
+                                const date = new Date(row.File_Date);
+                                value = (!isNaN(date.getTime()) && date.getFullYear() >= 2024) ? date.toLocaleDateString() : '';
+                            } else {
+                                value = '';
+                            }
                             break;
                         case 'Case_Number':
                             value = (row.Case_Number || '').replace(/"/g, '""');
@@ -16446,18 +16463,18 @@
         function getFieldValue(record, fieldKey) {
             if (fieldKey === 'File_Date_Month') {
                 const date = new Date(record.File_Date);
-                if (isNaN(date.getTime())) return 'Unknown';
+                if (isNaN(date.getTime()) || date.getFullYear() < 2024) return 'Unknown';
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 return `${months[date.getMonth()]} ${date.getFullYear()}`;
             }
             if (fieldKey === 'File_Date_Year') {
                 const date = new Date(record.File_Date);
-                if (isNaN(date.getTime())) return 'Unknown';
+                if (isNaN(date.getTime()) || date.getFullYear() < 2024) return 'Unknown';
                 return String(date.getFullYear());
             }
             if (fieldKey === 'File_Date_Quarter') {
                 const date = new Date(record.File_Date);
-                if (isNaN(date.getTime())) return 'Unknown';
+                if (isNaN(date.getTime()) || date.getFullYear() < 2024) return 'Unknown';
                 const quarter = Math.floor(date.getMonth() / 3) + 1;
                 return `Q${quarter} ${date.getFullYear()}`;
             }
