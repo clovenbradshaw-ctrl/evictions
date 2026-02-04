@@ -770,13 +770,14 @@ const EOMigration = (function() {
   function getAuditTrail(entityId, events) {
     return events
       .filter(e => (e.entity_id || e.target?.id) === entityId)
-      .sort((a, b) => a.ts - b.ts)
+      .sort((a, b) => getObservationTS(a) - getObservationTS(b))
       .map(e => ({
         id: e.id,
         when: new Date(e.ts).toISOString(),
+        observedAt: new Date(getObservationTS(e)).toISOString(),
         op: e.op,
         meaning: OPERATOR_MEANINGS[e.op] || e.op,
-        details: e.context,
+        details: e.payload || e.context,
         frame: e.frame
       }));
   }
@@ -924,7 +925,10 @@ const EOMigration = (function() {
    * Filter events by source table
    */
   function filterByTable(events, tableName) {
-    return events.filter(e => e.context.table === tableName);
+    return events.filter(e => {
+      const payload = e.payload || e.context || {};
+      return payload.table === tableName;
+    });
   }
 
   /**
@@ -951,7 +955,8 @@ const EOMigration = (function() {
     return filterByOperator(events, OPERATORS.ALT)
       .filter(e => {
         if (e.target?.field === fieldName) return true;
-        if (e.context?.changes && e.context.changes[fieldName]) return true;
+        const payload = e.payload || e.context || {};
+        if (payload.changes && payload.changes[fieldName]) return true;
         return false;
       })
       .map(e => e.entity_id || e.target?.id)
