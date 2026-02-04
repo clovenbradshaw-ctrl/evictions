@@ -16563,6 +16563,7 @@
         let docketParsedCases = [];
         let docketComparedCases = [];
         let docketCurrentFilter = 'all';
+        let docketPdfMetadata = null; // Stores PDF metadata including creation date for observationTS
 
         /**
          * Initialize docket processing panel
@@ -16604,6 +16605,29 @@
         }
 
         /**
+         * Parse PDF date format to Unix timestamp
+         * PDF dates are in format: D:YYYYMMDDHHmmss or similar
+         */
+        function parsePdfDateToTimestamp(dateStr) {
+            if (!dateStr) return null;
+            try {
+                let str = dateStr;
+                if (str.startsWith('D:')) str = str.slice(2);
+                const year = str.slice(0, 4);
+                const month = str.slice(4, 6) || '01';
+                const day = str.slice(6, 8) || '01';
+                const hour = str.slice(8, 10) || '00';
+                const min = str.slice(10, 12) || '00';
+                const sec = str.slice(12, 14) || '00';
+                const date = new Date(`${year}-${month}-${day}T${hour}:${min}:${sec}`);
+                if (isNaN(date.getTime())) return null;
+                return date.getTime();
+            } catch {
+                return null;
+            }
+        }
+
+        /**
          * Process docket PDF file
          */
         async function processDocketPDF(file) {
@@ -16626,6 +16650,35 @@
             try {
                 const arrayBuffer = await file.arrayBuffer();
                 const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+
+                updateProgress(5, 'Extracting PDF metadata...');
+
+                // Extract PDF metadata for observationTS
+                const metadata = await pdf.getMetadata();
+                const info = metadata.info || {};
+
+                // Get creation date as timestamp for observationTS
+                const creationDateStr = info.CreationDate;
+                const modDateStr = info.ModDate;
+                const observationTS = parsePdfDateToTimestamp(creationDateStr) ||
+                                      parsePdfDateToTimestamp(modDateStr) ||
+                                      Date.now();
+
+                // Store PDF metadata
+                docketPdfMetadata = {
+                    title: info.Title,
+                    author: info.Author,
+                    creator: info.Creator,
+                    producer: info.Producer,
+                    creationDate: creationDateStr,
+                    modDate: modDateStr,
+                    observationTS: observationTS, // Unix timestamp for when PDF was created
+                    fileName: file.name,
+                    fileSize: file.size,
+                    numPages: pdf.numPages
+                };
+
+                console.log('PDF metadata extracted:', docketPdfMetadata);
 
                 updateProgress(10, 'Loading PDF...');
 
@@ -17179,6 +17232,11 @@
             uploadBtn.disabled = true;
             uploadLog.innerHTML = '';
 
+            // Get observationTS from PDF metadata (creation date) - this establishes
+            // when the data was actually observed, important for proper event ordering
+            const observationTS = docketPdfMetadata?.observationTS || Date.now();
+            console.log('Using observationTS from PDF metadata:', observationTS, new Date(observationTS).toISOString());
+
             let successCount = 0;
             let failCount = 0;
 
@@ -17192,23 +17250,24 @@
                 try {
                     let event;
 
+                    const frame = {
+                        source: 'docket_processing',
+                        version: '1.0',
+                        court_date: item.parsed.court_date,
+                        pdf_file: docketPdfMetadata?.fileName,
+                        pdf_created: docketPdfMetadata?.creationDate
+                    };
+
                     if (item.operation === 'INS') {
-                        // Create INSERT event
-                        event = EOMigration.createInsertEvent(item.record, {
-                            source: 'docket_processing',
-                            version: '1.0',
-                            court_date: item.parsed.court_date
-                        });
+                        // Create INSERT event with observationTS from PDF creation date
+                        event = EOMigration.createInsertEvent(item.record, frame, observationTS);
                     } else {
-                        // Create ALTER event
+                        // Create ALTER event with observationTS from PDF creation date
                         event = EOMigration.createBulkUpdateEvent(
                             item.docketNumber,
                             item.changes,
-                            {
-                                source: 'docket_processing',
-                                version: '1.0',
-                                court_date: item.parsed.court_date
-                            }
+                            frame,
+                            observationTS
                         );
                     }
 
@@ -17264,6 +17323,7 @@
             docketParsedCases = [];
             docketComparedCases = [];
             docketCurrentFilter = 'all';
+            docketPdfMetadata = null;
 
             document.getElementById('docketResults').classList.add('hidden');
             document.getElementById('docketProgress').classList.add('hidden');
