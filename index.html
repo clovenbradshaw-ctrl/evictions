@@ -5072,9 +5072,9 @@
                                     </button>
                                 </div>
                                 <div class="flex gap-2 items-center">
-                                    <span id="docketUploadNote" class="text-sm text-gray-500"></span>
+                                    <span id="docketUploadNote" class="text-sm text-gray-500">(Eviction cases only)</span>
                                     <button onclick="uploadDocketChanges()" id="docketUploadBtn" class="btn btn-primary" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
-                                        🚀 Upload Changes
+                                        🚀 Upload Evictions
                                     </button>
                                 </div>
                             </div>
@@ -5082,7 +5082,7 @@
                             <!-- Upload Progress -->
                             <div id="docketUploadProgress" class="hidden mt-4">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-sm font-medium text-gray-700">Uploading to database...</span>
+                                    <span class="text-sm font-medium text-gray-700">Uploading eviction cases to database...</span>
                                     <span id="docketUploadProgressText" class="text-sm text-gray-500">0 / 0</span>
                                 </div>
                                 <div class="h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
@@ -17218,10 +17218,14 @@
          * Upload docket changes to database
          */
         async function uploadDocketChanges() {
-            const toUpload = docketComparedCases.filter(c => c.status === 'new' || c.status === 'updated');
+            // Only sync eviction cases (GT) - skip general civil cases (GC)
+            const toUpload = docketComparedCases.filter(c =>
+                (c.status === 'new' || c.status === 'updated') &&
+                c.parsed.case_type === 'GT'
+            );
 
             if (toUpload.length === 0) {
-                alert('No changes to upload.');
+                alert('No eviction cases to upload. Only eviction cases (GT) are synced.');
                 return;
             }
 
@@ -17303,16 +17307,16 @@
             }
 
             // Show summary
-            const summary = `Upload complete: ${successCount} succeeded, ${failCount} failed`;
+            const summary = `Eviction upload complete: ${successCount} succeeded, ${failCount} failed`;
             uploadLog.innerHTML += `<div class="mt-2 pt-2 border-t font-semibold">${summary}</div>`;
 
             uploadBtn.disabled = false;
-            uploadBtn.textContent = '✓ Upload Complete';
+            uploadBtn.textContent = '✓ Evictions Uploaded';
 
             // Refresh data if any succeeded
             if (successCount > 0) {
                 setTimeout(() => {
-                    if (confirm('Upload complete! Would you like to refresh the data to see the changes?')) {
+                    if (confirm('Eviction upload complete! Would you like to refresh the data to see the changes?')) {
                         loadData(true);
                     }
                 }, 500);
