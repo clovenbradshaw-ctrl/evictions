@@ -578,7 +578,7 @@ const EOMigration = (function() {
           frame: {
             source: 'migration',
             legacy_id: record.id,
-            legacy_action: action,
+            legacy_action: OPERATORS.INS,
             version: '1.0'
           }
         });
@@ -604,7 +604,7 @@ const EOMigration = (function() {
             frame: {
               source: 'migration',
               legacy_id: record.id,
-              legacy_action: action,
+              legacy_action: OPERATORS.ALT,
               version: '1.0'
             }
           });
