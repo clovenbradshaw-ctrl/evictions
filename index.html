@@ -6234,6 +6234,30 @@
                     console.error('IndexedDB loadFull failed:', e);
                     return null;
                 }
+            },
+
+            // Clear all cached data from IndexedDB
+            async clear() {
+                try {
+                    const db = await this.open();
+                    return new Promise((resolve, reject) => {
+                        const tx = db.transaction(this.STORE_NAME, 'readwrite');
+                        const store = tx.objectStore(this.STORE_NAME);
+                        const request = store.clear();
+                        tx.oncomplete = () => {
+                            db.close();
+                            console.log('💾 Cleared IndexedDB cache');
+                            resolve(true);
+                        };
+                        tx.onerror = () => {
+                            db.close();
+                            reject(tx.error);
+                        };
+                    });
+                } catch (e) {
+                    console.error('IndexedDB clear failed:', e);
+                    return false;
+                }
             }
         };
 
