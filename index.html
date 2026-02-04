@@ -6441,21 +6441,33 @@
             }
         }
 
-        // Scramble a name for privacy (consistent scrambling per name)
+        // Scramble a name for privacy (first initial + redacted last name)
         function scrambleName(name) {
-            if (!name) return '';
-            // Use a simple hash-based approach for consistent scrambling
-            let hash = 0;
-            for (let i = 0; i < name.length; i++) {
-                hash = ((hash << 5) - hash) + name.charCodeAt(i);
-                hash = hash & hash;
+            if (!name || typeof name !== 'string') return '';
+
+            // Split into parts to identify first and last name
+            const parts = name.trim().split(/\s+/);
+            if (parts.length === 0) return '';
+
+            // Get first initial
+            const firstName = parts[0];
+            const firstInitial = firstName.charAt(0).toUpperCase();
+
+            // Get last name (use first name if only one part)
+            const lastName = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+
+            // Redact last name: show last 2 chars, star the rest
+            // If 2 chars or less, star out completely
+            let redactedLast;
+            if (lastName.length <= 2) {
+                redactedLast = '*'.repeat(lastName.length);
+            } else {
+                const starsCount = lastName.length - 2;
+                const lastTwo = lastName.slice(-2);
+                redactedLast = '*'.repeat(starsCount) + lastTwo;
             }
-            // Generate scrambled name parts
-            const firstNames = ['J.', 'M.', 'R.', 'S.', 'A.', 'D.', 'K.', 'T.', 'L.', 'C.'];
-            const lastParts = ['***', '****', '*****', '******'];
-            const firstIdx = Math.abs(hash) % firstNames.length;
-            const lastIdx = Math.abs(hash >> 4) % lastParts.length;
-            return `${firstNames[firstIdx]} ${lastParts[lastIdx]}`;
+
+            return `${firstInitial}. ${redactedLast}`;
         }
 
         // Get display name for defendant (scrambled unless logged in)
