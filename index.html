@@ -7645,10 +7645,13 @@
                 const op = event.op;
                 let state = stateMap.get(entityId);
 
+                // Backwards compatibility: support both 'payload' (new) and 'context' (legacy)
+                const payload = event.payload || event.context || {};
+
                 switch (op) {
                     case 'INS':
                         // New entity - create from event data
-                        state = { ...event.context?.data };
+                        state = { ...payload.data };
                         state._entity_id = entityId;
                         state._last_updated = event.ts;
                         state._event_count = 1;
@@ -7656,14 +7659,14 @@
                         break;
 
                     case 'ALT':
-                        // ALT with context.data = upsert (create if not exists, update if exists)
-                        if (event.context?.data) {
+                        // ALT with payload.data = upsert (create if not exists, update if exists)
+                        if (payload.data) {
                             if (state) {
                                 // Merge new data into existing state
-                                Object.assign(state, event.context.data);
+                                Object.assign(state, payload.data);
                             } else {
                                 // Create new entity from ALT data
-                                state = { ...event.context.data };
+                                state = { ...payload.data };
                                 state.Docket_Number = entityId;
                             }
                             state._entity_id = entityId;
@@ -7672,12 +7675,12 @@
                             stateMap.set(entityId, state);
                         } else if (state) {
                             // ALT with changes or single field update (only if state exists)
-                            if (event.context?.changes) {
-                                for (const [field, change] of Object.entries(event.context.changes)) {
+                            if (payload.changes) {
+                                for (const [field, change] of Object.entries(payload.changes)) {
                                     state[field] = change.new;
                                 }
-                            } else if (event.target?.field && event.context?.new !== undefined) {
-                                state[event.target.field] = event.context.new;
+                            } else if (event.target?.field && payload.new !== undefined) {
+                                state[event.target.field] = payload.new;
                             }
                             state._last_updated = event.ts;
                             state._event_count = (state._event_count || 0) + 1;
@@ -7691,7 +7694,7 @@
 
                     case 'SYN':
                         // Merge - mark absorbed entities
-                        if (event.context?.merged && state) {
+                        if (payload.merged && state) {
                             state._merged_into = event.entity_id || event.target?.id;
                         }
                         break;
@@ -15192,7 +15195,7 @@
                             entity_type: 'eviction_case',
                             source_table: 'eviction_cases',
                             target: JSON.stringify({ id: record.Docket_Number, type: 'eviction_case' }),
-                            context: JSON.stringify({ table: 'eviction_cases', data: record }),
+                            payload: JSON.stringify({ table: 'eviction_cases', data: record }),
                             frame: JSON.stringify({ source: 'csv_upload', version: '1.0' })
                         };
 

@@ -218,14 +218,17 @@ const EOIntegration = (function() {
     if (!entityId) return; // Skip events without valid entity ID
     let state = stateCache.get(entityId);
 
+    // Backwards compatibility: support both 'payload' (new) and 'context' (legacy)
+    const payload = event.payload || event.context || {};
+
     switch (event.op) {
       case EOMigration.OPERATORS.INS:
         // New entity or update existing
         if (state) {
           // Merge into existing state (INS can be re-applied or come out of order)
-          if (event.context?.data) Object.assign(state, event.context.data);
+          if (payload.data) Object.assign(state, payload.data);
         } else {
-          state = { ...(event.context?.data || {}) };
+          state = { ...(payload.data || {}) };
           state.Docket_Number = entityId;
         }
         state._entity_id = entityId;
@@ -242,14 +245,14 @@ const EOIntegration = (function() {
           };
         }
 
-        // ALT with context.data = full record upsert
-        if (event.context?.data) {
-          Object.assign(state, event.context.data);
+        // ALT with payload.data = full record upsert
+        if (payload.data) {
+          Object.assign(state, payload.data);
         }
 
-        // ALT with context.changes = delta update
-        if (event.context?.changes) {
-          for (const [field, change] of Object.entries(event.context.changes)) {
+        // ALT with payload.changes = delta update
+        if (payload.changes) {
+          for (const [field, change] of Object.entries(payload.changes)) {
             // change can be { old, new } or just a new value
             const newValue = change.new !== undefined ? change.new : change;
             state[field] = newValue;
@@ -257,8 +260,8 @@ const EOIntegration = (function() {
         }
 
         // ALT with single field update via target.field
-        if (event.target?.field && event.context?.new !== undefined) {
-          state[event.target.field] = event.context.new;
+        if (event.target?.field && payload.new !== undefined) {
+          state[event.target.field] = payload.new;
         }
 
         state._last_updated = event.ts;
