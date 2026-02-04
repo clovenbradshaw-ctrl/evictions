@@ -1364,40 +1364,43 @@
 
             let detailsHtml = '';
 
+            // Support both 'payload' (new) and 'context' (legacy) field names
+            const eventData = event.payload || event.context || {};
+
             // Handle different event types
-            if (event.op === 'INS' && event.context && event.context.data) {
+            if (event.op === 'INS' && eventData.data) {
                 // Insert event - show redacted case data
-                const redactedData = redactObject(event.context.data);
+                const redactedData = redactObject(eventData.data);
                 detailsHtml = renderInsertDetails(redactedData);
-            } else if (event.op === 'ALT' && event.context) {
+            } else if (event.op === 'ALT') {
                 // Update event - show changes with redaction
-                if (event.context.changes) {
-                    detailsHtml = renderChangeDetails(event.context.changes);
+                if (eventData.changes) {
+                    detailsHtml = renderChangeDetails(eventData.changes);
                 } else if (event.target && event.target.field) {
-                    detailsHtml = renderSingleFieldChange(event.target.field, event.context.old, event.context.new);
+                    detailsHtml = renderSingleFieldChange(event.target.field, eventData.old, eventData.new);
                 }
             } else if (event.op === 'NUL') {
                 // Delete event
-                const reason = event.context && event.context.reason ? event.context.reason : 'deleted';
+                const reason = eventData.reason || 'deleted';
                 detailsHtml = `<div class="event-detail-row">
                     <span class="detail-label">Reason:</span>
                     <span class="detail-value">${escapeHtml(reason)}</span>
                 </div>`;
-            } else if (event.op === 'CON' && event.context) {
+            } else if (event.op === 'CON') {
                 // Connection event
                 detailsHtml = `<div class="event-detail-row">
                     <span class="detail-label">Related To:</span>
-                    <span class="detail-value">${escapeHtml(event.context.related || 'N/A')}</span>
+                    <span class="detail-value">${escapeHtml(eventData.related || 'N/A')}</span>
                 </div>
                 <div class="event-detail-row">
                     <span class="detail-label">Relationship:</span>
-                    <span class="detail-value">${escapeHtml(event.context.relationship || 'N/A')}</span>
+                    <span class="detail-value">${escapeHtml(eventData.relationship || 'N/A')}</span>
                 </div>`;
-            } else if (event.op === 'SYN' && event.context && event.context.merged) {
+            } else if (event.op === 'SYN' && eventData.merged) {
                 // Merge event
                 detailsHtml = `<div class="event-detail-row">
                     <span class="detail-label">Merged:</span>
-                    <span class="detail-value">${escapeHtml(event.context.merged.join(', '))}</span>
+                    <span class="detail-value">${escapeHtml(eventData.merged.join(', '))}</span>
                 </div>`;
             }
 
@@ -1765,17 +1768,20 @@
             let state = {};
 
             for (const event of entityEvents) {
-                if (event.op === 'INS' && event.context && event.context.data) {
+                // Support both 'payload' (new) and 'context' (legacy) field names
+                const eventData = event.payload || event.context || {};
+
+                if (event.op === 'INS' && eventData.data) {
                     // Initial insert - set base state
-                    state = { ...event.context.data };
+                    state = { ...eventData.data };
                 } else if (event.op === 'ALT') {
                     // Apply changes
-                    if (event.context && event.context.changes) {
-                        for (const [field, change] of Object.entries(event.context.changes)) {
+                    if (eventData.changes) {
+                        for (const [field, change] of Object.entries(eventData.changes)) {
                             state[field] = change.new;
                         }
-                    } else if (event.target && event.target.field && event.context) {
-                        state[event.target.field] = event.context.new;
+                    } else if (event.target && event.target.field && eventData.new !== undefined) {
+                        state[event.target.field] = eventData.new;
                     }
                 } else if (event.op === 'NUL') {
                     // Mark as deleted/archived
@@ -1988,12 +1994,15 @@
                 const timestamp = formatToCentralTime(event.ts);
                 const meaning = OPERATOR_MEANINGS[event.op] || event.op;
 
+                // Support both 'payload' (new) and 'context' (legacy) field names
+                const eventData = event.payload || event.context || {};
+
                 let changesHtml = '';
 
-                if (event.op === 'ALT' && event.context) {
-                    if (event.context.changes) {
+                if (event.op === 'ALT') {
+                    if (eventData.changes) {
                         changesHtml = '<div class="timeline-changes">';
-                        for (const [field, change] of Object.entries(event.context.changes)) {
+                        for (const [field, change] of Object.entries(eventData.changes)) {
                             const displayField = field.replace(/_/g, ' ');
                             let oldVal, newVal;
 
@@ -2015,7 +2024,7 @@
                             `;
                         }
                         changesHtml += '</div>';
-                    } else if (event.target && event.target.field && event.context) {
+                    } else if (event.target && event.target.field && eventData.new !== undefined) {
                         const field = event.target.field;
                         const displayField = field.replace(/_/g, ' ');
                         let oldVal, newVal;
@@ -2024,8 +2033,8 @@
                             oldVal = '[REDACTED]';
                             newVal = '[REDACTED]';
                         } else {
-                            oldVal = event.context.old !== null && event.context.old !== undefined ? String(event.context.old) : '(empty)';
-                            newVal = event.context.new !== null && event.context.new !== undefined ? String(event.context.new) : '(empty)';
+                            oldVal = eventData.old !== null && eventData.old !== undefined ? String(eventData.old) : '(empty)';
+                            newVal = eventData.new !== null && eventData.new !== undefined ? String(eventData.new) : '(empty)';
                         }
 
                         changesHtml = `
@@ -2039,8 +2048,8 @@
                             </div>
                         `;
                     }
-                } else if (event.op === 'INS' && event.context && event.context.data) {
-                    const fieldCount = Object.keys(event.context.data).length;
+                } else if (event.op === 'INS' && eventData.data) {
+                    const fieldCount = Object.keys(eventData.data).length;
                     changesHtml = `
                         <div class="timeline-changes">
                             <div class="timeline-change" style="color: #166534;">
