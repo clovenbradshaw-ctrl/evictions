@@ -31,6 +31,8 @@ const EOMigration = (function() {
   const CONFIG = {
     // EO operations endpoints (primary API)
     OPERATIONS_GET_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_operations',
+    // Paginated endpoint for efficient full syncs
+    OPERATIONS_PAGINATED_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/evictionseoeventsPage',
     // POST URL is encrypted and must be set via setPostEndpoint() after authentication
     OPERATIONS_POST_URL: null,
 
@@ -38,7 +40,10 @@ const EOMigration = (function() {
     SOURCE_TABLE: 'eviction_cases',
 
     // Batch size for migrations
-    BATCH_SIZE: 100
+    BATCH_SIZE: 100,
+
+    // Default page size for paginated fetches
+    DEFAULT_PAGE_SIZE: 3000
   };
 
   /**
@@ -1100,6 +1105,171 @@ const EOMigration = (function() {
   }
 
   /**
+   * Fetch events from the paginated endpoint
+   * Uses the new paginated API that returns metadata about pages
+   *
+   * Response format:
+   * {
+   *   itemsReceived: number,
+   *   curPage: number,
+   *   nextPage: number | null,
+   *   prevPage: number | null,
+   *   offset: number,
+   *   perPage: number,
+   *   itemsTotal: number,
+   *   pageTotal: number,
+   *   items: Event[]
+   * }
+   *
+   * @param {object} options - Fetch options
+   * @param {number} options.page - Page number to fetch (default: 1)
+   * @param {number} options.perPage - Items per page (default: CONFIG.DEFAULT_PAGE_SIZE)
+   * @param {number} options.since_ts - Only fetch events after this timestamp
+   * @returns {object} Paginated response with items and metadata
+   */
+  async function fetchEventsPaginated(options = {}) {
+    const params = new URLSearchParams();
+
+    // Page number (1-indexed)
+    params.append('page', options.page || 1);
+
+    // Items per page
+    params.append('per_page', options.perPage || CONFIG.DEFAULT_PAGE_SIZE);
+
+    // Optional timestamp filter for incremental sync
+    if (options.since_ts) {
+      params.append('ts_gt', options.since_ts);
+    }
+    if (options.since_ts_gte) {
+      params.append('ts_gte', options.since_ts_gte);
+    }
+
+    const url = `${CONFIG.OPERATIONS_PAGINATED_URL}?${params.toString()}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch paginated events: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Convert items from Xano format
+    const items = Array.isArray(data.items)
+      ? data.items.map(fromXanoFormat)
+      : [];
+
+    return {
+      items: items,
+      itemsReceived: data.itemsReceived || items.length,
+      curPage: data.curPage || 1,
+      nextPage: data.nextPage || null,
+      prevPage: data.prevPage || null,
+      offset: data.offset || 0,
+      perPage: data.perPage || CONFIG.DEFAULT_PAGE_SIZE,
+      itemsTotal: data.itemsTotal || items.length,
+      pageTotal: data.pageTotal || 1
+    };
+  }
+
+  /**
+   * Fetch all events using the paginated endpoint
+   * Iterates through all pages efficiently
+   *
+   * @param {object} options - Fetch options
+   * @param {function} options.onProgress - Progress callback ({ page, pageTotal, itemsFetched, itemsTotal })
+   * @param {function} options.log - Logging function
+   * @param {number} options.perPage - Items per page
+   * @param {number} options.since_ts - Only fetch events after this timestamp
+   * @param {number} options.maxPages - Maximum pages to fetch (safety limit, default: 100)
+   * @returns {object} { events, eventCount, pagesFetched }
+   */
+  async function fetchAllEventsPaginated(options = {}) {
+    const log = options.log || console.log;
+    const onProgress = options.onProgress || null;
+    const perPage = options.perPage || CONFIG.DEFAULT_PAGE_SIZE;
+    const maxPages = options.maxPages || 100;
+
+    log('🚀 Fetching all EO events (paginated)...');
+    log('================================');
+
+    let allEvents = [];
+    let page = 1;
+    let pageTotal = null;
+    let itemsTotal = null;
+
+    while (true) {
+      const result = await fetchEventsPaginated({
+        page,
+        perPage,
+        since_ts: options.since_ts,
+        since_ts_gte: options.since_ts_gte
+      });
+
+      // First page gives us total counts
+      if (page === 1) {
+        pageTotal = result.pageTotal;
+        itemsTotal = result.itemsTotal;
+        log(`  Total items: ${itemsTotal}, Total pages: ${pageTotal}`);
+      }
+
+      allEvents = allEvents.concat(result.items);
+      log(`  Fetched page ${page}/${pageTotal}: ${result.itemsReceived} events (total: ${allEvents.length})`);
+
+      if (onProgress) {
+        onProgress({
+          page,
+          pageTotal: result.pageTotal,
+          itemsFetched: allEvents.length,
+          itemsTotal: result.itemsTotal
+        });
+      }
+
+      // Check if we've reached the last page
+      if (result.nextPage === null || result.items.length === 0) {
+        break;
+      }
+
+      // Safety limit
+      if (page >= maxPages) {
+        log(`  ⚠️ Reached page limit (${maxPages}), stopping fetch`);
+        break;
+      }
+
+      page++;
+    }
+
+    log(`\n✅ Fetched ${allEvents.length} total events across ${page} pages`);
+
+    // Analyze event distribution
+    const opCounts = {};
+    for (const event of allEvents) {
+      opCounts[event.op] = (opCounts[event.op] || 0) + 1;
+    }
+    log('\n  Event distribution:');
+    for (const [op, count] of Object.entries(opCounts)) {
+      log(`    ${op}: ${count} events`);
+    }
+
+    // Reconstruct state
+    log('\n🔍 Reconstructing state from events...');
+    const reconstructed = reconstructAllStates(allEvents);
+    log(`  Reconstructed ${reconstructed.length} entities`);
+
+    log('\n================================');
+    log('🎉 Fetch complete!');
+
+    return {
+      events: allEvents,
+      eventCount: allEvents.length,
+      opCounts: opCounts,
+      states: reconstructed,
+      stateCount: reconstructed.length,
+      pagesFetched: page,
+      itemsTotal: itemsTotal
+    };
+  }
+
+  /**
    * Push a single event to the operations table
    * Requires authentication - POST endpoint must be set via setPostEndpoint()
    */
@@ -1337,6 +1507,7 @@ const EOMigration = (function() {
     convertLegacyActivityToEvents,
     convertSnapshotToEvents,
     fetchAllEvents,
+    fetchAllEventsPaginated,
     validateEOState,
 
     // State reconstruction
@@ -1358,6 +1529,7 @@ const EOMigration = (function() {
 
     // Xano API
     fetchEvents,
+    fetchEventsPaginated,
     pushEvent,
     pushEventsBatch,
 
