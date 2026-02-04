@@ -11178,6 +11178,26 @@
             // Store current record for refresh functionality
             currentModalRecord = record;
 
+            // Auto-queue stale records when viewed (with deduplication)
+            const stalenessScore = calculateStalenessScore(record);
+            if (stalenessScore >= 1.0) {
+                const docketNumber = record.Docket_Number || record._entity_id;
+                if (docketNumber && !isRecordInQueue(docketNumber)) {
+                    // Queue silently in background - don't await
+                    addToProcessQueue({
+                        entity_id: docketNumber,
+                        trigger_type: stalenessScore >= 2.0 ? 'CLIENT_VIEW_CRITICAL' : 'CLIENT_VIEW',
+                        priority: stalenessScore >= 2.0 ? 1 : 2,
+                        last_known_status: record.Status || null
+                    }).then(results => {
+                        const added = results.find(r => r.success && !r.skipped);
+                        if (added) {
+                            console.log(`Auto-queued stale record ${docketNumber} (score: ${stalenessScore.toFixed(2)})`);
+                        }
+                    }).catch(err => console.warn('Auto-queue failed:', err));
+                }
+            }
+
             const modal = document.getElementById('caseModal');
             if (!modal) return;
 
