@@ -27,12 +27,105 @@ const EOIntegration = (function() {
     EVENTS_CACHE_KEY: 'eo_events_cache',
     STATE_CACHE_KEY: 'eo_state_cache',
 
+    // IndexedDB settings
+    DB_NAME: 'eoEventsDB',
+    DB_VERSION: 1,
+    STORE_NAME: 'events',
+
     // Sync settings
     SYNC_INTERVAL_MS: 5 * 60 * 1000, // 5 minutes
     MAX_EVENTS_IN_MEMORY: 50000,
 
     // Feature flags
     EO_ENABLED: true
+  };
+
+  // =============================================================================
+  // INDEXEDDB HELPER (for large event storage - localStorage has ~5MB limit)
+  // =============================================================================
+
+  const eventsDB = {
+    async open() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(CONFIG.DB_NAME, CONFIG.DB_VERSION);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains(CONFIG.STORE_NAME)) {
+            db.createObjectStore(CONFIG.STORE_NAME, { keyPath: 'id' });
+          }
+        };
+      });
+    },
+
+    async save(events, timestamp) {
+      try {
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(CONFIG.STORE_NAME, 'readwrite');
+          const store = tx.objectStore(CONFIG.STORE_NAME);
+          store.put({ id: 'eo_events', data: events, timestamp });
+          tx.oncomplete = () => {
+            db.close();
+            console.log('💾 Saved', events.length, 'EO events to IndexedDB');
+            resolve(true);
+          };
+          tx.onerror = () => {
+            db.close();
+            reject(tx.error);
+          };
+        });
+      } catch (e) {
+        console.error('IndexedDB save failed:', e);
+        return false;
+      }
+    },
+
+    async load() {
+      try {
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(CONFIG.STORE_NAME, 'readonly');
+          const store = tx.objectStore(CONFIG.STORE_NAME);
+          const request = store.get('eo_events');
+          request.onsuccess = () => {
+            db.close();
+            resolve(request.result || null);
+          };
+          request.onerror = () => {
+            db.close();
+            reject(request.error);
+          };
+        });
+      } catch (e) {
+        console.error('IndexedDB load failed:', e);
+        return null;
+      }
+    },
+
+    async clear() {
+      try {
+        const db = await this.open();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(CONFIG.STORE_NAME, 'readwrite');
+          const store = tx.objectStore(CONFIG.STORE_NAME);
+          const request = store.clear();
+          tx.oncomplete = () => {
+            db.close();
+            console.log('💾 Cleared EO events IndexedDB cache');
+            resolve(true);
+          };
+          tx.onerror = () => {
+            db.close();
+            reject(tx.error);
+          };
+        });
+      } catch (e) {
+        console.error('IndexedDB clear failed:', e);
+        return false;
+      }
+    }
   };
 
   // =============================================================================
@@ -73,16 +166,35 @@ const EOIntegration = (function() {
   }
 
   /**
-   * Load events from local cache (IndexedDB)
+   * Load events from local cache (IndexedDB with localStorage fallback)
    */
   async function loadEventsFromCache() {
     try {
+      // Try IndexedDB first (preferred - no size limit)
+      const idbResult = await eventsDB.load();
+      if (idbResult && Array.isArray(idbResult.data) && idbResult.data.length > 0) {
+        eventsCache = idbResult.data;
+        console.log(`  Loaded ${eventsCache.length} cached events from IndexedDB`);
+        rebuildStateCache();
+        return;
+      }
+
+      // Fallback to localStorage (for backwards compatibility)
       const cached = localStorage.getItem(CONFIG.EVENTS_CACHE_KEY);
       if (cached) {
         eventsCache = JSON.parse(cached);
-        console.log(`  Loaded ${eventsCache.length} cached events`);
+        console.log(`  Loaded ${eventsCache.length} cached events from localStorage (legacy)`);
 
-        // Rebuild state cache
+        // Migrate to IndexedDB for future loads
+        await saveEventsToCache();
+        // Clear legacy localStorage cache after migration
+        try {
+          localStorage.removeItem(CONFIG.EVENTS_CACHE_KEY);
+          console.log('  Migrated events cache from localStorage to IndexedDB');
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+
         rebuildStateCache();
       }
     } catch (e) {
@@ -92,19 +204,31 @@ const EOIntegration = (function() {
   }
 
   /**
-   * Save events to local cache
+   * Save events to local cache (IndexedDB with localStorage fallback)
    */
-  function saveEventsToCache() {
-    try {
-      // Limit cache size
-      if (eventsCache.length > CONFIG.MAX_EVENTS_IN_MEMORY) {
-        // Keep most recent events
-        eventsCache = eventsCache.slice(-CONFIG.MAX_EVENTS_IN_MEMORY);
-      }
+  async function saveEventsToCache() {
+    // Limit cache size
+    if (eventsCache.length > CONFIG.MAX_EVENTS_IN_MEMORY) {
+      // Keep most recent events
+      eventsCache = eventsCache.slice(-CONFIG.MAX_EVENTS_IN_MEMORY);
+    }
 
-      localStorage.setItem(CONFIG.EVENTS_CACHE_KEY, JSON.stringify(eventsCache));
+    // Try IndexedDB first (preferred - no size limit)
+    try {
+      const success = await eventsDB.save(eventsCache, Date.now());
+      if (success) {
+        return;
+      }
     } catch (e) {
-      console.warn('Failed to save events cache:', e);
+      console.warn('IndexedDB save failed, falling back to localStorage:', e);
+    }
+
+    // Fallback to localStorage (may fail for large datasets)
+    try {
+      localStorage.setItem(CONFIG.EVENTS_CACHE_KEY, JSON.stringify(eventsCache));
+      console.log('  Saved events to localStorage (fallback)');
+    } catch (e) {
+      console.warn('Failed to save events cache to localStorage:', e);
     }
   }
 
@@ -198,7 +322,7 @@ const EOIntegration = (function() {
       }
 
       // Save to local cache
-      saveEventsToCache();
+      await saveEventsToCache();
 
       console.log(`✅ Synced ${newEvents.length} events`);
       return { synced: newEvents.length };
@@ -263,7 +387,7 @@ const EOIntegration = (function() {
       rebuildStateCache();
 
       // Save to local cache
-      saveEventsToCache();
+      await saveEventsToCache();
 
       console.log(`✅ Synced ${result.events.length} events, ${stateCache.size} entities`);
       return {
@@ -387,7 +511,7 @@ const EOIntegration = (function() {
     // Update local state
     eventsCache.push(event);
     applyEventToStateCache(event);
-    saveEventsToCache();
+    await saveEventsToCache();
 
     return event;
   }
@@ -434,7 +558,7 @@ const EOIntegration = (function() {
     // Update local state
     eventsCache.push(event);
     applyEventToStateCache(event);
-    saveEventsToCache();
+    await saveEventsToCache();
 
     return event;
   }
@@ -466,7 +590,7 @@ const EOIntegration = (function() {
     // Update local state
     eventsCache.push(event);
     applyEventToStateCache(event);
-    saveEventsToCache();
+    await saveEventsToCache();
 
     return event;
   }
@@ -606,7 +730,7 @@ const EOIntegration = (function() {
     // Update local cache
     eventsCache = eventsCache.concat(events);
     rebuildStateCache();
-    saveEventsToCache();
+    await saveEventsToCache();
 
     return results;
   }
