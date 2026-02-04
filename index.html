@@ -317,6 +317,21 @@
             box-shadow: 0 0 0 3px rgba(45, 90, 135, 0.3);
         }
 
+        .benchmark-tab-btn {
+            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+            color: white !important;
+            border-radius: 6px;
+            border-bottom: none !important;
+        }
+
+        .benchmark-tab-btn:hover {
+            background: linear-gradient(135deg, #8b5cf6 0%, #b67bff 100%);
+        }
+
+        .benchmark-tab-btn.active {
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.4);
+        }
+
         .benchmark-metric-btn {
             padding: 8px 16px;
             font-size: 13px;
@@ -4099,7 +4114,7 @@
                     <button onclick="setSearchTab('bulk')" class="tab-btn" id="bulkTab">Bulk Search</button>
                     <button onclick="setSearchTab('grouping')" class="tab-btn" id="groupingTab">Custom Grouping</button>
                     <button onclick="setSearchTab('demographics')" class="tab-btn demographics-tab-btn" id="demographicsTab">📊 District Demographics</button>
-                    <button onclick="setSearchTab('benchmarks')" class="tab-btn" id="benchmarksTab" style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: white; border-radius: 6px;">🏙️ Metro Benchmarks</button>
+                    <button onclick="setSearchTab('benchmarks')" class="tab-btn benchmark-tab-btn" id="benchmarksTab">🏙️ Metro Benchmarks</button>
                     <button onclick="setSearchTab('docket')" class="tab-btn hidden" id="docketTab" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; border-radius: 6px;">📋 Docket Processing</button>
                 </div>
             </div>
