@@ -11,6 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/ag-grid-community.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="eo-migration.js"></script>
+    <script src="eo-integration.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/styles/ag-grid.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/styles/ag-theme-alpine.css">
     <style>
@@ -6852,6 +6853,12 @@
 
             initCharts();  // Initialize charts before loading data
             await loadData();
+
+            // Initialize event sourcing integration
+            if (typeof EOIntegration !== 'undefined' && EOIntegration.initialize) {
+                await EOIntegration.initialize();
+            }
+
             updatePivotControls();
             initializeFilterBuilder();  // Initialize filter builder since it's always visible
 
