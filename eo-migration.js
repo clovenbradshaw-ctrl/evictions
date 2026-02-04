@@ -157,10 +157,14 @@ const EOMigration = (function() {
     // Support both legacy 'context' and new 'payload' for backwards compatibility during transition
     const payloadData = event.payload || event.context || {};
 
+    // Handle ts in both root level (old) and payload level (new)
+    const ts = event.ts || payloadData.ts;
+    const ts_iso = event.ts_iso || payloadData.ts_iso;
+
     return {
       id: event.id,
-      ts: event.ts,
-      ts_iso: event.ts_iso,
+      ts: ts,
+      ts_iso: ts_iso,
       op: event.op,
       entity_id: event.entity_id,
       entity_type: event.entity_type,
@@ -209,12 +213,25 @@ const EOMigration = (function() {
   }
 
   /**
+   * Get the sync timestamp for an event
+   * Handles both formats:
+   *   - Old: event.ts at root level
+   *   - New: event.payload.ts inside payload
+   */
+  function getTs(event) {
+    return event.ts || event.payload?.ts || event.context?.ts;
+  }
+
+  /**
    * Get the observation timestamp for an event
    * This is the time the data was actually observed/scraped, used for ordering during replay.
    * Falls back to ts (sync time) if observationTS is not set.
+   * Handles both formats:
+   *   - Old: event.payload.observationTS with event.ts fallback
+   *   - New: event.payload.observationTS with event.payload.ts fallback
    */
   function getObservationTS(event) {
-    return event.payload?.observationTS || event.context?.observationTS || event.ts;
+    return event.payload?.observationTS || event.context?.observationTS || getTs(event);
   }
 
   /**
@@ -773,7 +790,7 @@ const EOMigration = (function() {
       .sort((a, b) => getObservationTS(a) - getObservationTS(b))
       .map(e => ({
         id: e.id,
-        when: new Date(e.ts).toISOString(),
+        when: new Date(getTs(e)).toISOString(),
         observedAt: new Date(getObservationTS(e)).toISOString(),
         op: e.op,
         meaning: OPERATOR_MEANINGS[e.op] || e.op,
@@ -788,7 +805,7 @@ const EOMigration = (function() {
   function getOperatorPattern(entityId, events) {
     const ops = events
       .filter(e => (e.entity_id || e.target?.id) === entityId)
-      .sort((a, b) => a.ts - b.ts)
+      .sort((a, b) => getTs(a) - getTs(b))
       .map(e => e.op);
 
     return {
@@ -842,6 +859,7 @@ const EOMigration = (function() {
 
     for (const event of entityEvents) {
       const observationTS = getObservationTS(event);
+      const syncTs = getTs(event);
       const payload = event.payload || event.context || {};
 
       switch (event.op) {
@@ -850,7 +868,7 @@ const EOMigration = (function() {
           if (payload.data) {
             for (const [field, value] of Object.entries(payload.data)) {
               if (value !== undefined) {
-                addFieldVersion(field, value, event.ts, observationTS, event.id, event.op);
+                addFieldVersion(field, value, syncTs, observationTS, event.id, event.op);
               }
             }
           }
@@ -861,7 +879,7 @@ const EOMigration = (function() {
           if (payload.data) {
             for (const [field, value] of Object.entries(payload.data)) {
               if (value !== undefined) {
-                addFieldVersion(field, value, event.ts, observationTS, event.id, event.op);
+                addFieldVersion(field, value, syncTs, observationTS, event.id, event.op);
               }
             }
           }
@@ -870,13 +888,13 @@ const EOMigration = (function() {
           if (payload.changes) {
             for (const [field, change] of Object.entries(payload.changes)) {
               const newValue = change.new !== undefined ? change.new : change;
-              addFieldVersion(field, newValue, event.ts, observationTS, event.id, event.op);
+              addFieldVersion(field, newValue, syncTs, observationTS, event.id, event.op);
             }
           }
 
           // ALT with single field update
           if (event.target.field && payload.new !== undefined) {
-            addFieldVersion(event.target.field, payload.new, event.ts, observationTS, event.id, event.op);
+            addFieldVersion(event.target.field, payload.new, syncTs, observationTS, event.id, event.op);
           }
           break;
       }
@@ -915,10 +933,13 @@ const EOMigration = (function() {
   }
 
   /**
-   * Filter events by time range
+   * Filter events by time range (handles ts in both root and payload)
    */
   function filterByTimeRange(events, startTs, endTs) {
-    return events.filter(e => e.ts >= startTs && e.ts <= endTs);
+    return events.filter(e => {
+      const ts = getTs(e);
+      return ts >= startTs && ts <= endTs;
+    });
   }
 
   /**
@@ -939,11 +960,14 @@ const EOMigration = (function() {
   }
 
   /**
-   * Get entities created in a time range
+   * Get entities created in a time range (handles ts in both root and payload)
    */
   function getCreatedInRange(events, startTs, endTs) {
     return filterByOperator(events, OPERATORS.INS)
-      .filter(e => e.ts >= startTs && e.ts <= endTs)
+      .filter(e => {
+        const ts = getTs(e);
+        return ts >= startTs && ts <= endTs;
+      })
       .map(e => e.entity_id || e.target?.id)
       .filter(Boolean);
   }
@@ -1261,6 +1285,7 @@ const EOMigration = (function() {
     getFieldHistory,
     getLatestFieldValues,
     getObservationTS,
+    getTs,
 
     // Query utilities
     filterByOperator,

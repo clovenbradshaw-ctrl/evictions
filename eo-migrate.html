@@ -286,6 +286,16 @@ API Endpoints:
       });
     }
 
+    /**
+     * Get the sync timestamp for an event
+     * Handles both formats:
+     *   - Old: event.ts at root level
+     *   - New: event.payload.ts or event.context.ts inside payload
+     */
+    function getTs(event) {
+      return event.ts || event.payload?.ts || event.context?.ts;
+    }
+
     function normalizeCase(record) {
       let data = record;
       if (record.case_data) {
@@ -410,18 +420,23 @@ API Endpoints:
 
     /**
      * Convert event to Xano format (stringify JSON fields)
+     * Handles ts in both root level (old) and payload/context level (new)
      */
     function toXanoFormat(event) {
+      const contextData = event.context || event.payload || {};
+      const ts = event.ts || contextData.ts;
+      const ts_iso = event.ts_iso || contextData.ts_iso;
+
       return {
         id: event.id,
-        ts: event.ts,
-        ts_iso: event.ts_iso,
+        ts: ts,
+        ts_iso: ts_iso,
         op: event.op,
         entity_id: event.entity_id,
         entity_type: event.entity_type,
         source_table: event.source_table,
         target: JSON.stringify(event.target),
-        context: JSON.stringify(event.context),
+        context: JSON.stringify(contextData),
         frame: JSON.stringify(event.frame || {})
       };
     }
@@ -437,19 +452,20 @@ API Endpoints:
 
       const states = [];
       for (const [entityId, entityEvents] of byEntity) {
-        const sorted = entityEvents.sort((a, b) => a.ts - b.ts);
+        const sorted = entityEvents.sort((a, b) => getTs(a) - getTs(b));
         let state = null;
         let isDeleted = false;
 
         for (const event of sorted) {
+          const contextData = event.context || event.payload || {};
           switch (event.op) {
             case OPERATORS.INS:
-              state = { ...event.context.data };
+              state = { ...(contextData.data || {}) };
               isDeleted = false;
               break;
             case OPERATORS.ALT:
-              if (state && event.context.changes) {
-                for (const [field, change] of Object.entries(event.context.changes)) {
+              if (state && contextData.changes) {
+                for (const [field, change] of Object.entries(contextData.changes)) {
                   state[field] = change.new;
                 }
               }
@@ -462,7 +478,7 @@ API Endpoints:
 
         if (!isDeleted && state) {
           state._entity_id = entityId;
-          state._last_updated = sorted[sorted.length - 1].ts;
+          state._last_updated = getTs(sorted[sorted.length - 1]);
           states.push(state);
         }
       }
@@ -715,20 +731,25 @@ API Endpoints:
         return;
       }
 
-      // Build CSV matching Xano schema
+      // Build CSV matching Xano schema (handle ts in both root and context)
       const headers = ['id', 'ts', 'ts_iso', 'op', 'entity_id', 'entity_type', 'source_table', 'target', 'context', 'frame'];
-      const rows = migrationResult.events.map(e => [
-        e.id,
-        e.ts,
-        e.ts_iso,
-        e.op,
-        e.entity_id,
-        e.entity_type,
-        e.source_table,
-        JSON.stringify(e.target),
-        JSON.stringify(e.context),
-        JSON.stringify(e.frame || {})
-      ]);
+      const rows = migrationResult.events.map(e => {
+        const contextData = e.context || e.payload || {};
+        const ts = e.ts || contextData.ts;
+        const ts_iso = e.ts_iso || contextData.ts_iso;
+        return [
+          e.id,
+          ts,
+          ts_iso,
+          e.op,
+          e.entity_id,
+          e.entity_type,
+          e.source_table,
+          JSON.stringify(e.target),
+          JSON.stringify(contextData),
+          JSON.stringify(e.frame || {})
+        ];
+      });
 
       const csvContent = [
         headers.join(','),

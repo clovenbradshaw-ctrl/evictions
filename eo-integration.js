@@ -184,8 +184,8 @@ const EOIntegration = (function() {
       // Add to cache
       eventsCache = eventsCache.concat(newEvents);
 
-      // Update last sync timestamp
-      const maxTs = Math.max(...newEvents.map(e => e.ts));
+      // Update last sync timestamp (handle ts in both root and payload)
+      const maxTs = Math.max(...newEvents.map(e => EOMigration.getTs(e)));
       lastSyncTimestamp = maxTs;
       localStorage.setItem(CONFIG.LAST_SYNC_KEY, lastSyncTimestamp.toString());
 
@@ -232,7 +232,7 @@ const EOIntegration = (function() {
           state.Docket_Number = entityId;
         }
         state._entity_id = entityId;
-        state._last_updated = event.ts;
+        state._last_updated = EOMigration.getTs(event);
         stateCache.set(entityId, state);
         break;
 
@@ -264,7 +264,7 @@ const EOIntegration = (function() {
           state[event.target.field] = payload.new;
         }
 
-        state._last_updated = event.ts;
+        state._last_updated = EOMigration.getTs(event);
         stateCache.set(entityId, state);
         break;
 
@@ -456,7 +456,7 @@ const EOIntegration = (function() {
    */
   function getRecentlyUpdatedCases(sinceTs) {
     const recentEvents = eventsCache.filter(e =>
-      e.ts >= sinceTs && e.op === EOMigration.OPERATORS.ALT
+      EOMigration.getTs(e) >= sinceTs && e.op === EOMigration.OPERATORS.ALT
     );
 
     const dockets = [...new Set(recentEvents.map(e => e.entity_id || e.target?.id).filter(Boolean))];
