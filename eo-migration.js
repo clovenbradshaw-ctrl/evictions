@@ -6,14 +6,18 @@
  *
  * Operations Table Schema (Xano: evictionsEOevents):
  * - id: UUID (primary key)
- * - ts: INTEGER (Unix timestamp in milliseconds)
+ * - ts: INTEGER (Unix timestamp in milliseconds - when event was synced/recorded)
  * - ts_iso: TIMESTAMP (ISO formatted timestamp)
  * - op: TEXT (INS, DES, SEG, CON, SYN, ALT, SUP, REC, NUL)
  * - entity_id: TEXT (case docket number)
  * - entity_type: TEXT (e.g., 'eviction_case')
  * - source_table: TEXT (e.g., 'eviction_cases')
  * - target: TEXT (JSON stringified - what's being operated on)
- * - context: TEXT (JSON stringified - where/how it's happening)
+ * - payload: TEXT (JSON stringified - the data/changes and observation metadata)
+ *   - payload.observationTS: INTEGER (Unix timestamp when data was observed/scraped)
+ *   - payload.table: TEXT (source table name)
+ *   - payload.data: OBJECT (full record for INS, partial for ALT)
+ *   - payload.changes: OBJECT (field changes for ALT operations)
  * - frame: TEXT (JSON stringified - optional interpretive context)
  */
 
@@ -110,9 +114,25 @@ const EOMigration = (function() {
 
   /**
    * Create a base EO event structure (internal format)
+   *
+   * @param {string} op - The operation type (INS, ALT, NUL, etc.)
+   * @param {object} target - What's being operated on { id, type, field? }
+   * @param {object} payload - The data/changes including:
+   *   - table: source table name
+   *   - data: full record (for INS) or changed data
+   *   - changes: field changes (for ALT operations)
+   *   - observationTS: when the data was observed (optional, defaults to now)
+   * @param {object} frame - Optional interpretive context { source, version, ... }
    */
-  function createEvent(op, target, context, frame = null) {
+  function createEvent(op, target, payload, frame = null) {
     const ts = Date.now();
+
+    // Ensure observationTS is set - defaults to current time if not provided
+    const payloadWithObservation = {
+      ...payload,
+      observationTS: payload.observationTS || ts
+    };
+
     const event = {
       id: generateUUID(),
       ts: ts,
@@ -120,9 +140,9 @@ const EOMigration = (function() {
       op: op,
       entity_id: target.id || '',
       entity_type: target.type || 'eviction_case',
-      source_table: context.table || CONFIG.SOURCE_TABLE,
+      source_table: payloadWithObservation.table || CONFIG.SOURCE_TABLE,
       target: target,
-      context: context,
+      payload: payloadWithObservation,
       frame: frame || {}
     };
 
@@ -131,8 +151,12 @@ const EOMigration = (function() {
 
   /**
    * Convert an event to Xano table format (TEXT columns for JSON fields)
+   * Note: 'payload' replaces the legacy 'context' field
    */
   function toXanoFormat(event) {
+    // Support both legacy 'context' and new 'payload' for backwards compatibility during transition
+    const payloadData = event.payload || event.context || {};
+
     return {
       id: event.id,
       ts: event.ts,
@@ -142,7 +166,7 @@ const EOMigration = (function() {
       entity_type: event.entity_type,
       source_table: event.source_table,
       target: JSON.stringify(event.target),
-      context: JSON.stringify(event.context),
+      payload: JSON.stringify(payloadData),
       frame: JSON.stringify(event.frame || {})
     };
   }
@@ -164,8 +188,12 @@ const EOMigration = (function() {
 
   /**
    * Convert from Xano format back to internal format (parse JSON TEXT fields)
+   * Supports both legacy 'context' and new 'payload' fields for backwards compatibility
    */
   function fromXanoFormat(record) {
+    // Support both legacy 'context' and new 'payload' field names
+    const payloadData = safeJsonParse(record.payload || record.context, {});
+
     return {
       id: record.id,
       ts: record.ts,
@@ -175,19 +203,42 @@ const EOMigration = (function() {
       entity_type: record.entity_type,
       source_table: record.source_table,
       target: safeJsonParse(record.target, {}),
-      context: safeJsonParse(record.context, {}),
+      payload: payloadData,
       frame: safeJsonParse(record.frame, {})
     };
   }
 
   /**
-   * Create an INS (insert/create) event for a new eviction filing
+   * Get the observation timestamp for an event
+   * This is the time the data was actually observed/scraped, used for ordering during replay.
+   * Falls back to ts (sync time) if observationTS is not set.
    */
-  function createInsertEvent(caseData, frame = null) {
+  function getObservationTS(event) {
+    return event.payload?.observationTS || event.context?.observationTS || event.ts;
+  }
+
+  /**
+   * Create an INS (insert/create) event for a new eviction filing
+   *
+   * @param {object} caseData - The case record data
+   * @param {object} frame - Optional interpretive context { source, version, ... }
+   * @param {number} observationTS - Optional timestamp when data was observed (e.g., PDF creation date)
+   */
+  function createInsertEvent(caseData, frame = null, observationTS = null) {
     const docketNumber = caseData.Docket_Number || caseData.docket_number;
 
     if (!docketNumber) {
       throw new Error('Cannot create INS event: missing docket number');
+    }
+
+    const payload = {
+      table: CONFIG.SOURCE_TABLE,
+      data: caseData
+    };
+
+    // Add observationTS if provided
+    if (observationTS) {
+      payload.observationTS = observationTS;
     }
 
     return createEvent(
@@ -196,10 +247,7 @@ const EOMigration = (function() {
         id: docketNumber,
         type: 'eviction_case'
       },
-      {
-        table: CONFIG.SOURCE_TABLE,
-        data: caseData
-      },
+      payload,
       frame || {
         source: 'migration',
         version: '1.0'
@@ -231,19 +279,31 @@ const EOMigration = (function() {
 
   /**
    * Create a bulk ALT event for multiple field changes
+   *
+   * @param {string} docketNumber - The case docket number
+   * @param {object} changes - Field changes { fieldName: { old, new }, ... }
+   * @param {object} frame - Optional interpretive context { source, version, ... }
+   * @param {number} observationTS - Optional timestamp when data was observed (e.g., PDF creation date)
    */
-  function createBulkUpdateEvent(docketNumber, changes, frame = null) {
+  function createBulkUpdateEvent(docketNumber, changes, frame = null, observationTS = null) {
     // changes = { fieldName: { old: oldValue, new: newValue }, ... }
+    const payload = {
+      table: CONFIG.SOURCE_TABLE,
+      changes: changes
+    };
+
+    // Add observationTS if provided
+    if (observationTS) {
+      payload.observationTS = observationTS;
+    }
+
     return createEvent(
       OPERATORS.ALT,
       {
         id: docketNumber,
         type: 'eviction_case'
       },
-      {
-        table: CONFIG.SOURCE_TABLE,
-        changes: changes
-      },
+      payload,
       frame || {
         source: 'bulk_update',
         version: '1.0'
@@ -451,9 +511,10 @@ const EOMigration = (function() {
             id: docket,
             type: 'eviction_case'
           },
-          context: {
+          payload: {
             table: CONFIG.SOURCE_TABLE,
-            data: record
+            data: record,
+            observationTS: ts // Legacy migration uses logged_at as observation time
           },
           frame: {
             source: 'migration',
@@ -476,9 +537,10 @@ const EOMigration = (function() {
               id: docket,
               type: 'eviction_case'
             },
-            context: {
+            payload: {
               table: CONFIG.SOURCE_TABLE,
-              changes: changes
+              changes: changes,
+              observationTS: ts // Legacy migration uses logged_at as observation time
             },
             frame: {
               source: 'migration',
@@ -516,9 +578,10 @@ const EOMigration = (function() {
           id: docket,
           type: 'eviction_case'
         },
-        context: {
+        payload: {
           table: CONFIG.SOURCE_TABLE,
-          data: record
+          data: record,
+          observationTS: migrationTimestamp // Snapshot uses migration timestamp as observation time
         },
         frame: {
           source: 'snapshot_migration',
@@ -541,13 +604,16 @@ const EOMigration = (function() {
    *
    * Proper event sourcing implementation:
    * - Handles ALT events even without a prior INS event
-   * - Tracks the latest version of each field based on event timestamps
+   * - Tracks the latest version of each field based on observationTS (not sync ts)
    * - Supports partial updates (deltas) that only contain changed fields
+   * - Empty fields do NOT imply deletion - we only delete on explicit NUL events
+   * - Supports both legacy 'context' and new 'payload' field names
    */
   function reconstructEntityState(entityId, events) {
     const entityEvents = events
       .filter(e => (e.entity_id || e.target?.id) === entityId)
-      .sort((a, b) => a.ts - b.ts);
+      // Sort by observationTS for proper replay ordering
+      .sort((a, b) => getObservationTS(a) - getObservationTS(b));
 
     if (entityEvents.length === 0) {
       return null;
@@ -555,57 +621,73 @@ const EOMigration = (function() {
 
     let state = null;
     let isDeleted = false;
-    // Track field versions: { fieldName: { value, ts } }
+    // Track field versions: { fieldName: { value, observationTS } }
     let fieldVersions = {};
 
     /**
-     * Update a field only if this event is newer than the last update
+     * Get payload from event (supports both 'payload' and legacy 'context')
      */
-    function updateField(fieldName, value, eventTs) {
-      if (!fieldVersions[fieldName] || eventTs >= fieldVersions[fieldName].ts) {
-        fieldVersions[fieldName] = { value, ts: eventTs };
+    function getPayload(event) {
+      return event.payload || event.context || {};
+    }
+
+    /**
+     * Update a field only if this event's observation is newer than the last update
+     * Note: empty/null values do NOT delete fields - only explicit NUL events do that
+     */
+    function updateField(fieldName, value, observationTS) {
+      // Only update if we have a value AND this observation is newer
+      // Empty values don't overwrite existing data
+      if (value === null || value === undefined || value === '') {
+        return; // Skip empty values - they don't delete fields
+      }
+      if (!fieldVersions[fieldName] || observationTS >= fieldVersions[fieldName].observationTS) {
+        fieldVersions[fieldName] = { value, observationTS };
       }
     }
 
     /**
      * Apply all fields from a data object
      */
-    function applyData(data, eventTs) {
+    function applyData(data, observationTS) {
       if (!data) return;
       for (const [field, value] of Object.entries(data)) {
         if (value !== undefined) {
-          updateField(field, value, eventTs);
+          updateField(field, value, observationTS);
         }
       }
     }
 
     for (const event of entityEvents) {
+      const eventObservationTS = getObservationTS(event);
+      const payload = getPayload(event);
+
       switch (event.op) {
         case OPERATORS.INS:
           // Initialize/update state from INS event data
-          applyData(event.context.data, event.ts);
+          applyData(payload.data, eventObservationTS);
           isDeleted = false;
           break;
 
         case OPERATORS.ALT:
-          // ALT with context.data = full record upsert
-          if (event.context.data) {
-            applyData(event.context.data, event.ts);
+          // ALT with payload.data = full record upsert
+          if (payload.data) {
+            applyData(payload.data, eventObservationTS);
             isDeleted = false;
           }
 
-          // ALT with context.changes = delta update (works even without prior INS)
-          if (event.context.changes) {
-            for (const [field, change] of Object.entries(event.context.changes)) {
+          // ALT with payload.changes = delta update (works even without prior INS)
+          if (payload.changes) {
+            for (const [field, change] of Object.entries(payload.changes)) {
               // change can be { old, new } or just a new value
               const newValue = change.new !== undefined ? change.new : change;
-              updateField(field, newValue, event.ts);
+              updateField(field, newValue, eventObservationTS);
             }
           }
 
           // ALT with single field update via target.field
-          if (event.target.field && event.context.new !== undefined) {
-            updateField(event.target.field, event.context.new, event.ts);
+          if (event.target.field && payload.new !== undefined) {
+            updateField(event.target.field, payload.new, eventObservationTS);
           }
           break;
 
@@ -615,8 +697,8 @@ const EOMigration = (function() {
 
         case OPERATORS.SYN:
           // Mark as merged if this entity was absorbed
-          if (event.context?.merged && event.context.merged.includes(entityId)) {
-            updateField('_merged_into', event.entity_id || event.target?.id, event.ts);
+          if (payload?.merged && payload.merged.includes(entityId)) {
+            updateField('_merged_into', event.entity_id || event.target?.id, eventObservationTS);
           }
           break;
       }
@@ -642,7 +724,8 @@ const EOMigration = (function() {
     // Add metadata
     if (state) {
       state._entity_id = entityId;
-      state._last_updated = entityEvents[entityEvents.length - 1].ts;
+      // Use the latest observationTS for _last_updated
+      state._last_updated = getObservationTS(entityEvents[entityEvents.length - 1]);
       state._event_count = entityEvents.length;
     }
 
@@ -687,13 +770,14 @@ const EOMigration = (function() {
   function getAuditTrail(entityId, events) {
     return events
       .filter(e => (e.entity_id || e.target?.id) === entityId)
-      .sort((a, b) => a.ts - b.ts)
+      .sort((a, b) => getObservationTS(a) - getObservationTS(b))
       .map(e => ({
         id: e.id,
         when: new Date(e.ts).toISOString(),
+        observedAt: new Date(getObservationTS(e)).toISOString(),
         op: e.op,
         meaning: OPERATOR_MEANINGS[e.op] || e.op,
-        details: e.context,
+        details: e.payload || e.context,
         frame: e.frame
       }));
   }
@@ -720,69 +804,79 @@ const EOMigration = (function() {
    * Returns a map of field names to their version history:
    * {
    *   fieldName: [
-   *     { value, ts, eventId, eventOp },
+   *     { value, ts, observationTS, eventId, eventOp },
    *     ...
    *   ]
    * }
    *
    * This is useful for understanding how each field evolved over time
    * and supports proper event sourcing where ALT events may only have partial data.
+   * Sorted by observationTS for proper temporal ordering.
    */
   function getFieldHistory(entityId, events) {
     const entityEvents = events
       .filter(e => (e.entity_id || e.target?.id) === entityId)
-      .sort((a, b) => a.ts - b.ts);
+      // Sort by observationTS for proper replay ordering
+      .sort((a, b) => getObservationTS(a) - getObservationTS(b));
 
     // Track all versions of each field
     const fieldHistory = {};
 
-    function addFieldVersion(fieldName, value, eventTs, eventId, eventOp) {
+    function addFieldVersion(fieldName, value, syncTs, observationTS, eventId, eventOp) {
+      // Skip empty values - they don't represent field deletions
+      if (value === null || value === undefined || value === '') {
+        return;
+      }
       if (!fieldHistory[fieldName]) {
         fieldHistory[fieldName] = [];
       }
       fieldHistory[fieldName].push({
         value,
-        ts: eventTs,
-        ts_iso: new Date(eventTs).toISOString(),
+        ts: syncTs,
+        observationTS: observationTS,
+        ts_iso: new Date(observationTS).toISOString(),
         eventId,
         eventOp
       });
     }
 
     for (const event of entityEvents) {
+      const observationTS = getObservationTS(event);
+      const payload = event.payload || event.context || {};
+
       switch (event.op) {
         case OPERATORS.INS:
           // All fields from INS data
-          if (event.context.data) {
-            for (const [field, value] of Object.entries(event.context.data)) {
+          if (payload.data) {
+            for (const [field, value] of Object.entries(payload.data)) {
               if (value !== undefined) {
-                addFieldVersion(field, value, event.ts, event.id, event.op);
+                addFieldVersion(field, value, event.ts, observationTS, event.id, event.op);
               }
             }
           }
           break;
 
         case OPERATORS.ALT:
-          // ALT with context.data = full record
-          if (event.context.data) {
-            for (const [field, value] of Object.entries(event.context.data)) {
+          // ALT with payload.data = full record
+          if (payload.data) {
+            for (const [field, value] of Object.entries(payload.data)) {
               if (value !== undefined) {
-                addFieldVersion(field, value, event.ts, event.id, event.op);
+                addFieldVersion(field, value, event.ts, observationTS, event.id, event.op);
               }
             }
           }
 
-          // ALT with context.changes = delta update
-          if (event.context.changes) {
-            for (const [field, change] of Object.entries(event.context.changes)) {
+          // ALT with payload.changes = delta update
+          if (payload.changes) {
+            for (const [field, change] of Object.entries(payload.changes)) {
               const newValue = change.new !== undefined ? change.new : change;
-              addFieldVersion(field, newValue, event.ts, event.id, event.op);
+              addFieldVersion(field, newValue, event.ts, observationTS, event.id, event.op);
             }
           }
 
           // ALT with single field update
-          if (event.target.field && event.context.new !== undefined) {
-            addFieldVersion(event.target.field, event.context.new, event.ts, event.id, event.op);
+          if (event.target.field && payload.new !== undefined) {
+            addFieldVersion(event.target.field, payload.new, event.ts, observationTS, event.id, event.op);
           }
           break;
       }
@@ -831,7 +925,10 @@ const EOMigration = (function() {
    * Filter events by source table
    */
   function filterByTable(events, tableName) {
-    return events.filter(e => e.context.table === tableName);
+    return events.filter(e => {
+      const payload = e.payload || e.context || {};
+      return payload.table === tableName;
+    });
   }
 
   /**
@@ -858,7 +955,8 @@ const EOMigration = (function() {
     return filterByOperator(events, OPERATORS.ALT)
       .filter(e => {
         if (e.target?.field === fieldName) return true;
-        if (e.context?.changes && e.context.changes[fieldName]) return true;
+        const payload = e.payload || e.context || {};
+        if (payload.changes && payload.changes[fieldName]) return true;
         return false;
       })
       .map(e => e.entity_id || e.target?.id)
@@ -1102,20 +1200,24 @@ const EOMigration = (function() {
     tableName: 'eviction_operations',
     fields: [
       { name: 'id', type: 'text', required: true, primary: true },
-      { name: 'ts', type: 'integer', required: true, index: true }, // Unix timestamp ms
+      { name: 'ts', type: 'integer', required: true, index: true }, // Unix timestamp ms - when event was synced
       { name: 'op', type: 'text', required: true, index: true }, // INS, ALT, NUL, etc.
       { name: 'target', type: 'json', required: true },
-      { name: 'context', type: 'json', required: true },
+      { name: 'payload', type: 'json', required: true }, // Contains observationTS, table, data/changes
       { name: 'frame', type: 'json', required: false },
       // Computed/extracted fields for indexing
-      { name: 'source_table', type: 'text', computed: 'context.table', index: true },
+      { name: 'source_table', type: 'text', computed: 'payload.table', index: true },
       { name: 'entity_id', type: 'text', computed: 'target.id', index: true }
     ],
     indexes: [
       { fields: ['entity_id', 'ts'], name: 'idx_entity_timeline' },
       { fields: ['op', 'ts'], name: 'idx_op_timeline' },
       { fields: ['source_table', 'ts'], name: 'idx_table_timeline' }
-    ]
+    ],
+    // Note: payload.observationTS is the time the data was observed/scraped
+    // ts is the time the event was synced to the database
+    // For replay, events should be ordered by observationTS when determining true data lineage
+    notes: 'payload.observationTS used for temporal ordering during replay; ts is sync time only'
   };
 
   // =============================================================================
@@ -1158,6 +1260,7 @@ const EOMigration = (function() {
     getOperatorPattern,
     getFieldHistory,
     getLatestFieldValues,
+    getObservationTS,
 
     // Query utilities
     filterByOperator,
