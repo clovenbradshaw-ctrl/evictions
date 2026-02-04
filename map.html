@@ -1320,13 +1320,31 @@
             return merged;
         }
 
+        /**
+         * Normalize a docket number for consistent deduplication
+         * Handles whitespace, case sensitivity, and common formatting variations
+         * This must match the normalization in EOMigration.normalizeDocketNumber
+         */
+        function normalizeDocketNumber(docketNumber) {
+            if (!docketNumber) return '';
+            let normalized = String(docketNumber);
+            normalized = normalized.trim();
+            normalized = normalized.replace(/\s+/g, ' ');
+            normalized = normalized.toUpperCase();
+            return normalized;
+        }
+
         // Reduce activity stream records to get current state per docket
+        // IMPORTANT: Uses normalized docket numbers to handle case/whitespace variations
         function reduceActivityStream(activityRecords) {
             const byDocket = new Map();
 
             for (const record of activityRecords) {
-                const docket = record.docket_number;
-                if (!docket) continue;
+                const rawDocket = record.docket_number;
+                if (!rawDocket) continue;
+
+                // Normalize docket for consistent grouping
+                const docket = normalizeDocketNumber(rawDocket);
 
                 const existing = byDocket.get(docket);
                 if (!existing) {
@@ -1391,12 +1409,16 @@
         }
 
         // Reduce activity stream records when data fields are at top level (no case_data wrapper)
+        // IMPORTANT: Uses normalized docket numbers to handle case/whitespace variations
         function reduceActivityStreamFlat(activityRecords) {
             const byDocket = new Map();
 
             for (const record of activityRecords) {
-                const docket = record.docket_number;
-                if (!docket) continue;
+                const rawDocket = record.docket_number;
+                if (!rawDocket) continue;
+
+                // Normalize docket for consistent grouping
+                const docket = normalizeDocketNumber(rawDocket);
 
                 const existing = byDocket.get(docket);
                 if (!existing) {

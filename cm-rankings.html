@@ -2313,12 +2313,29 @@
             });
         }
 
+        /**
+         * Normalize a docket number for consistent deduplication
+         * Handles whitespace, case sensitivity, and common formatting variations
+         * This must match the normalization in EOMigration.normalizeDocketNumber
+         */
+        function normalizeDocketNumber(docketNumber) {
+            if (!docketNumber) return '';
+            let normalized = String(docketNumber);
+            normalized = normalized.trim();
+            normalized = normalized.replace(/\s+/g, ' ');
+            normalized = normalized.toUpperCase();
+            return normalized;
+        }
+
         // Deduplicate records by docket number, keeping the most recent by File_Date
+        // IMPORTANT: Uses normalized docket numbers to handle case/whitespace variations
         function dedupeByDocketNumber(records) {
             const seen = new Map();
 
             for (const record of records) {
-                const docketNumber = (record.Docket_Number || record.Case_Number || '').trim();
+                // Normalize docket number for consistent deduplication
+                const rawDocket = record.Docket_Number || record.Case_Number || '';
+                const docketNumber = normalizeDocketNumber(rawDocket);
 
                 // Skip records with empty docket numbers
                 if (!docketNumber) {

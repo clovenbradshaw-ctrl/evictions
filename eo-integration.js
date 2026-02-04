@@ -212,10 +212,14 @@ const EOIntegration = (function() {
    * - Handles ALT events even without prior INS event (upsert behavior)
    * - Creates entity from ALT data if it doesn't exist
    * - Tracks changes for all available data
+   * - Uses normalized entity IDs for consistent deduplication
    */
   function applyEventToStateCache(event) {
-    const entityId = event.entity_id || event.target?.id;
-    if (!entityId) return; // Skip events without valid entity ID
+    const rawEntityId = event.entity_id || event.target?.id;
+    if (!rawEntityId) return; // Skip events without valid entity ID
+
+    // Normalize the entity ID for consistent cache lookups
+    const entityId = EOMigration.normalizeDocketNumber(rawEntityId);
     let state = stateCache.get(entityId);
 
     // Backwards compatibility: support both 'payload' (new) and 'context' (legacy)
@@ -282,10 +286,13 @@ const EOIntegration = (function() {
    * Create a new case (generates INS event)
    */
   async function createCase(caseData, options = {}) {
-    const docket = caseData.Docket_Number || caseData.docket_number;
-    if (!docket) {
+    const rawDocket = caseData.Docket_Number || caseData.docket_number;
+    if (!rawDocket) {
       throw new Error('Docket number is required');
     }
+
+    // Normalize docket for consistent cache lookup
+    const docket = EOMigration.normalizeDocketNumber(rawDocket);
 
     // Check if case already exists
     if (stateCache.has(docket)) {
@@ -315,7 +322,10 @@ const EOIntegration = (function() {
   /**
    * Update a case (generates ALT event)
    */
-  async function updateCase(docket, changes, options = {}) {
+  async function updateCase(rawDocket, changes, options = {}) {
+    // Normalize docket for consistent cache lookup
+    const docket = EOMigration.normalizeDocketNumber(rawDocket);
+
     // Get current state
     const currentState = stateCache.get(docket);
     if (!currentState) {
@@ -359,7 +369,10 @@ const EOIntegration = (function() {
   /**
    * Delete a case (generates NUL event)
    */
-  async function deleteCase(docket, reason = null, options = {}) {
+  async function deleteCase(rawDocket, reason = null, options = {}) {
+    // Normalize docket for consistent cache lookup
+    const docket = EOMigration.normalizeDocketNumber(rawDocket);
+
     // Check if case exists
     if (!stateCache.has(docket)) {
       throw new Error(`Case ${docket} not found`);
@@ -392,7 +405,8 @@ const EOIntegration = (function() {
   /**
    * Get a case by docket number
    */
-  function getCase(docket) {
+  function getCase(rawDocket) {
+    const docket = EOMigration.normalizeDocketNumber(rawDocket);
     return stateCache.get(docket) || null;
   }
 
@@ -413,14 +427,16 @@ const EOIntegration = (function() {
   /**
    * Get audit trail for a case
    */
-  function getCaseAuditTrail(docket) {
+  function getCaseAuditTrail(rawDocket) {
+    const docket = EOMigration.normalizeDocketNumber(rawDocket);
     return EOMigration.getAuditTrail(docket, eventsCache);
   }
 
   /**
    * Get operator pattern for a case (for causal analysis)
    */
-  function getCasePattern(docket) {
+  function getCasePattern(rawDocket) {
+    const docket = EOMigration.normalizeDocketNumber(rawDocket);
     return EOMigration.getOperatorPattern(docket, eventsCache);
   }
 
@@ -428,7 +444,8 @@ const EOIntegration = (function() {
    * Get the complete field-level history for a case
    * Useful for understanding how each field evolved over time.
    */
-  function getCaseFieldHistory(docket) {
+  function getCaseFieldHistory(rawDocket) {
+    const docket = EOMigration.normalizeDocketNumber(rawDocket);
     return EOMigration.getFieldHistory(docket, eventsCache);
   }
 
@@ -436,7 +453,8 @@ const EOIntegration = (function() {
    * Get the latest values for all fields of a case
    * This is the definitive current state based on all available events.
    */
-  function getCaseLatestFieldValues(docket) {
+  function getCaseLatestFieldValues(rawDocket) {
+    const docket = EOMigration.normalizeDocketNumber(rawDocket);
     return EOMigration.getLatestFieldValues(docket, eventsCache);
   }
 
@@ -459,7 +477,12 @@ const EOIntegration = (function() {
       e.ts >= sinceTs && e.op === EOMigration.OPERATORS.ALT
     );
 
-    const dockets = [...new Set(recentEvents.map(e => e.entity_id || e.target?.id).filter(Boolean))];
+    // Normalize docket numbers for consistent cache lookup
+    const dockets = [...new Set(
+      recentEvents
+        .map(e => EOMigration.normalizeDocketNumber(e.entity_id || e.target?.id))
+        .filter(Boolean)
+    )];
     return dockets.map(d => stateCache.get(d)).filter(Boolean);
   }
 
