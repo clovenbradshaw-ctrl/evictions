@@ -17709,6 +17709,12 @@
          * Upload docket changes to database
          */
         async function uploadDocketChanges() {
+            // Check authentication first
+            if (!isLoggedIn || !decryptedPostEndpoint) {
+                alert('Authentication required. Please login before uploading records.');
+                return;
+            }
+
             // Only sync eviction cases (GT) - skip general civil cases (GC)
             const toUpload = docketComparedCases.filter(c =>
                 (c.status === 'new' || c.status === 'updated') &&
@@ -17773,7 +17779,7 @@
                     const xanoEvent = EOMigration.toXanoFormat(event);
 
                     // Upload to API
-                    const response = await fetch(POST_ENDPOINT, {
+                    const response = await fetch(decryptedPostEndpoint, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
