@@ -9153,7 +9153,7 @@
                 last30El.textContent = last30Count.toLocaleString();
             }
 
-            // Calculate 30-day average based on the data source (filtered or full dataset)
+            // Calculate 30-day average based on actual 30-day periods in the data
             const thirtyChangeEl = document.getElementById('thirtyChange');
             if (dataSource.length > 0) {
                 // Find earliest and latest filing dates
@@ -9168,9 +9168,34 @@
                 });
 
                 if (earliestDate && latestDate) {
-                    const totalDays = Math.ceil((latestDate - earliestDate) / (1000 * 60 * 60 * 24)) + 1;
-                    const dailyAverage = dataSource.length / totalDays;
-                    const avg30Day = Math.round(dailyAverage * 30);
+                    // Calculate average by dividing data into 30-day periods and averaging their counts
+                    const msPerDay = 1000 * 60 * 60 * 24;
+                    const totalDays = Math.ceil((latestDate - earliestDate) / msPerDay) + 1;
+                    const numPeriods = Math.floor(totalDays / 30);
+
+                    let avg30Day = 0;
+                    if (numPeriods > 0) {
+                        // Count records in each 30-day period going backwards from the latest date
+                        const periodCounts = [];
+                        for (let i = 0; i < numPeriods; i++) {
+                            const periodEnd = new Date(latestDate.getTime() - (i * 30 * msPerDay));
+                            const periodStart = new Date(periodEnd.getTime() - (30 * msPerDay));
+
+                            const count = dataSource.filter(d => {
+                                const date = new Date(d.File_Date);
+                                return date > periodStart && date <= periodEnd;
+                            }).length;
+                            periodCounts.push(count);
+                        }
+
+                        // Calculate average of all 30-day periods
+                        const totalCount = periodCounts.reduce((sum, c) => sum + c, 0);
+                        avg30Day = Math.round(totalCount / periodCounts.length);
+                    } else {
+                        // Less than 30 days of data, use simple projection
+                        const dailyAverage = dataSource.length / totalDays;
+                        avg30Day = Math.round(dailyAverage * 30);
+                    }
 
                     const diff = last30Count - avg30Day;
                     const percentDiff = avg30Day > 0 ? Math.round((diff / avg30Day) * 100) : 0;
