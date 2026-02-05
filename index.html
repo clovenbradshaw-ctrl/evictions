@@ -3766,17 +3766,24 @@
             <div class="data-card p-6">
                 <div class="flex justify-between items-center mb-4">
                     <div class="flex items-center gap-3">
-                        <h2 class="text-lg font-bold text-gray-900">Timeline Trend</h2>
+                        <h2 id="timelineChartTitle" class="text-lg font-bold text-gray-900">Timeline Trend</h2>
                     </div>
                     <div class="flex items-center gap-2">
+                        <div class="flex rounded-lg overflow-hidden border border-gray-200">
+                            <button id="timelineViewBtn" onclick="setTimelineView('timeline')" class="px-3 py-1 text-xs font-medium bg-indigo-600 text-white">Timeline</button>
+                            <button id="cumulativeViewBtn" onclick="setTimelineView('cumulative')" class="px-3 py-1 text-xs font-medium bg-white text-gray-600 hover:bg-gray-50">Month Pace</button>
+                        </div>
                         <span class="text-xs text-gray-500">Click to filter</span>
                         <button onclick="downloadChart('timeline')" class="text-gray-500 hover:text-gray-700">
                             📊
                         </button>
                     </div>
                 </div>
-                <div class="chart-container">
+                <div id="timelineChartContainer" class="chart-container">
                     <canvas id="timelineChart"></canvas>
+                </div>
+                <div id="cumulativeChartContainer" class="chart-container hidden">
+                    <canvas id="cumulativeChart"></canvas>
                 </div>
             </div>
 
@@ -5330,6 +5337,8 @@
 
         let monthlyChart;
         let timelineChart;
+        let cumulativeChart;
+        let activeTimelineView = 'timeline'; // 'timeline' or 'cumulative'
         let searchMatches = [];
         let pivotData = [];
         let viewMode = 'records';
@@ -6907,6 +6916,7 @@
 
             initCharts();  // Initialize charts before loading data
             initTimelineChart();  // Initialize timeline trendline chart
+            initCumulativeChart();  // Initialize cumulative month pace chart
             await loadData();
 
             // Initialize event sourcing integration
@@ -10163,6 +10173,235 @@
                 }
             ];
             timelineChart.update();
+        }
+
+        // Toggle between timeline and cumulative chart views
+        function setTimelineView(view) {
+            activeTimelineView = view;
+            const timelineContainer = document.getElementById('timelineChartContainer');
+            const cumulativeContainer = document.getElementById('cumulativeChartContainer');
+            const timelineBtn = document.getElementById('timelineViewBtn');
+            const cumulativeBtn = document.getElementById('cumulativeViewBtn');
+            const title = document.getElementById('timelineChartTitle');
+
+            if (view === 'timeline') {
+                timelineContainer.classList.remove('hidden');
+                cumulativeContainer.classList.add('hidden');
+                timelineBtn.classList.add('bg-indigo-600', 'text-white');
+                timelineBtn.classList.remove('bg-white', 'text-gray-600', 'hover:bg-gray-50');
+                cumulativeBtn.classList.remove('bg-indigo-600', 'text-white');
+                cumulativeBtn.classList.add('bg-white', 'text-gray-600', 'hover:bg-gray-50');
+                title.innerHTML = 'Timeline Trend';
+            } else {
+                timelineContainer.classList.add('hidden');
+                cumulativeContainer.classList.remove('hidden');
+                cumulativeBtn.classList.add('bg-indigo-600', 'text-white');
+                cumulativeBtn.classList.remove('bg-white', 'text-gray-600', 'hover:bg-gray-50');
+                timelineBtn.classList.remove('bg-indigo-600', 'text-white');
+                timelineBtn.classList.add('bg-white', 'text-gray-600', 'hover:bg-gray-50');
+                // Title will be set by updateCumulativeChart with month/day info
+                const now = new Date();
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                title.innerHTML = `Month Pace <span class="text-sm font-normal text-gray-500">${monthNames[now.getMonth()]} ${now.getFullYear()} · Day ${now.getDate()}</span>`;
+                updateCumulativeChart(); // Update when switching to cumulative view
+            }
+        }
+
+        function initCumulativeChart() {
+            const ctx = document.getElementById('cumulativeChart').getContext('2d');
+            cumulativeChart = new Chart(ctx, {
+                type: 'bar',  // Base type is bar, lines added as datasets
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                padding: 10,
+                                boxWidth: 12,
+                                font: { size: 10 },
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return `Day ${context[0].label} of month`;
+                                },
+                                label: function(context) {
+                                    if (context.parsed.y === null) return null;
+                                    return `${context.dataset.label}: ${Math.round(context.parsed.y)} filings`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Cumulative Filings',
+                                font: { size: 10 }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Day of Month',
+                                font: { size: 10 }
+                            },
+                            ticks: {
+                                font: { size: 9 }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateCumulativeChart() {
+            if (!cumulativeChart) {
+                console.warn('⚠️ cumulativeChart not initialized yet, skipping update');
+                return;
+            }
+
+            // Group data by year-month and day
+            const monthlyDailyData = {}; // { '2024-01': { 1: count, 2: count, ... } }
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth();
+            const currentDay = now.getDate();
+            const currentMonthKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const currentMonthName = monthNames[currentMonth];
+
+            allData.forEach(record => {
+                if (!record.File_Date) return;
+                const date = new Date(record.File_Date);
+                if (isNaN(date.getTime())) return;
+
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const day = date.getDate();
+                const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+
+                if (!monthlyDailyData[monthKey]) {
+                    monthlyDailyData[monthKey] = {};
+                }
+                monthlyDailyData[monthKey][day] = (monthlyDailyData[monthKey][day] || 0) + 1;
+            });
+
+            // Get all completed months (excluding current)
+            const completedMonths = Object.keys(monthlyDailyData)
+                .filter(key => key !== currentMonthKey)
+                .sort();
+
+            // Calculate historical average cumulative by day (1-30) - ALL completed months
+            const avgCumulativeByDay = new Array(30).fill(0);
+            const monthCount = completedMonths.length;
+
+            if (monthCount > 0) {
+                completedMonths.forEach(monthKey => {
+                    const dailyData = monthlyDailyData[monthKey];
+                    let cumulative = 0;
+                    for (let day = 1; day <= 30; day++) {
+                        cumulative += dailyData[day] || 0;
+                        avgCumulativeByDay[day - 1] += cumulative;
+                    }
+                });
+                for (let i = 0; i < 30; i++) {
+                    avgCumulativeByDay[i] = avgCumulativeByDay[i] / monthCount;
+                }
+            }
+
+            // Calculate recent trend cumulative (last 7 completed months)
+            const recentTrendByDay = new Array(30).fill(0);
+            const recentMonths = completedMonths.slice(-7);  // Last 7 months
+            const recentCount = recentMonths.length;
+
+            if (recentCount > 0) {
+                recentMonths.forEach(monthKey => {
+                    const dailyData = monthlyDailyData[monthKey];
+                    let cumulative = 0;
+                    for (let day = 1; day <= 30; day++) {
+                        cumulative += dailyData[day] || 0;
+                        recentTrendByDay[day - 1] += cumulative;
+                    }
+                });
+                for (let i = 0; i < 30; i++) {
+                    recentTrendByDay[i] = recentTrendByDay[i] / recentCount;
+                }
+            }
+
+            // Current month's actual cumulative (as bars)
+            const currentMonthCumulative = new Array(30).fill(null);
+            if (monthlyDailyData[currentMonthKey]) {
+                const dailyData = monthlyDailyData[currentMonthKey];
+                let cumulative = 0;
+                for (let day = 1; day <= currentDay; day++) {
+                    cumulative += dailyData[day] || 0;
+                    currentMonthCumulative[day - 1] = cumulative;
+                }
+            }
+
+            // Labels: Day 1 through Day 30
+            const labels = Array.from({ length: 30 }, (_, i) => i + 1);
+
+            cumulativeChart.data.labels = labels;
+            cumulativeChart.data.datasets = [
+                {
+                    type: 'bar',
+                    label: `${currentMonthName} ${currentYear}`,
+                    data: currentMonthCumulative,
+                    backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                    borderColor: 'rgba(239, 68, 68, 0.9)',
+                    borderWidth: 1,
+                    borderRadius: 3,
+                    order: 2  // Bars render behind lines
+                },
+                {
+                    type: 'line',
+                    label: `Historical Avg (${monthCount} mo)`,
+                    data: avgCumulativeByDay,
+                    borderColor: '#6366f1',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2.5,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    order: 1
+                },
+                {
+                    type: 'line',
+                    label: `Recent Trend (${recentCount} mo)`,
+                    data: recentTrendByDay,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2.5,
+                    borderDash: [8, 4],
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    order: 0
+                }
+            ];
+            cumulativeChart.update();
         }
 
         function updateCharts() {
