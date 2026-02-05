@@ -8,7 +8,7 @@
  * - id: UUID (primary key)
  * - ts: INTEGER (Unix timestamp in milliseconds - when event was synced/recorded)
  * - ts_iso: TIMESTAMP (ISO formatted timestamp)
- * - op: TEXT (INS, DES, SEG, CON, SYN, ALT, SUP, REC, NUL)
+ * - op: TEXT (INS, ALT)
  * - entity_id: TEXT (case docket number)
  * - entity_type: TEXT (e.g., 'eviction_case')
  * - source_table: TEXT (e.g., 'eviction_cases')
@@ -65,18 +65,11 @@ const EOMigration = (function() {
   // =============================================================================
 
   /**
-   * The nine Epistemic Operators
+   * Epistemic Operators
    */
   const OPERATORS = {
-    NUL: 'NUL',  // Recognizing absence/deletion
-    DES: 'DES',  // Naming/defining (designation)
     INS: 'INS',  // Creating/instantiating
-    SEG: 'SEG',  // Segmenting/filtering
-    CON: 'CON',  // Connecting/relating
-    ALT: 'ALT',  // Alternating/transitioning state
-    SYN: 'SYN',  // Synthesizing/merging
-    SUP: 'SUP',  // Superposing/layering context
-    REC: 'REC'   // Reconfiguring/learning
+    ALT: 'ALT'   // Alternating/transitioning state
   };
 
   /**
@@ -84,14 +77,7 @@ const EOMigration = (function() {
    */
   const OPERATOR_MEANINGS = {
     INS: 'New eviction filing recorded',
-    ALT: 'Filing data updated',
-    NUL: 'Filing deleted/archived',
-    CON: 'Filings linked (same property/plaintiff)',
-    SYN: 'Filings merged (duplicates)',
-    SEG: 'Filing filtered/categorized',
-    SUP: 'Context overlay added',
-    DES: 'Field/entity defined',
-    REC: 'Pattern learned/reconfigured'
+    ALT: 'Filing data updated'
   };
 
   // =============================================================================
@@ -150,7 +136,7 @@ const EOMigration = (function() {
   /**
    * Create a base EO event structure (internal format)
    *
-   * @param {string} op - The operation type (INS, ALT, NUL, etc.)
+   * @param {string} op - The operation type (INS, ALT)
    * @param {object} target - What's being operated on { id, type, field? }
    * @param {object} payload - The data/changes including:
    *   - table: source table name
@@ -359,81 +345,6 @@ const EOMigration = (function() {
       payload,
       frame || {
         source: 'bulk_update',
-        version: '1.0'
-      }
-    );
-  }
-
-  /**
-   * Create a NUL (delete/nullify) event
-   */
-  function createDeleteEvent(docketNumber, reason = null, frame = null) {
-    // Normalize docket number for consistent deduplication during replay
-    const normalizedDocket = normalizeDocketNumber(docketNumber);
-
-    return createEvent(
-      OPERATORS.NUL,
-      {
-        id: normalizedDocket
-      },
-      {
-        table: CONFIG.SOURCE_TABLE,
-        reason: reason || 'deleted'
-      },
-      frame || {
-        source: 'deletion',
-        reversible: true
-      }
-    );
-  }
-
-  /**
-   * Create a CON (connect) event for linking related cases
-   */
-  function createConnectionEvent(docketNumber1, docketNumber2, relationshipType, frame = null) {
-    // Normalize docket numbers for consistent deduplication during replay
-    const normalizedDocket1 = normalizeDocketNumber(docketNumber1);
-    const normalizedDocket2 = normalizeDocketNumber(docketNumber2);
-
-    return createEvent(
-      OPERATORS.CON,
-      {
-        id: normalizedDocket1,
-        type: 'eviction_case'
-      },
-      {
-        table: CONFIG.SOURCE_TABLE,
-        related: normalizedDocket2,
-        relationship: relationshipType // e.g., 'same_property', 'same_plaintiff', 'same_defendant'
-      },
-      frame || {
-        source: 'link',
-        version: '1.0'
-      }
-    );
-  }
-
-  /**
-   * Create a SYN (synthesize/merge) event for merging duplicate cases
-   */
-  function createMergeEvent(primaryDocket, mergedDockets, frame = null) {
-    // Normalize all docket numbers for consistent deduplication during replay
-    const normalizedPrimary = normalizeDocketNumber(primaryDocket);
-    const normalizedMerged = mergedDockets.map(d => normalizeDocketNumber(d));
-
-    return createEvent(
-      OPERATORS.SYN,
-      {
-        id: normalizedPrimary,
-        type: 'eviction_case'
-      },
-      {
-        table: CONFIG.SOURCE_TABLE,
-        merged: normalizedMerged, // Array of docket numbers being merged
-        action: 'merge_duplicates'
-      },
-      frame || {
-        source: 'deduplication',
         version: '1.0'
       }
     );
@@ -670,7 +581,7 @@ const EOMigration = (function() {
    * - Handles ALT events even without a prior INS event
    * - Tracks the latest version of each field based on observationTS (not sync ts)
    * - Supports partial updates (deltas) that only contain changed fields
-   * - Empty fields do NOT imply deletion - we only delete on explicit NUL events
+   * - Empty fields do NOT imply deletion
    * - Supports both legacy 'context' and new 'payload' field names
    */
   function reconstructEntityState(entityId, events) {
@@ -691,7 +602,6 @@ const EOMigration = (function() {
     }
 
     let state = null;
-    let isDeleted = false;
     // Track field versions: { fieldName: { value, observationTS } }
     let fieldVersions = {};
 
@@ -704,7 +614,7 @@ const EOMigration = (function() {
 
     /**
      * Update a field only if this event's observation is newer than the last update
-     * Note: empty/null values do NOT delete fields - only explicit NUL events do that
+     * Note: empty/null values do NOT delete fields
      */
     function updateField(fieldName, value, observationTS) {
       // Only update if we have a value AND this observation is newer
@@ -737,14 +647,12 @@ const EOMigration = (function() {
         case OPERATORS.INS:
           // Initialize/update state from INS event data
           applyData(payload.data, eventObservationTS);
-          isDeleted = false;
           break;
 
         case OPERATORS.ALT:
           // ALT with payload.data = full record upsert
           if (payload.data) {
             applyData(payload.data, eventObservationTS);
-            isDeleted = false;
           }
 
           // ALT with payload.changes = delta update (works even without prior INS)
@@ -761,22 +669,7 @@ const EOMigration = (function() {
             updateField(event.target.field, payload.new, eventObservationTS);
           }
           break;
-
-        case OPERATORS.NUL:
-          isDeleted = true;
-          break;
-
-        case OPERATORS.SYN:
-          // Mark as merged if this entity was absorbed
-          if (payload?.merged && payload.merged.includes(entityId)) {
-            updateField('_merged_into', event.entity_id || event.target?.id, eventObservationTS);
-          }
-          break;
       }
-    }
-
-    if (isDeleted) {
-      return null;
     }
 
     // Build final state from latest field versions
@@ -1456,7 +1349,7 @@ const EOMigration = (function() {
     fields: [
       { name: 'id', type: 'text', required: true, primary: true },
       { name: 'ts', type: 'integer', required: true, index: true }, // Unix timestamp ms - when event was synced
-      { name: 'op', type: 'text', required: true, index: true }, // INS, ALT, NUL, etc.
+      { name: 'op', type: 'text', required: true, index: true }, // INS, ALT
       { name: 'target', type: 'json', required: true },
       { name: 'payload', type: 'json', required: true }, // Contains observationTS, table, data/changes
       { name: 'frame', type: 'json', required: false },
@@ -1494,9 +1387,6 @@ const EOMigration = (function() {
     createInsertEvent,
     createUpdateEvent,
     createBulkUpdateEvent,
-    createDeleteEvent,
-    createConnectionEvent,
-    createMergeEvent,
 
     // Data normalization
     normalizeDocketNumber,

@@ -7809,17 +7809,6 @@
                         }
                         break;
 
-                    case 'NUL':
-                        // Delete - remove from state
-                        stateMap.delete(entityId);
-                        break;
-
-                    case 'SYN':
-                        // Merge - mark absorbed entities
-                        if (payload.merged && state) {
-                            state._merged_into = event.entity_id || event.target?.id;
-                        }
-                        break;
                 }
             }
 
@@ -12416,14 +12405,7 @@
             auditTrail.slice().reverse().forEach((event, index) => {
                 const opColors = {
                     'INS': 'bg-green-500',
-                    'ALT': 'bg-blue-500',
-                    'NUL': 'bg-red-500',
-                    'CON': 'bg-purple-500',
-                    'SYN': 'bg-yellow-500',
-                    'SEG': 'bg-gray-500',
-                    'SUP': 'bg-pink-500',
-                    'DES': 'bg-orange-500',
-                    'REC': 'bg-teal-500'
+                    'ALT': 'bg-blue-500'
                 };
                 const opColor = opColors[event.op] || 'bg-gray-400';
 

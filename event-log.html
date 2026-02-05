@@ -284,13 +284,6 @@
 
         .op-INS { background: #dcfce7; color: #166534; }
         .op-ALT { background: #dbeafe; color: #1e40af; }
-        .op-NUL { background: #fee2e2; color: #991b1b; }
-        .op-CON { background: #fae8ff; color: #86198f; }
-        .op-SYN { background: #e0e7ff; color: #3730a3; }
-        .op-SEG { background: #fef3c7; color: #92400e; }
-        .op-SUP { background: #ccfbf1; color: #0f766e; }
-        .op-DES { background: #f3f4f6; color: #374151; }
-        .op-REC { background: #fce7f3; color: #9d174d; }
 
         .event-entity {
             font-size: 14px;
@@ -805,9 +798,6 @@
 
         .timeline-event.op-INS::before { border-color: #10b981; background: #dcfce7; }
         .timeline-event.op-ALT::before { border-color: #3b82f6; background: #dbeafe; }
-        .timeline-event.op-NUL::before { border-color: #ef4444; background: #fee2e2; }
-        .timeline-event.op-CON::before { border-color: #a855f7; background: #fae8ff; }
-        .timeline-event.op-SYN::before { border-color: #6366f1; background: #e0e7ff; }
 
         .timeline-event-header {
             display: flex;
@@ -932,7 +922,7 @@
                 This page shows the work done to process eviction data—not a static dump of all records pulled at once,
                 but a step-by-step log of how the dataset was built and maintained over time. Each entry represents
                 an operation that was performed: a case being filed, a status being updated, records being linked together,
-                and so on. The <strong>operators</strong> (INS, ALT, NUL, etc.) document exactly what happened at each step,
+                and so on. The <strong>operators</strong> (INS, ALT) document exactly what happened at each step,
                 providing full transparency into how the data evolved.
             </p>
             <div class="privacy-notice">
@@ -956,34 +946,6 @@
                     <span class="event-op op-ALT">ALT</span>
                     <span>Case updated</span>
                 </div>
-                <div class="legend-item">
-                    <span class="event-op op-NUL">NUL</span>
-                    <span>Case deleted/archived</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-CON">CON</span>
-                    <span>Cases linked</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-SYN">SYN</span>
-                    <span>Cases merged</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-SEG">SEG</span>
-                    <span>Case categorized</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-SUP">SUP</span>
-                    <span>Context added</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-DES">DES</span>
-                    <span>Entity defined</span>
-                </div>
-                <div class="legend-item">
-                    <span class="event-op op-REC">REC</span>
-                    <span>Pattern learned</span>
-                </div>
             </div>
         </div>
 
@@ -996,13 +958,6 @@
                         <option value="">All Operators</option>
                         <option value="INS">INS - New Cases</option>
                         <option value="ALT">ALT - Updates</option>
-                        <option value="NUL">NUL - Deletions</option>
-                        <option value="CON">CON - Connections</option>
-                        <option value="SYN">SYN - Merges</option>
-                        <option value="SEG">SEG - Categories</option>
-                        <option value="SUP">SUP - Context</option>
-                        <option value="DES">DES - Definitions</option>
-                        <option value="REC">REC - Reconfigurations</option>
                     </select>
                 </div>
                 <div class="control-group">
@@ -1350,14 +1305,7 @@
 
         const OPERATOR_MEANINGS = {
             INS: 'New eviction filing recorded',
-            ALT: 'Filing data updated',
-            NUL: 'Filing deleted/archived',
-            CON: 'Filings linked (same property/plaintiff)',
-            SYN: 'Filings merged (duplicates)',
-            SEG: 'Filing filtered/categorized',
-            SUP: 'Context overlay added',
-            DES: 'Field/entity defined',
-            REC: 'Pattern learned/reconfigured'
+            ALT: 'Filing data updated'
         };
 
         // Pagination state
@@ -1390,29 +1338,6 @@
                 } else if (event.target && event.target.field) {
                     detailsHtml = renderSingleFieldChange(event.target.field, eventData.old, eventData.new);
                 }
-            } else if (event.op === 'NUL') {
-                // Delete event
-                const reason = eventData.reason || 'deleted';
-                detailsHtml = `<div class="event-detail-row">
-                    <span class="detail-label">Reason:</span>
-                    <span class="detail-value">${escapeHtml(reason)}</span>
-                </div>`;
-            } else if (event.op === 'CON') {
-                // Connection event
-                detailsHtml = `<div class="event-detail-row">
-                    <span class="detail-label">Related To:</span>
-                    <span class="detail-value">${escapeHtml(eventData.related || 'N/A')}</span>
-                </div>
-                <div class="event-detail-row">
-                    <span class="detail-label">Relationship:</span>
-                    <span class="detail-value">${escapeHtml(eventData.relationship || 'N/A')}</span>
-                </div>`;
-            } else if (event.op === 'SYN' && eventData.merged) {
-                // Merge event
-                detailsHtml = `<div class="event-detail-row">
-                    <span class="detail-label">Merged:</span>
-                    <span class="detail-value">${escapeHtml(eventData.merged.join(', '))}</span>
-                </div>`;
             }
 
             // Frame info (source, actor)
@@ -1794,10 +1719,6 @@
                     } else if (event.target && event.target.field && eventData.new !== undefined) {
                         state[event.target.field] = eventData.new;
                     }
-                } else if (event.op === 'NUL') {
-                    // Mark as deleted/archived
-                    state._deleted = true;
-                    state._deletedAt = event.ts;
                 }
             }
 

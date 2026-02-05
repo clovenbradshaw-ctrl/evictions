@@ -114,30 +114,10 @@
           <div class="text-sm text-gray-400">INS Events</div>
         </div>
       </div>
-      <div class="mt-4 grid grid-cols-3 md:grid-cols-6 gap-2">
+      <div class="mt-4 grid grid-cols-1 gap-2">
         <div class="bg-gray-700 rounded p-2 text-center">
           <div class="text-lg font-bold" id="statALT">0</div>
           <div class="text-xs text-gray-400">ALT</div>
-        </div>
-        <div class="bg-gray-700 rounded p-2 text-center">
-          <div class="text-lg font-bold" id="statNUL">0</div>
-          <div class="text-xs text-gray-400">NUL</div>
-        </div>
-        <div class="bg-gray-700 rounded p-2 text-center">
-          <div class="text-lg font-bold" id="statCON">0</div>
-          <div class="text-xs text-gray-400">CON</div>
-        </div>
-        <div class="bg-gray-700 rounded p-2 text-center">
-          <div class="text-lg font-bold" id="statSYN">0</div>
-          <div class="text-xs text-gray-400">SYN</div>
-        </div>
-        <div class="bg-gray-700 rounded p-2 text-center">
-          <div class="text-lg font-bold" id="statSEG">0</div>
-          <div class="text-xs text-gray-400">SEG</div>
-        </div>
-        <div class="bg-gray-700 rounded p-2 text-center">
-          <div class="text-lg font-bold" id="statOther">0</div>
-          <div class="text-xs text-gray-400">Other</div>
         </div>
       </div>
     </div>
@@ -190,7 +170,7 @@
   id           UUID       PRIMARY KEY
   ts           INTEGER    Unix timestamp in milliseconds
   ts_iso       TIMESTAMP  ISO formatted timestamp
-  op           TEXT       Operator (INS, ALT, NUL, CON, SYN, SEG, SUP, DES, REC)
+  op           TEXT       Operator (INS, ALT)
   entity_id    TEXT       Case docket number
   entity_type  TEXT       Entity type (e.g., 'eviction_case')
   source_table TEXT       Source table name
@@ -269,8 +249,7 @@ API Endpoints:
     // ==========================================================================
 
     const OPERATORS = {
-      NUL: 'NUL', DES: 'DES', INS: 'INS', SEG: 'SEG',
-      CON: 'CON', ALT: 'ALT', SYN: 'SYN', SUP: 'SUP', REC: 'REC'
+      INS: 'INS', ALT: 'ALT'
     };
 
     let migrationResult = null;
@@ -439,13 +418,11 @@ API Endpoints:
       for (const [entityId, entityEvents] of byEntity) {
         const sorted = entityEvents.sort((a, b) => a.ts - b.ts);
         let state = null;
-        let isDeleted = false;
 
         for (const event of sorted) {
           switch (event.op) {
             case OPERATORS.INS:
               state = { ...event.context.data };
-              isDeleted = false;
               break;
             case OPERATORS.ALT:
               if (state && event.context.changes) {
@@ -454,13 +431,10 @@ API Endpoints:
                 }
               }
               break;
-            case OPERATORS.NUL:
-              isDeleted = true;
-              break;
           }
         }
 
-        if (!isDeleted && state) {
+        if (state) {
           state._entity_id = entityId;
           state._last_updated = sorted[sorted.length - 1].ts;
           states.push(state);
@@ -508,15 +482,6 @@ API Endpoints:
       const ops = result.opCounts;
       document.getElementById('statINS').textContent = (ops.INS || 0).toLocaleString();
       document.getElementById('statALT').textContent = (ops.ALT || 0).toLocaleString();
-      document.getElementById('statNUL').textContent = (ops.NUL || 0).toLocaleString();
-      document.getElementById('statCON').textContent = (ops.CON || 0).toLocaleString();
-      document.getElementById('statSYN').textContent = (ops.SYN || 0).toLocaleString();
-      document.getElementById('statSEG').textContent = (ops.SEG || 0).toLocaleString();
-
-      const other = Object.entries(ops)
-        .filter(([k]) => !['INS', 'ALT', 'NUL', 'CON', 'SYN', 'SEG'].includes(k))
-        .reduce((sum, [, v]) => sum + v, 0);
-      document.getElementById('statOther').textContent = other.toLocaleString();
     }
 
     function showSample(events) {
@@ -678,7 +643,7 @@ API Endpoints:
 
         log('Full migration complete!', 'success');
         log(`Summary: ${data.length} legacy records → ${events.length} EO events`, 'success');
-        log(`Event breakdown: INS=${opCounts.INS || 0}, ALT=${opCounts.ALT || 0}, NUL=${opCounts.NUL || 0}`, 'info');
+        log(`Event breakdown: INS=${opCounts.INS || 0}, ALT=${opCounts.ALT || 0}`, 'info');
       } catch (e) {
         log(`Migration failed: ${e.message}`, 'error');
       }
