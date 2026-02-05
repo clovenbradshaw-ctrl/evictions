@@ -3673,8 +3673,8 @@
                         <span id="pollCountdown" class="text-xs text-gray-400"></span>
                     </div>
 
-                    <!-- Queue Status Indicator -->
-                    <button id="queueStatusBtn" onclick="toggleQueuePanel()" class="nav-action-btn nav-btn-queue" title="Update Queue Status">
+                    <!-- Queue Status Indicator - HIDDEN: Process paused -->
+                    <button id="queueStatusBtn" onclick="toggleQueuePanel()" class="nav-action-btn nav-btn-queue" title="Update Queue Status" style="display: none;">
                         <span>Queue</span>
                         <span id="queuePendingBadge" class="queue-badge" style="display: none;">0</span>
                     </button>
@@ -8185,17 +8185,18 @@
                 isLoadingData = false;
                 updateRefreshUI();
 
+                // PAUSED: Queue system disabled - uncomment to re-enable
                 // Initialize queue system after data loads and auto-queue stale records
-                if (allData && allData.length > 0) {
-                    initializeQueueSystem().then(() => {
-                        // Automatically queue stale records without requiring user to open individual cases
-                        queueStaleRecords(25).then(result => {
-                            if (result && result.queued > 0) {
-                                console.log(`Auto-queued ${result.queued} stale records on load`);
-                            }
-                        }).catch(err => console.error('Auto-queue failed:', err));
-                    });
-                }
+                // if (allData && allData.length > 0) {
+                //     initializeQueueSystem().then(() => {
+                //         // Automatically queue stale records without requiring user to open individual cases
+                //         queueStaleRecords(25).then(result => {
+                //             if (result && result.queued > 0) {
+                //                 console.log(`Auto-queued ${result.queued} stale records on load`);
+                //             }
+                //         }).catch(err => console.error('Auto-queue failed:', err));
+                //     });
+                // }
             }
         }
 
