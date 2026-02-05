@@ -5800,7 +5800,7 @@
             // District filter
             if (params.has(URL_FILTER_KEYS.DISTRICT)) {
                 const d = params.get(URL_FILTER_KEYS.DISTRICT);
-                filters.district = d === 'Unknown' ? 'Unknown' : (isNaN(parseInt(d)) ? d : parseInt(d));
+                filters.district = d === 'Processing' ? 'Processing' : (isNaN(parseInt(d)) ? d : parseInt(d));
                 filters.hasFilters = true;
             }
 
@@ -6027,8 +6027,8 @@
             // Apply district filter
             if (!filtersApplied && urlFilters.district !== null) {
                 activeDistrictFilter = urlFilters.district;
-                if (activeDistrictFilter === 'Unknown' || activeDistrictFilter === 'unknown') {
-                    filteredData = allData.filter(r => r.District === 'Unknown' || r.District === 'unknown');
+                if (activeDistrictFilter === 'Processing' || activeDistrictFilter === 'processing') {
+                    filteredData = allData.filter(r => r.District === 'Processing' || r.District === 'processing');
                 } else {
                     filteredData = allData.filter(r => r.District == activeDistrictFilter);
                 }
@@ -6446,8 +6446,8 @@
             // Restore district filter (mutually exclusive with chart filter)
             if (!filtersApplied && savedState.districtFilter !== null && savedState.districtFilter !== undefined) {
                 activeDistrictFilter = savedState.districtFilter;
-                if (activeDistrictFilter === 'Unknown' || activeDistrictFilter === 'unknown') {
-                    filteredData = allData.filter(r => r.District === 'Unknown' || r.District === 'unknown');
+                if (activeDistrictFilter === 'Processing' || activeDistrictFilter === 'processing') {
+                    filteredData = allData.filter(r => r.District === 'Processing' || r.District === 'processing');
                 } else {
                     filteredData = allData.filter(r => r.District == activeDistrictFilter);
                 }
@@ -6692,12 +6692,12 @@
             },
             { field: 'District', headerName: 'Council District', headerClass: 'header-group-district', width: 140,
               cellRenderer: params => {
-                  if (!params.value || params.value === 'Unknown') return '<span class="text-gray-400">—</span>';
+                  if (!params.value || params.value === 'Processing') return '<span class="text-gray-400">Processing</span>';
                   return `<span class="text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer" onclick="event.stopPropagation(); filterByDistrict('${params.value}');">District ${params.value}</span>`;
               },
               comparator: (valueA, valueB) => {
-                  const numA = valueA && valueA !== 'Unknown' ? parseInt(valueA, 10) : Infinity;
-                  const numB = valueB && valueB !== 'Unknown' ? parseInt(valueB, 10) : Infinity;
+                  const numA = valueA && valueA !== 'Processing' ? parseInt(valueA, 10) : Infinity;
+                  const numB = valueB && valueB !== 'Processing' ? parseInt(valueB, 10) : Infinity;
                   return numA - numB;
               }
             },
@@ -8126,12 +8126,12 @@
                 // Log district distribution
                 const districtCounts = {};
                 allData.forEach(r => {
-                    const d = r.District || 'Unknown';
+                    const d = r.District || 'Processing';
                     districtCounts[d] = (districtCounts[d] || 0) + 1;
                 });
                 console.log('🗺️ District distribution:', districtCounts);
-                console.log('📈 Records with valid district:', Object.entries(districtCounts).filter(([k]) => k !== 'Unknown').reduce((s, [,v]) => s + v, 0));
-                console.log('❓ Records without district:', districtCounts['Unknown'] || 0);
+                console.log('📈 Records with valid district:', Object.entries(districtCounts).filter(([k]) => k !== 'Processing').reduce((s, [,v]) => s + v, 0));
+                console.log('❓ Records without district:', districtCounts['Processing'] || 0);
 
                 // Invalidate computed data caches since we have new data
                 dataCache.invalidateAll();
@@ -9011,7 +9011,7 @@
 
         function normalizeRecord(record) {
             // Extract council district - prefer council_district_number (handles both string and number types)
-            let district = 'Unknown';
+            let district = 'Processing';
             const cdNum = Number(record.council_district_number);
             if (!isNaN(cdNum) && cdNum > 0 && cdNum <= 35) {
                 district = cdNum;
@@ -10769,7 +10769,7 @@
             const districtStats = {};
             dataSource.forEach(record => {
                 const district = record.District;
-                if (district && district !== 'Unknown') {
+                if (district && district !== 'Processing') {
                     if (!districtStats[district]) {
                         districtStats[district] = { count: 0, earliest: null, latest: null };
                     }
@@ -11651,7 +11651,7 @@
                 console.log('🔄 Computing district counts from', filteredData.length, 'records...');
                 filteredData.forEach(record => {
                     const district = record.District;
-                    if (district === 'Unknown' || district === 'unknown') {
+                    if (district === 'Processing' || district === 'processing') {
                         unknownCount++;
                     } else if (district && !isNaN(district)) {
                         districtCounts[district] = (districtCounts[district] || 0) + 1;
@@ -11721,14 +11721,14 @@
                 }
                 
                 const unknownDiv = document.createElement('div');
-                const isUnknownActive = activeDistrictFilter === 'Unknown' || activeDistrictFilter === 'unknown';
+                const isUnknownActive = activeDistrictFilter === 'Processing' || activeDistrictFilter === 'processing';
                 const unknownActiveClass = isUnknownActive ? 'ring-2 ring-indigo-500' : '';
                 unknownDiv.className = `unknown-district-info mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-sm cursor-pointer hover:bg-yellow-100 transition ${unknownActiveClass}`;
                 unknownDiv.innerHTML = `
                     <span class="text-gray-700">Additional records with unverified district information available*</span>
                     <span class="text-xs text-gray-600 ml-2">(click to view)</span>
                 `;
-                unknownDiv.onclick = () => filterByDistrict('Unknown');
+                unknownDiv.onclick = () => filterByDistrict('Processing');
                 grid.parentElement.appendChild(unknownDiv);
             }
         }
@@ -11949,7 +11949,7 @@
                 const valueEl = document.createElement('p');
                 valueEl.className = 'mt-1 text-sm font-semibold text-gray-900';
 
-                if (entry.isDistrict && entry.value && entry.value !== 'Unknown') {
+                if (entry.isDistrict && entry.value && entry.value !== 'Processing') {
                     const linkEl = document.createElement('span');
                     linkEl.className = 'district-link cursor-pointer text-indigo-600 hover:text-indigo-800';
                     linkEl.textContent = `District ${entry.value}`;
@@ -12603,7 +12603,7 @@
         }
 
         function openDistrictModal(districtNumber) {
-            if (!districtNumber || districtNumber === 'Unknown') return;
+            if (!districtNumber || districtNumber === 'Processing') return;
 
             const modal = document.getElementById('districtModal');
             const demo = districtDemographics?.districts?.[districtNumber];
@@ -14609,8 +14609,8 @@
             // Set active district filter for persistence
             activeDistrictFilter = district;
 
-            if (district === 'Unknown' || district === 'unknown') {
-                filteredData = allData.filter(r => r.District === 'Unknown' || r.District === 'unknown');
+            if (district === 'Processing' || district === 'processing') {
+                filteredData = allData.filter(r => r.District === 'Processing' || r.District === 'processing');
             } else {
                 filteredData = allData.filter(r => r.District == district);
             }
@@ -14646,7 +14646,7 @@
             updateUrlWithFilters();
 
             // Update status message without exact counts
-            const filterMsg = district === 'Unknown' ? 'unverified districts*' : `District ${district}*`;
+            const filterMsg = district === 'Processing' ? 'processing districts*' : `District ${district}*`;
             updateStatus(`Showing records for ${filterMsg}`, 'success');
         }
 
@@ -14681,7 +14681,7 @@
             if (!container) return;
 
             if (activeDistrictFilter !== null) {
-                const label = activeDistrictFilter === 'Unknown' ? 'Unverified Districts' : `District ${activeDistrictFilter}`;
+                const label = activeDistrictFilter === 'Processing' ? 'Processing Districts' : `District ${activeDistrictFilter}`;
                 container.innerHTML = `
                     <span class="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm">
                         <span>Filtered: ${label}</span>
@@ -14887,7 +14887,7 @@
                 const attorney = (row.Attorney || '').replace(/"/g, '""');
                 const defenseAttorney = (row.Defense_Attorney || '').replace(/"/g, '""');
                 const address = (row.Address || '').replace(/"/g, '""');
-                const district = row.District && row.District !== 'Unknown' ? row.District : '';
+                const district = row.District && row.District !== 'Processing' ? row.District : '';
                 const councilMember = (row.CouncilMember || '').replace(/"/g, '""');
                 const individualLandlord = row.individual_ll ? 'Yes' : 'No';
 
@@ -15300,7 +15300,7 @@
                             value = (row.Address || '').replace(/"/g, '""');
                             break;
                         case 'District':
-                            value = row.District && row.District !== 'Unknown' ? row.District : '';
+                            value = row.District && row.District !== 'Processing' ? row.District : '';
                             break;
                         case 'CouncilMember':
                             value = (row.CouncilMember || '').replace(/"/g, '""');
