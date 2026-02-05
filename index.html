@@ -9132,8 +9132,8 @@
             const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
             const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-            // Use filteredData when filters are active, otherwise use allData
-            const isFiltered = hasActiveFilters();
+            // Use filteredData when filters are active AND data actually differs from allData
+            const isFiltered = hasActiveFilters() && filteredData.length !== allData.length;
             const dataSource = isFiltered ? filteredData : allData;
 
             // Total records
@@ -15048,7 +15048,10 @@
         function openExportModal() {
             if (!visibleExportColumns) loadColumnPreferences();
             tempExportColumns = [...visibleExportColumns];
-            document.getElementById('exportRecordCount').textContent = `${filteredData.length} records (filtered)`;
+            const exportIsFiltered = filteredData.length !== allData.length;
+            document.getElementById('exportRecordCount').textContent = exportIsFiltered
+                ? `${filteredData.length} of ${allData.length} records (filtered)`
+                : `${allData.length} records`;
             renderExportColumnSelector();
             document.getElementById('exportModal').classList.remove('hidden');
             document.body.style.overflow = 'hidden';
