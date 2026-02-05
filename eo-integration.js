@@ -469,9 +469,6 @@ const EOIntegration = (function() {
         stateCache.set(entityId, state);
         break;
 
-      case EOMigration.OPERATORS.NUL:
-        stateCache.delete(entityId);
-        break;
     }
   }
 
@@ -551,38 +548,6 @@ const EOIntegration = (function() {
     });
 
     // Push to Xano EO operations table
-    if (CONFIG.EO_ENABLED) {
-      await EOMigration.pushEvent(event);
-    }
-
-    // Update local state
-    eventsCache.push(event);
-    applyEventToStateCache(event);
-    await saveEventsToCache();
-
-    return event;
-  }
-
-  /**
-   * Delete a case (generates NUL event)
-   */
-  async function deleteCase(rawDocket, reason = null, options = {}) {
-    // Normalize docket for consistent cache lookup
-    const docket = EOMigration.normalizeDocketNumber(rawDocket);
-
-    // Check if case exists
-    if (!stateCache.has(docket)) {
-      throw new Error(`Case ${docket} not found`);
-    }
-
-    // Create NUL event
-    const event = EOMigration.createDeleteEvent(docket, reason, {
-      source: 'application',
-      actor: options.actor || 'user',
-      reversible: true
-    });
-
-    // Push to Xano
     if (CONFIG.EO_ENABLED) {
       await EOMigration.pushEvent(event);
     }
@@ -823,7 +788,6 @@ const EOIntegration = (function() {
     // CRUD operations
     createCase,
     updateCase,
-    deleteCase,
 
     // Query operations
     getCase,
