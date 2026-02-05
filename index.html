@@ -5345,16 +5345,12 @@
         };
 
         // Login state for defendant privacy protection
-        let isLoggedIn = false;
-        // SHA-256 hash of the password (hashed in lowercase)
-        const LOGIN_PASSWORD_HASH = 'fac97e07e2a67586b26047d8862db7306133ca2e1d033013fea044177d584404';
+        // Authentication disabled - API is open
+        let isLoggedIn = true;
 
         // POST endpoint for eviction operations
         const POST_ENDPOINT = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/evictionseoevents';
-
-        // Encrypted POST endpoint (AES-GCM, decrypted on login) - kept for backward compatibility
-        const ENCRYPTED_POST_ENDPOINT = 'tRfLwLSLvPZ9HGJXfB8xR7xBMoawRXcN3L+0Y1K/yFaF3HhKPiAI5n4RIHMpqZVN38uaSxp3e3uTsChVBF2XZLQV8WfNJNqwmm+8oCRvIHqw94mTbfE8gQ==';
-        let decryptedPostEndpoint = null;
+        let decryptedPostEndpoint = POST_ENDPOINT;
 
         // Hash function using Web Crypto API
         async function hashPassword(text) {
