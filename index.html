@@ -7148,17 +7148,30 @@
         }
 
         // Start polling for new data
+        let pollCycleCount = 0;
+        const FULL_REFRESH_EVERY_N_POLLS = 4; // Full refresh every 4th poll cycle
+
         function startPolling() {
             if (pollIntervalId) return; // Already polling
 
             isPollingEnabled = true;
             lastPollTime = Date.now();
+            pollCycleCount = 0;
 
             pollIntervalId = setInterval(async () => {
                 if (!isPollingEnabled || isLoadingData) return;
 
-                console.log('⏰ Auto-refresh triggered');
-                await loadDataIncremental();
+                pollCycleCount++;
+                if (pollCycleCount >= FULL_REFRESH_EVERY_N_POLLS) {
+                    // Periodically do a full refresh to catch anything incremental missed
+                    console.log('⏰ Auto-refresh triggered (full refresh cycle)');
+                    pollCycleCount = 0;
+                    localStorage.removeItem('eo_last_sync_ts');
+                    await loadData();
+                } else {
+                    console.log('⏰ Auto-refresh triggered (incremental)');
+                    await loadDataIncremental();
+                }
                 lastPollTime = Date.now();
             }, POLL_INTERVAL_MS);
 
@@ -7189,25 +7202,16 @@
             }
         }
 
-        // Manual refresh - resets the poll timer
+        // Manual refresh - always does a full refresh from the API
         async function manualRefresh() {
             if (isLoadingData) return;
 
-            console.log('🔄 Manual refresh triggered');
+            console.log('🔄 Manual refresh triggered - forcing full refresh');
             lastPollTime = Date.now(); // Reset poll timer
 
-            // Check if cache is stale (older than 4 hours) - force full refresh
-            const cacheAgeHours = getCacheAgeHours();
-            const FORCE_FULL_REFRESH_HOURS = 4;
-
-            if (cacheAgeHours === null || cacheAgeHours >= FORCE_FULL_REFRESH_HOURS) {
-                console.log('📊 Cache is stale (' + (cacheAgeHours || 'unknown') + ' hours old), forcing full refresh');
-                // Clear sync timestamp to force full API fetch
-                localStorage.removeItem('eo_last_sync_ts');
-                await loadData();
-            } else {
-                await loadDataIncremental();
-            }
+            // Always clear sync timestamp so loadData() does a full API fetch
+            localStorage.removeItem('eo_last_sync_ts');
+            await loadData();
         }
 
         // Force a complete refresh from the API, bypassing cache and incremental sync
