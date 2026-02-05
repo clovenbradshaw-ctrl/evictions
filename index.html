@@ -9163,62 +9163,74 @@
 
         function filterByMetric(metricType) {
             const now = new Date();
-            const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
-            const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
             // Clear previous metric filter styling
             document.querySelectorAll('.metric-clickable').forEach(el => el.classList.remove('active'));
 
-            // Clear chart filter if any
-            if (chartFilter) {
-                clearChartFilter();
-            }
-
             // If clicking the same filter, toggle it off
             if (activeMetricFilter === metricType) {
                 activeMetricFilter = null;
-                filteredData = [...allData];
-                if (gridApi) {
-                    gridApi.setRowData(filteredData);
-                }
-                updateRecordCount();
-                createDistrictMap();
-                updateDemographicsCharts();
-                updateDemoFilterIndicator();
+                clearAdvancedFilters();
                 return;
             }
 
             activeMetricFilter = metricType;
 
-            // Apply the appropriate filter
+            // Clear other external filter states
+            chartFilter = null;
+            nameFilter = null;
+            activeDistrictFilter = null;
+            updateChartFilterIndicator();
+            updateNameFilterIndicator();
+            updateDistrictFilterIndicator();
+
+            // Apply styling
             switch(metricType) {
                 case 'total':
                     document.getElementById('metricTotal').classList.add('active');
-                    filteredData = [...allData];
-                    break;
+                    activeMetricFilter = null;
+                    clearAdvancedFilters();
+                    return;
                 case 'thisMonth':
                     document.getElementById('metricMonth').classList.add('active');
-                    filteredData = allData.filter(d => {
-                        const date = new Date(d.File_Date);
-                        return date >= thisMonthStart;
-                    });
                     break;
                 case 'last30Days':
                     document.getElementById('metricThirty').classList.add('active');
-                    filteredData = allData.filter(d => {
-                        const date = new Date(d.File_Date);
-                        return date >= thirtyDaysAgo;
+                    break;
+            }
+
+            // Build advanced filter condition
+            filterGroups = [];
+            filterGroupIdCounter = 0;
+            const groupId = addFilterGroup();
+            const group = findGroupById(groupId);
+            group.conditions = [];
+
+            switch(metricType) {
+                case 'thisMonth': {
+                    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                    group.conditions.push({
+                        id: Date.now(),
+                        field: 'File_Date',
+                        operator: 'after',
+                        value: thisMonthStart.toISOString().split('T')[0],
+                        value2: ''
+                    });
+                    break;
+                }
+                case 'last30Days':
+                    group.conditions.push({
+                        id: Date.now(),
+                        field: 'File_Date',
+                        operator: 'last_n_days',
+                        value: '30',
+                        value2: ''
                     });
                     break;
             }
 
-            if (gridApi) {
-                gridApi.setRowData(filteredData);
-            }
-            updateRecordCount();
-            createDistrictMap();
-            updateDemographicsCharts();
-            updateDemoFilterIndicator();
+            renderFilterGroups();
+            applyAdvancedFilters();
 
             // Scroll to the grid
             document.getElementById('dataGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -10493,42 +10505,37 @@
         }
 
         function filterByChartClick(year, month) {
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                               'July', 'August', 'September', 'October', 'November', 'December'];
-
             chartFilter = { year: parseInt(year), month: month };
 
-            filteredData = allData.filter(record => {
-                const date = new Date(record.File_Date);
-                if (isNaN(date.getTime())) return false;
-                return date.getFullYear() === chartFilter.year &&
-                       (date.getMonth() + 1) === chartFilter.month;
+            // Clear other external filter states
+            activeMetricFilter = null;
+            nameFilter = null;
+            activeDistrictFilter = null;
+            document.querySelectorAll('.metric-clickable').forEach(el => el.classList.remove('active'));
+            updateNameFilterIndicator();
+            updateDistrictFilterIndicator();
+            updateChartFilterIndicator();
+
+            // Build advanced filter condition
+            const firstDay = new Date(parseInt(year), month - 1, 1);
+            const lastDay = new Date(parseInt(year), month, 0);
+
+            filterGroups = [];
+            filterGroupIdCounter = 0;
+            const groupId = addFilterGroup();
+            const group = findGroupById(groupId);
+            group.conditions = [];
+
+            group.conditions.push({
+                id: Date.now(),
+                field: 'File_Date',
+                operator: 'between',
+                value: firstDay.toISOString().split('T')[0],
+                value2: lastDay.toISOString().split('T')[0]
             });
 
-            if (viewMode === 'pivot') {
-                pivotData = buildPivotData(pivotDimension);
-            }
-
-            if (gridApi) {
-                if (viewMode === 'pivot') {
-                    gridApi.setRowData(pivotData);
-                } else {
-                    gridApi.setRowData(filteredData);
-                }
-            }
-
-            updateRecordCount();
-            updateChartFilterIndicator();
-            updateDemographicsCharts();
-            updateDemoFilterIndicator();
-            updateMetrics();
-            updateStatus(`Filtered to ${monthNames[month - 1]} ${year} - ${filteredData.length} records`, 'success');
-
-            // Persist chart filter state
-            debouncedSaveUIState();
-
-            // Update URL with filter state
-            updateUrlWithFilters();
+            renderFilterGroups();
+            applyAdvancedFilters();
         }
 
         function downloadChart(chartType) {
@@ -11386,35 +11393,8 @@
 
         function clearChartFilter() {
             chartFilter = null;
-            filteredData = allData;
-
-            // Re-apply any existing filters from the filter panel
-            const dateFrom = document.getElementById('dateFrom').value;
-            const dateTo = document.getElementById('dateTo').value;
-
-            if (dateFrom || dateTo) {
-                applyFilters();
-            } else {
-                if (viewMode === 'pivot') {
-                    pivotData = buildPivotData(pivotDimension);
-                }
-
-                if (gridApi) {
-                    if (viewMode === 'pivot') {
-                        gridApi.setRowData(pivotData);
-                    } else {
-                        gridApi.setRowData(filteredData);
-                    }
-                }
-            }
-
-            updateRecordCount();
             updateChartFilterIndicator();
-            updateDemographicsCharts();
-            updateDemoFilterIndicator();
-            updateMetrics();
-            updateUrlWithFilters();
-            updateStatus(`Showing all ${allData.length} records`, 'success');
+            clearAdvancedFilters();
         }
 
         function updateChartFilterIndicator() {
@@ -11457,74 +11437,40 @@
             const field = fieldMap[type] || 'Plaintiff';
             const label = labelMap[type] || 'Name';
 
-            // Clear chart filter when filtering by name
+            // Clear other external filter states
             chartFilter = null;
+            activeMetricFilter = null;
+            activeDistrictFilter = null;
+            document.querySelectorAll('.metric-clickable').forEach(el => el.classList.remove('active'));
             updateChartFilterIndicator();
+            updateDistrictFilterIndicator();
 
             nameFilter = { name: trimmedName, type: type, field: field, label: label };
+            updateNameFilterIndicator();
 
-            filteredData = allData.filter(record => {
-                const recordValue = record[field];
-                return recordValue && String(recordValue).trim() === trimmedName;
+            // Build advanced filter condition
+            filterGroups = [];
+            filterGroupIdCounter = 0;
+            const groupId = addFilterGroup();
+            const group = findGroupById(groupId);
+            group.conditions = [];
+
+            group.conditions.push({
+                id: Date.now(),
+                field: field,
+                operator: 'equals',
+                value: trimmedName,
+                value2: ''
             });
 
-            if (viewMode === 'pivot') {
-                pivotData = buildPivotData(pivotDimension);
-            }
-
-            if (gridApi) {
-                if (viewMode === 'pivot') {
-                    gridApi.setRowData(pivotData);
-                } else {
-                    gridApi.setRowData(filteredData);
-                }
-            }
-
-            updateRecordCount();
-            updateNameFilterIndicator();
-            updateDemographicsCharts();
-            updateDemoFilterIndicator();
-            updateMetrics();
-            updateStatus(`Showing ${filteredData.length} records for ${label}: ${trimmedName}`, 'success');
-
-            // Persist filter state
-            debouncedSaveUIState();
-
-            // Update URL with filter state
-            updateUrlWithFilters();
+            renderFilterGroups();
+            applyAdvancedFilters();
         }
 
         function clearNameFilter() {
             nameFilter = null;
-            filteredData = allData;
-
-            // Re-apply any existing filters from the filter panel
-            const dateFrom = document.getElementById('dateFrom').value;
-            const dateTo = document.getElementById('dateTo').value;
-
-            if (dateFrom || dateTo) {
-                applyFilters();
-            } else {
-                if (viewMode === 'pivot') {
-                    pivotData = buildPivotData(pivotDimension);
-                }
-
-                if (gridApi) {
-                    if (viewMode === 'pivot') {
-                        gridApi.setRowData(pivotData);
-                    } else {
-                        gridApi.setRowData(filteredData);
-                    }
-                }
-            }
-
-            updateRecordCount();
             updateNameFilterIndicator();
-            updateDemographicsCharts();
-            updateDemoFilterIndicator();
-            updateMetrics();
-            updateUrlWithFilters();
-            updateStatus(`Showing all ${allData.length} records`, 'success');
+            clearAdvancedFilters();
         }
 
         function updateNameFilterIndicator() {
@@ -14548,78 +14494,41 @@
         }
 
         function filterByDistrict(district) {
-            // Clear chart filter when filtering by district
+            // Clear other external filter states
             chartFilter = null;
+            activeMetricFilter = null;
+            nameFilter = null;
+            document.querySelectorAll('.metric-clickable').forEach(el => el.classList.remove('active'));
             updateChartFilterIndicator();
+            updateNameFilterIndicator();
 
             // Set active district filter for persistence
             activeDistrictFilter = district;
-
-            if (district === 'Processing' || district === 'processing') {
-                filteredData = allData.filter(r => r.District === 'Processing' || r.District === 'processing');
-            } else {
-                filteredData = allData.filter(r => r.District == district);
-            }
-
-            if (viewMode === 'pivot') {
-                pivotData = buildPivotData(pivotDimension);
-            }
-
-            if (gridApi) {
-                if (viewMode === 'pivot') {
-                    gridApi.setRowData(pivotData);
-                } else {
-                    gridApi.setRowData(filteredData);
-                }
-            }
-            updateRecordCount();
-
-            // Update the district map to highlight the selected district
-            createDistrictMap();
-
-            // Update the district filter indicator
             updateDistrictFilterIndicator();
 
-            // Update demographics charts with filtered data
-            updateDemographicsCharts();
-            updateDemoFilterIndicator();
-            updateMetrics();
+            // Build advanced filter condition
+            filterGroups = [];
+            filterGroupIdCounter = 0;
+            const groupId = addFilterGroup();
+            const group = findGroupById(groupId);
+            group.conditions = [];
 
-            // Persist state
-            debouncedSaveUIState();
+            group.conditions.push({
+                id: Date.now(),
+                field: 'District',
+                operator: 'equals',
+                value: String(district),
+                value2: ''
+            });
 
-            // Update URL with filter state
-            updateUrlWithFilters();
-
-            // Update status message without exact counts
-            const filterMsg = district === 'Processing' ? 'processing districts*' : `District ${district}*`;
-            updateStatus(`Showing records for ${filterMsg}`, 'success');
+            renderFilterGroups();
+            applyAdvancedFilters();
         }
 
         function clearDistrictFilter() {
             activeDistrictFilter = null;
-            filteredData = allData;
-
-            if (viewMode === 'pivot') {
-                pivotData = buildPivotData(pivotDimension);
-            }
-
-            if (gridApi) {
-                if (viewMode === 'pivot') {
-                    gridApi.setRowData(pivotData);
-                } else {
-                    gridApi.setRowData(filteredData);
-                }
-            }
-            updateRecordCount();
-            createDistrictMap();
-            updateDemographicsCharts();
-            updateDemoFilterIndicator();
             updateDistrictFilterIndicator();
-            updateMetrics();
-            debouncedSaveUIState();
-            updateUrlWithFilters();
-            updateStatus('District filter cleared - showing all records', 'success');
+            clearAdvancedFilters();
         }
 
         function updateDistrictFilterIndicator() {
@@ -16630,11 +16539,15 @@
             // Use setTimeout to allow UI to update before heavy processing
             setTimeout(() => {
                 try {
-                    // Clear other filters
+                    // Clear all external filter state
+                    activeMetricFilter = null;
                     chartFilter = null;
                     nameFilter = null;
+                    activeDistrictFilter = null;
+                    document.querySelectorAll('.metric-clickable').forEach(el => el.classList.remove('active'));
                     updateChartFilterIndicator();
                     updateNameFilterIndicator();
+                    updateDistrictFilterIndicator();
 
                     // Check if there are any valid conditions
                     const hasConditions = filterGroups.some(group =>
@@ -16697,6 +16610,16 @@
                     filterGroups = [];
                     filterGroupIdCounter = 0;
                     activeAdvancedFilter = null;
+
+                    // Clear all external filter state
+                    activeMetricFilter = null;
+                    chartFilter = null;
+                    nameFilter = null;
+                    activeDistrictFilter = null;
+                    document.querySelectorAll('.metric-clickable').forEach(el => el.classList.remove('active'));
+                    updateChartFilterIndicator();
+                    updateNameFilterIndicator();
+                    updateDistrictFilterIndicator();
 
                     // Reset to all data
                     filteredData = allData;
