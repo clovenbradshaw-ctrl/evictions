@@ -7185,7 +7185,31 @@
 
             console.log('🔄 Manual refresh triggered');
             lastPollTime = Date.now(); // Reset poll timer
-            await loadDataIncremental();
+
+            // Check if cache is stale (older than 4 hours) - force full refresh
+            const cacheAgeHours = getCacheAgeHours();
+            const FORCE_FULL_REFRESH_HOURS = 4;
+
+            if (cacheAgeHours === null || cacheAgeHours >= FORCE_FULL_REFRESH_HOURS) {
+                console.log('📊 Cache is stale (' + (cacheAgeHours || 'unknown') + ' hours old), forcing full refresh');
+                // Clear sync timestamp to force full API fetch
+                localStorage.removeItem('eo_last_sync_ts');
+                await loadData();
+            } else {
+                await loadDataIncremental();
+            }
+        }
+
+        // Force a complete refresh from the API, bypassing cache and incremental sync
+        async function forceFullRefresh() {
+            if (isLoadingData) return;
+
+            console.log('🔄 Force full refresh triggered');
+            lastPollTime = Date.now();
+
+            // Clear sync timestamp to force full API fetch
+            localStorage.removeItem('eo_last_sync_ts');
+            await loadData();
         }
 
         // Helper to check if cache is fresh (less than 24 hours old)
@@ -7825,7 +7849,15 @@
                 const lastSyncTs = localStorage.getItem('eo_last_sync_ts');
 
                 // If we have cached data and a last sync timestamp, do incremental sync
-                if (cachedData && cachedData.length > 0 && lastSyncTs) {
+                // But skip incremental if cache is very stale (>4 hours) to ensure fresh data
+                const SKIP_INCREMENTAL_HOURS = 4;
+                const cacheIsTooStale = cacheAgeHours !== null && cacheAgeHours >= SKIP_INCREMENTAL_HOURS;
+                if (cacheIsTooStale) {
+                    console.log('📊 Cache is too stale (' + cacheAgeHours + ' hours), skipping incremental sync for full refresh');
+                    localStorage.removeItem('eo_last_sync_ts'); // Force full refresh
+                }
+
+                if (cachedData && cachedData.length > 0 && lastSyncTs && !cacheIsTooStale) {
                     console.log('📦 Found cached data:', cachedData.length, 'records');
                     console.log('📌 Last sync timestamp:', lastSyncTs, '(' + new Date(parseInt(lastSyncTs)).toISOString() + ')');
 
