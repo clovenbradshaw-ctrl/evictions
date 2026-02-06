@@ -5307,12 +5307,7 @@
                                     }
                                     // Handle date fields
                                     if (itemKey.toLowerCase().includes('date') && params.value) {
-                                        try {
-                                            const date = new Date(params.value);
-                                            if (!isNaN(date.getTime())) {
-                                                return date.toLocaleDateString();
-                                            }
-                                        } catch (e) {}
+                                        return formatDateForDisplay(params.value);
                                     }
                                     // Handle boolean values
                                     if (typeof params.value === 'boolean') {
@@ -6016,8 +6011,8 @@
                 filteredData = allData.filter(record => {
                     const date = new Date(record.File_Date);
                     if (isNaN(date.getTime())) return false;
-                    return date.getFullYear() === chartFilter.year &&
-                           (date.getMonth() + 1) === chartFilter.month;
+                    return date.getUTCFullYear() === chartFilter.year &&
+                           (date.getUTCMonth() + 1) === chartFilter.month;
                 });
                 updateChartFilterIndicator();
                 filtersApplied = true;
@@ -6434,8 +6429,8 @@
                 filteredData = allData.filter(record => {
                     const date = new Date(record.File_Date);
                     if (isNaN(date.getTime())) return false;
-                    return date.getFullYear() === chartFilter.year &&
-                           (date.getMonth() + 1) === chartFilter.month;
+                    return date.getUTCFullYear() === chartFilter.year &&
+                           (date.getUTCMonth() + 1) === chartFilter.month;
                 });
                 updateChartFilterIndicator();
                 filtersApplied = true;
@@ -6638,7 +6633,7 @@
 
         const recordColumnDefs = [
             { field: 'File_Date', headerName: 'File Date', headerClass: 'header-group-dates', width: 110,
-              valueFormatter: params => new Date(params.value).toLocaleDateString(),
+              valueFormatter: params => formatDateForDisplay(params.value),
               comparator: (valueA, valueB) => {
                   const dateA = valueA ? new Date(valueA).getTime() : 0;
                   const dateB = valueB ? new Date(valueB).getTime() : 0;
@@ -6713,7 +6708,7 @@
                   const colorClass = statusColors[params.value.toUpperCase()] || 'bg-blue-100 text-blue-800';
                   // Get the "as of" timestamp from record's _last_updated (when data was originally pulled)
                   const recordTs = params.data?._last_updated;
-                  const asOfDate = recordTs ? new Date(recordTs).toLocaleDateString() : '';
+                  const asOfDate = recordTs ? formatDateForDisplay(recordTs) : '';
                   const asOfHtml = asOfDate ? `<div class="status-as-of"><span class="status-as-of-label">as of</span> ${asOfDate}</div>` : '';
                   return `<div style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;">
                       <span class="px-2 py-0.5 rounded text-xs font-medium ${colorClass}">${params.value}</span>
@@ -6743,17 +6738,17 @@
               }
             },
             { field: 'service_date', headerName: 'Service Date', headerClass: 'header-group-dates', width: 110,
-              valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+              valueFormatter: params => formatDateForDisplay(params.value),
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
-                  return new Date(params.value).toLocaleDateString();
+                  return formatDateForDisplay(params.value);
               }
             },
             { field: 'paper_writ_date', headerName: 'Paper Writ Date', headerClass: 'header-group-eviction', width: 120,
-              valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+              valueFormatter: params => formatDateForDisplay(params.value),
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
-                  return `<span class="text-red-600 font-medium">${new Date(params.value).toLocaleDateString()}</span>`;
+                  return `<span class="text-red-600 font-medium">${formatDateForDisplay(params.value)}</span>`;
               },
               comparator: (valueA, valueB) => {
                   const dateA = valueA ? new Date(valueA).getTime() : 0;
@@ -6762,10 +6757,10 @@
               }
             },
             { field: 'judgment_date', headerName: 'Judgment Date', headerClass: 'header-group-dates', width: 120,
-              valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+              valueFormatter: params => formatDateForDisplay(params.value),
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
-                  return new Date(params.value).toLocaleDateString();
+                  return formatDateForDisplay(params.value);
               }
             },
             { field: 'judgment_for', headerName: 'Judgment For', headerClass: 'header-group-judgment', width: 110,
@@ -6811,24 +6806,24 @@
               }
             },
             { field: 'dismissal_date', headerName: 'Dismissal Date', headerClass: 'header-group-dates', width: 120,
-              valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+              valueFormatter: params => formatDateForDisplay(params.value),
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
-                  return `<span class="text-green-600">${new Date(params.value).toLocaleDateString()}</span>`;
+                  return `<span class="text-green-600">${formatDateForDisplay(params.value)}</span>`;
               }
             },
             { field: 'writ_issued_date', headerName: 'Writ Issued Date', headerClass: 'header-group-eviction', width: 130,
-              valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+              valueFormatter: params => formatDateForDisplay(params.value),
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
-                  return `<span class="text-red-600">${new Date(params.value).toLocaleDateString()}</span>`;
+                  return `<span class="text-red-600">${formatDateForDisplay(params.value)}</span>`;
               }
             },
             { field: 'writ_served_date', headerName: 'Writ Served Date', headerClass: 'header-group-eviction', width: 130,
-              valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+              valueFormatter: params => formatDateForDisplay(params.value),
               cellRenderer: params => {
                   if (!params.value) return '<span class="text-gray-400">—</span>';
-                  return `<span class="text-red-700 font-medium">${new Date(params.value).toLocaleDateString()}</span>`;
+                  return `<span class="text-red-700 font-medium">${formatDateForDisplay(params.value)}</span>`;
               }
             }
         ];
@@ -7077,6 +7072,22 @@
             // Fallback: try native parsing
             const date = new Date(dateStr);
             return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
+        }
+
+        // Format an ISO date string (YYYY-MM-DD) for display without timezone shift.
+        // new Date("YYYY-MM-DD") parses as UTC midnight, so toLocaleDateString() in US
+        // timezones shifts the displayed date back by one day. This function avoids that.
+        function formatDateForDisplay(dateStr) {
+            if (!dateStr) return '';
+            const str = String(dateStr).trim();
+            // For ISO date-only format (YYYY-MM-DD), parse directly to avoid timezone shift
+            const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (isoMatch) {
+                return `${parseInt(isoMatch[2])}/${parseInt(isoMatch[3])}/${isoMatch[1]}`;
+            }
+            // For other formats, fall back to standard Date parsing
+            const d = new Date(str);
+            return isNaN(d.getTime()) ? str : d.toLocaleDateString();
         }
 
         // Cache staleness threshold: 24 hours in milliseconds
@@ -7450,7 +7461,7 @@
                     docket: s.record.Docket_Number,
                     status: s.record.Status,
                     score: s.score.toFixed(2),
-                    lastUpdated: s.record._last_updated ? new Date(s.record._last_updated).toLocaleDateString() : 'Never'
+                    lastUpdated: s.record._last_updated ? formatDateForDisplay(s.record._last_updated) : 'Never'
                 }))
             };
         }
@@ -7703,7 +7714,7 @@
             listEl.innerHTML = top10.map(({ record, score }) => {
                 const isCritical = score >= 2.0;
                 const lastUpdated = record._last_updated
-                    ? new Date(record._last_updated).toLocaleDateString()
+                    ? formatDateForDisplay(record._last_updated)
                     : 'Never';
                 const inQueue = isRecordInQueue(record.Docket_Number || record._entity_id);
 
@@ -9117,8 +9128,10 @@
 
         function updateMetrics() {
             const now = new Date();
-            const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
-            const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            // Use ISO string comparison to avoid timezone issues with date-only ISO strings
+            const thirtyDaysAgoDt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
+            const thirtyDaysAgoStr = `${thirtyDaysAgoDt.getFullYear()}-${String(thirtyDaysAgoDt.getMonth() + 1).padStart(2, '0')}-${String(thirtyDaysAgoDt.getDate()).padStart(2, '0')}`;
+            const thisMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
             // Use filteredData when filters are active AND data actually differs from allData
             const isFiltered = hasActiveFilters() && filteredData.length !== allData.length;
@@ -9134,8 +9147,7 @@
 
             // This month
             const thisMonthCount = dataSource.filter(d => {
-                const date = new Date(d.File_Date);
-                return date >= thisMonthStart;
+                return d.File_Date && d.File_Date.startsWith(thisMonthPrefix);
             }).length;
             const thisMonthEl = document.getElementById('thisMonth');
             if (isFiltered) {
@@ -9146,8 +9158,7 @@
 
             // Last 30 days
             const last30Count = dataSource.filter(d => {
-                const date = new Date(d.File_Date);
-                return date >= thirtyDaysAgo;
+                return d.File_Date && d.File_Date >= thirtyDaysAgoStr;
             }).length;
             const last30El = document.getElementById('last30Days');
             if (isFiltered) {
@@ -9208,12 +9219,12 @@
 
             switch(metricType) {
                 case 'thisMonth': {
-                    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                    const thisMonthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
                     group.conditions.push({
                         id: Date.now(),
                         field: 'File_Date',
                         operator: 'after',
-                        value: thisMonthStart.toISOString().split('T')[0],
+                        value: thisMonthStart,
                         value2: ''
                     });
                     break;
@@ -10077,8 +10088,8 @@
                 const date = new Date(record.File_Date);
                 if (isNaN(date.getTime())) return;
 
-                const year = date.getFullYear();
-                const month = date.getMonth(); // 0-11
+                const year = date.getUTCFullYear();
+                const month = date.getUTCMonth(); // 0-11
 
                 const key = `${year}-${String(month).padStart(2, '0')}`;
                 yearMonthCounts[key] = (yearMonthCounts[key] || 0) + 1;
@@ -10281,9 +10292,9 @@
                 const date = new Date(record.File_Date);
                 if (isNaN(date.getTime())) return;
 
-                const year = date.getFullYear();
-                const month = date.getMonth();
-                const day = date.getDate();
+                const year = date.getUTCFullYear();
+                const month = date.getUTCMonth();
+                const day = date.getUTCDate();
                 const monthKey = `${year}-${String(month).padStart(2, '0')}`;
 
                 if (!monthlyDailyData[monthKey]) {
@@ -10457,8 +10468,8 @@
                 const date = new Date(record.File_Date);
                 if (isNaN(date.getTime())) return;
 
-                const year = date.getFullYear();
-                const month = date.getMonth(); // 0-11
+                const year = date.getUTCFullYear();
+                const month = date.getUTCMonth(); // 0-11
 
                 if (!yearMonthCounts[year]) {
                     yearMonthCounts[year] = new Array(12).fill(0);
@@ -10978,7 +10989,7 @@
                 if (earliest && latest) {
                     const days = Math.ceil((latest - earliest) / (1000 * 60 * 60 * 24));
                     const factor = days > 0 ? (365 / days).toFixed(2) : '1.00';
-                    dateRangeText = `${earliest.toLocaleDateString()} – ${latest.toLocaleDateString()} (${days} days, annualization factor: ×${factor})`;
+                    dateRangeText = `${formatDateForDisplay(earliest.toISOString())} – ${formatDateForDisplay(latest.toISOString())} (${days} days, annualization factor: ×${factor})`;
                 }
             }
 
@@ -11868,7 +11879,7 @@
                     if (recordTs) {
                         const asOfEl = document.createElement('p');
                         asOfEl.className = 'meta-status-as-of';
-                        asOfEl.textContent = `as of ${new Date(recordTs).toLocaleDateString()}`;
+                        asOfEl.textContent = `as of ${formatDateForDisplay(recordTs)}`;
                         card.appendChild(asOfEl);
                     }
                 }
@@ -12553,7 +12564,7 @@
 
             // Format date range info for display - use district-specific dates
             const dateRangeInfo = districtDateRange.earliest && districtDateRange.latest
-                ? `${districtDateRange.earliest.toLocaleDateString()} - ${districtDateRange.latest.toLocaleDateString()} (${districtDateRange.days} days)`
+                ? `${formatDateForDisplay(districtDateRange.earliest.toISOString())} - ${formatDateForDisplay(districtDateRange.latest.toISOString())} (${districtDateRange.days} days)`
                 : '';
 
             html += `
@@ -13095,7 +13106,7 @@
                             <span>${attorney.percent.toFixed(1)}%</span>
                         </div>
                     </td>
-                    <td>${attorney.lastFiled ? attorney.lastFiled.toLocaleDateString() : '—'}</td>
+                    <td>${attorney.lastFiled ? formatDateForDisplay(attorney.lastFiled.toISOString()) : '—'}</td>
                     <td class="num-col">${attorney.properties.toLocaleString()}</td>
                 </tr>
             `).join('');
@@ -13257,7 +13268,7 @@
             const dataRangeEl = document.getElementById('demographicsDataRange');
             if (dataRangeEl && globalDataRange.earliest && globalDataRange.latest) {
                 dataRangeEl.style.display = 'block';
-                const dateRange = `${globalDataRange.earliest.toLocaleDateString()} - ${globalDataRange.latest.toLocaleDateString()}`;
+                const dateRange = `${formatDateForDisplay(globalDataRange.earliest.toISOString())} - ${formatDateForDisplay(globalDataRange.latest.toISOString())}`;
                 dataRangeEl.innerHTML = `📊 Data: ${dateRange} — <em>Showing monthly averages for fair comparison across districts</em>`;
             }
 
@@ -14303,7 +14314,7 @@
                 const rows = results.map(r => {
                     const confClass = r.confidence > 0.9 ? 'confidence-high' :
                                      r.confidence > 0.8 ? 'confidence-med' : 'confidence-low';
-                    const fileDate = r.record.File_Date ? new Date(r.record.File_Date).toLocaleDateString() : '—';
+                    const fileDate = r.record.File_Date ? formatDateForDisplay(r.record.File_Date) : '—';
 
                     return `
                         <tr>
@@ -14369,11 +14380,11 @@
             const dateTo = document.getElementById('dateTo').value;
 
             filteredData = allData.filter(record => {
-                // Date filter
+                // Date filter - use string comparison for ISO dates to avoid timezone issues
                 if (dateFrom || dateTo) {
-                    const recordDate = new Date(record.File_Date);
-                    if (dateFrom && recordDate < new Date(dateFrom)) return false;
-                    if (dateTo && recordDate > new Date(dateTo)) return false;
+                    const recordDate = record.File_Date || '';
+                    if (dateFrom && recordDate < dateFrom) return false;
+                    if (dateTo && recordDate > dateTo) return false;
                 }
 
                 return true;
@@ -14444,7 +14455,7 @@
                     const date = new Date(record.File_Date);
                     if (!isNaN(date.getTime())) {
                         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                        rawKey = `${months[date.getMonth()]} ${date.getFullYear()}`;
+                        rawKey = `${months[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
                     }
                 } else {
                     rawKey = record[field];
@@ -14571,7 +14582,7 @@
                 { field: 'percentOfTotal', headerName: '% of Total', width: 120,
                   valueFormatter: params => params.value != null ? params.value.toFixed(1) + '%' : '' },
                 { field: 'lastFiled', headerName: 'Last Filing', width: 140,
-                  valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+                  valueFormatter: params => formatDateForDisplay(params.value),
                   comparator: (valueA, valueB) => {
                       const dateA = valueA ? new Date(valueA).getTime() : 0;
                       const dateB = valueB ? new Date(valueB).getTime() : 0;
@@ -14736,7 +14747,7 @@
 
             filteredData.forEach(row => {
                 const defendantName = getDefendantDisplayName(row.Defendant).replace(/"/g, '""');
-                const fileDate = new Date(row.File_Date).toLocaleDateString();
+                const fileDate = formatDateForDisplay(row.File_Date);
                 const caseNumber = (row.Case_Number || '').replace(/"/g, '""');
                 const plaintiff = (row.Plaintiff || '').replace(/"/g, '""');
                 const attorney = (row.Attorney || '').replace(/"/g, '""');
@@ -14749,17 +14760,17 @@
                 // Backfill data values
                 const status = (row.Status || '').replace(/"/g, '""');
                 const judge = (row.judge || '').replace(/"/g, '""');
-                const serviceDate = row.service_date ? new Date(row.service_date).toLocaleDateString() : '';
-                const paperWritDate = row.paper_writ_date ? new Date(row.paper_writ_date).toLocaleDateString() : '';
-                const judgmentDate = row.judgment_date ? new Date(row.judgment_date).toLocaleDateString() : '';
+                const serviceDate = formatDateForDisplay(row.service_date);
+                const paperWritDate = formatDateForDisplay(row.paper_writ_date);
+                const judgmentDate = formatDateForDisplay(row.judgment_date);
                 const judgmentFor = (row.judgment_for || '').replace(/"/g, '""');
                 const judgmentType = (row.judgment_type || '').replace(/"/g, '""');
                 // Only export "Yes" if we definitively know the case was dismissed
                 const caseDismissed = row.case_dismissed === true ? 'Yes' : '';
-                const dismissalDate = row.dismissal_date ? new Date(row.dismissal_date).toLocaleDateString() : '';
+                const dismissalDate = formatDateForDisplay(row.dismissal_date);
                 // evictionDate, evictionMethod, evictionExecuted removed - derived/interpreted fields
-                const writIssuedDate = row.writ_issued_date ? new Date(row.writ_issued_date).toLocaleDateString() : '';
-                const writServedDate = row.writ_served_date ? new Date(row.writ_served_date).toLocaleDateString() : '';
+                const writIssuedDate = formatDateForDisplay(row.writ_issued_date);
+                const writServedDate = formatDateForDisplay(row.writ_served_date);
                 const pleadingsCount = Array.isArray(row.pleadings) ? row.pleadings.length : 0;
                 const pleadingsJson = Array.isArray(row.pleadings) && row.pleadings.length > 0
                     ? JSON.stringify(row.pleadings).replace(/"/g, '""')
@@ -15137,7 +15148,7 @@
                     let value = '';
                     switch (field) {
                         case 'File_Date':
-                            value = row.File_Date ? new Date(row.File_Date).toLocaleDateString() : '';
+                            value = formatDateForDisplay(row.File_Date);
                             break;
                         case 'Case_Number':
                             value = (row.Case_Number || '').replace(/"/g, '""');
@@ -15173,13 +15184,13 @@
                             value = (row.judge || '').replace(/"/g, '""');
                             break;
                         case 'service_date':
-                            value = row.service_date ? new Date(row.service_date).toLocaleDateString() : '';
+                            value = formatDateForDisplay(row.service_date);
                             break;
                         case 'paper_writ_date':
-                            value = row.paper_writ_date ? new Date(row.paper_writ_date).toLocaleDateString() : '';
+                            value = formatDateForDisplay(row.paper_writ_date);
                             break;
                         case 'judgment_date':
-                            value = row.judgment_date ? new Date(row.judgment_date).toLocaleDateString() : '';
+                            value = formatDateForDisplay(row.judgment_date);
                             break;
                         case 'judgment_for':
                             value = (row.judgment_for || '').replace(/"/g, '""');
@@ -15191,13 +15202,13 @@
                             value = row.case_dismissed === true ? 'Yes' : '';
                             break;
                         case 'dismissal_date':
-                            value = row.dismissal_date ? new Date(row.dismissal_date).toLocaleDateString() : '';
+                            value = formatDateForDisplay(row.dismissal_date);
                             break;
                         case 'writ_issued_date':
-                            value = row.writ_issued_date ? new Date(row.writ_issued_date).toLocaleDateString() : '';
+                            value = formatDateForDisplay(row.writ_issued_date);
                             break;
                         case 'writ_served_date':
-                            value = row.writ_served_date ? new Date(row.writ_served_date).toLocaleDateString() : '';
+                            value = formatDateForDisplay(row.writ_served_date);
                             break;
                         case 'pleadings_count':
                             value = Array.isArray(row.pleadings) ? row.pleadings.length : 0;
@@ -15242,7 +15253,7 @@
             let csv = 'Search Term,Matched Name,Confidence,File Date,Attorney\n';
 
             searchMatches.forEach(match => {
-                csv += `"${match.searchTerm}","${match.match}","${(match.confidence * 100).toFixed(1)}%","${new Date(match.record.File_Date).toLocaleDateString()}","${match.record.Attorney}"\n`;
+                csv += `"${match.searchTerm}","${match.match}","${(match.confidence * 100).toFixed(1)}%","${formatDateForDisplay(match.record.File_Date)}","${match.record.Attorney}"\n`;
             });
 
             const blob = new Blob([csv], { type: 'text/csv' });
@@ -16472,21 +16483,23 @@
                     return strValue.trim() !== '';
                 case 'before':
                     if (!recordValue || !condition.value) return false;
-                    return new Date(recordValue) < new Date(condition.value);
+                    // Use string comparison for ISO dates (YYYY-MM-DD) to avoid timezone issues
+                    return String(recordValue) < String(condition.value);
                 case 'after':
                     if (!recordValue || !condition.value) return false;
-                    return new Date(recordValue) > new Date(condition.value);
+                    return String(recordValue) > String(condition.value);
                 case 'between':
                     if (!recordValue || !condition.value || !condition.value2) return false;
-                    const date = new Date(recordValue);
-                    return date >= new Date(condition.value) && date <= new Date(condition.value2);
+                    const dateStr = String(recordValue);
+                    return dateStr >= String(condition.value) && dateStr <= String(condition.value2);
                 case 'last_n_days':
                     if (!recordValue || !condition.value) return false;
                     const days = parseInt(condition.value, 10);
                     if (isNaN(days)) return false;
-                    const cutoff = new Date();
-                    cutoff.setDate(cutoff.getDate() - days);
-                    return new Date(recordValue) >= cutoff;
+                    const today = new Date();
+                    const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate() - days);
+                    const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+                    return String(recordValue) >= cutoffStr;
                 default:
                     return true;
             }
@@ -16955,18 +16968,18 @@
                 const date = new Date(record.File_Date);
                 if (isNaN(date.getTime())) return 'Unknown';
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                return `${months[date.getMonth()]} ${date.getFullYear()}`;
+                return `${months[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
             }
             if (fieldKey === 'File_Date_Year') {
                 const date = new Date(record.File_Date);
                 if (isNaN(date.getTime())) return 'Unknown';
-                return String(date.getFullYear());
+                return String(date.getUTCFullYear());
             }
             if (fieldKey === 'File_Date_Quarter') {
                 const date = new Date(record.File_Date);
                 if (isNaN(date.getTime())) return 'Unknown';
-                const quarter = Math.floor(date.getMonth() / 3) + 1;
-                return `Q${quarter} ${date.getFullYear()}`;
+                const quarter = Math.floor(date.getUTCMonth() / 3) + 1;
+                return `Q${quarter} ${date.getUTCFullYear()}`;
             }
             return record[fieldKey] || 'Unknown';
         }
@@ -17072,7 +17085,7 @@
                     field: 'firstDate',
                     headerName: 'First Filing',
                     width: 120,
-                    valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+                    valueFormatter: params => formatDateForDisplay(params.value),
                     comparator: (valueA, valueB) => {
                         const dateA = valueA ? new Date(valueA).getTime() : 0;
                         const dateB = valueB ? new Date(valueB).getTime() : 0;
@@ -17085,7 +17098,7 @@
                     field: 'lastDate',
                     headerName: 'Last Filing',
                     width: 120,
-                    valueFormatter: params => params.value ? new Date(params.value).toLocaleDateString() : '',
+                    valueFormatter: params => formatDateForDisplay(params.value),
                     comparator: (valueA, valueB) => {
                         const dateA = valueA ? new Date(valueA).getTime() : 0;
                         const dateB = valueB ? new Date(valueB).getTime() : 0;
