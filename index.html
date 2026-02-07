@@ -6729,13 +6729,7 @@
 
         const recordColumnDefs = [
             { field: 'File_Date', headerName: 'File Date', headerClass: 'header-group-dates', width: 110,
-              cellRenderer: params => {
-                  const val = formatDateForDisplay(params.value);
-                  if (params.data && params.data._fileDateEstimated) {
-                      return `<span style="color:#f59e0b" title="Estimated from neighboring docket numbers">~${val}</span>`;
-                  }
-                  return val;
-              },
+              valueFormatter: params => formatDateForDisplay(params.value),
               comparator: (valueA, valueB) => {
                   const dateA = valueA ? new Date(valueA).getTime() : 0;
                   const dateB = valueB ? new Date(valueB).getTime() : 0;
@@ -7302,93 +7296,18 @@
             return records;
         }
 
-        // Parse docket number into prefix + sequence for date interpolation
-        // e.g. "25GT14532" → { prefix: "25GT", seq: 14532 }
-        function parseDocket(dn) {
-            const m = dn && dn.match(/^(\d{2}[A-Z]+)(\d+)$/i);
-            if (!m) return null;
-            return { prefix: m[1].toUpperCase(), seq: parseInt(m[2], 10) };
-        }
-
-        // Infer missing fileDates by linear interpolation from neighboring docket numbers
-        // Works on raw API-format rows (before replayRow) that have docket_number and fileDate
-        function inferMissingFileDates(rows) {
-            const parsed = rows.map((r, i) => ({
-                idx: i,
-                docket: parseDocket(r.docket_number),
-                fileDate: r.fileDate || null,
-            }));
-
-            // Group by docket prefix (e.g. "25GT", "26GT")
-            const groups = {};
-            for (const p of parsed) {
-                if (!p.docket) continue;
-                const key = p.docket.prefix;
-                if (!groups[key]) groups[key] = [];
-                groups[key].push(p);
-            }
-
+        // Fill blank fileDates from the first stateData entry's File_Date
+        function fillFileDatesFromStateData(rows) {
             let filled = 0;
-
-            for (const [prefix, items] of Object.entries(groups)) {
-                items.sort((a, b) => a.docket.seq - b.docket.seq);
-
-                // Collect anchors: items with known fileDate
-                const anchors = [];
-                for (const item of items) {
-                    if (item.fileDate != null && item.fileDate !== '') {
-                        let ts;
-                        if (typeof item.fileDate === 'number') {
-                            ts = item.fileDate;
-                        } else if (typeof item.fileDate === 'string') {
-                            const n = Number(item.fileDate);
-                            if (!isNaN(n) && item.fileDate.length >= 10) {
-                                ts = n;
-                            } else {
-                                ts = new Date(item.fileDate).getTime();
-                            }
-                        }
-                        if (ts && !isNaN(ts)) {
-                            anchors.push({ seq: item.docket.seq, ts });
-                        }
-                    }
-                }
-
-                if (anchors.length === 0) continue;
-                anchors.sort((a, b) => a.seq - b.seq);
-
-                // For each item missing fileDate, interpolate from nearest anchors
-                for (const item of items) {
-                    if (item.fileDate != null && item.fileDate !== '') continue;
-                    const seq = item.docket.seq;
-
-                    let below = null, above = null;
-                    for (let i = 0; i < anchors.length; i++) {
-                        if (anchors[i].seq <= seq) below = anchors[i];
-                        if (anchors[i].seq >= seq && above === null) above = anchors[i];
-                    }
-
-                    let estimatedTs;
-                    if (below && above && below.seq !== above.seq) {
-                        const frac = (seq - below.seq) / (above.seq - below.seq);
-                        estimatedTs = below.ts + frac * (above.ts - below.ts);
-                    } else if (below) {
-                        estimatedTs = below.ts;
-                    } else if (above) {
-                        estimatedTs = above.ts;
-                    } else {
-                        continue;
-                    }
-
-                    const estDate = new Date(Math.round(estimatedTs));
-                    rows[item.idx].fileDate = estDate.toISOString().slice(0, 10);
-                    rows[item.idx]._fileDateEstimated = true;
+            for (const row of rows) {
+                if (row.fileDate && row.fileDate !== '') continue;
+                const first = Array.isArray(row.stateData) ? row.stateData[0] : null;
+                if (first && first.File_Date) {
+                    row.fileDate = first.File_Date;
                     filled++;
                 }
             }
-
-            console.log('CSV: inferred', filled, 'missing fileDates from docket sequence neighbors');
-            return filled;
+            if (filled > 0) console.log('CSV: filled', filled, 'blank fileDates from stateData');
         }
 
         // Fetch and import CSV data from Google Drive
@@ -7407,16 +7326,11 @@
             if (onProgress) onProgress({ stage: 'converting', rows: tsvRows.length });
             const apiFormatRows = csvRowsToApiFormat(tsvRows);
 
-            // Infer missing fileDates before replay so replayRow picks them up
-            inferMissingFileDates(apiFormatRows);
+            // Fill blank fileDates from stateData JSON before replay
+            fillFileDatesFromStateData(apiFormatRows);
 
             // Replay stateData using the existing EvictionAPI.replayRow
-            // Propagate _fileDateEstimated flag to replayed records
-            const records = apiFormatRows.map(row => {
-                const state = EvictionAPI.replayRow(row);
-                if (row._fileDateEstimated) state._fileDateEstimated = true;
-                return state;
-            });
+            const records = apiFormatRows.map(row => EvictionAPI.replayRow(row));
             console.log('CSV: replayed stateData for', records.length, 'records');
 
             return records;
