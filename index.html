@@ -3667,11 +3667,10 @@
 
                     <div class="nav-divider"></div>
 
-                    <!-- Status Indicator -->
-                    <div class="nav-status">
-                        <span id="pollStatusDot" class="nav-status-dot" title="Auto-refresh active"></span>
-                        <span>Updated: <span id="lastUpdate">Loading...</span></span>
-                        <span id="pollCountdown" class="text-xs text-gray-400"></span>
+                    <!-- Data Import Status Indicator -->
+                    <div class="nav-status" id="importStatusContainer" style="display: flex; align-items: center; gap: 8px;">
+                        <span id="importStatusDot" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #9ca3af;" title="Data import status"></span>
+                        <span id="lastUpdate" style="font-size: 13px; font-weight: 500;">Loading...</span>
                     </div>
 
                     <!-- Queue Status Indicator - HIDDEN: Process paused -->
@@ -3681,8 +3680,8 @@
                     </button>
 
                     <!-- Action Buttons -->
-                    <button id="refreshBtn" onclick="manualRefresh()" class="nav-action-btn nav-btn-refresh" title="Refresh data">
-                        <span>Refresh</span>
+                    <button id="refreshBtn" onclick="manualRefresh()" class="nav-action-btn nav-btn-refresh" title="Re-import data from CSV">
+                        <span>Re-import CSV</span>
                     </button>
 
                     <!-- Download Benchmark Data Button (hidden for now) -->
@@ -7018,22 +7017,8 @@
             updatePivotControls();
             initializeFilterBuilder();  // Initialize filter builder since it's always visible
 
-            // Start auto-refresh polling (every 5 minutes)
-            startPolling();
-
-            // Pause polling when tab is hidden, resume when visible
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden) {
-                    console.log('👁️ Tab hidden - pausing poll timer');
-                } else {
-                    console.log('👁️ Tab visible - resuming poll timer');
-                    // If enough time has passed while hidden, refresh now
-                    if (lastPollTime && (Date.now() - lastPollTime) >= POLL_INTERVAL_MS) {
-                        console.log('⏰ Catching up on missed refresh');
-                        manualRefresh();
-                    }
-                }
-            });
+            // Auto-polling disabled — data is loaded from CSV import
+            // Users can click "Re-import" to fetch fresh data from Google Drive
 
             // Restore name filter after a short delay to ensure elements exist
             if (savedState && savedState.nameFilter) {
@@ -7213,17 +7198,143 @@
         // Cache version - increment when data processing logic changes (e.g., district extraction fix)
         const CACHE_VERSION = 4;  // v4: Fixed pagination - use Xano nextPage/pageTotal to stop fetching correctly
 
-        // Google Drive binary snapshot configuration
-        // To update the snapshot: export a .bin from the Snapshot tab, upload to the Drive folder,
-        // then update FILE_ID below with the new file's Google Drive ID (from the shareable link).
+        // Legacy Google Drive snapshot config (disabled — kept for compatibility)
         const GDRIVE_SNAPSHOT_CONFIG = {
-            FOLDER_ID: '1XXKJV9D6Lbo-rX9HLDRdEG1ACtKx4A4_',
-            FILE_ID: '1q5gu-9EFGxptS71VuUvtij8UKArsg5D-',  // Public .bin file on Google Drive
-            ENABLED: false,
-            // Cache: skip re-downloading the snapshot for this long after a successful hydration
-            CACHE_KEY: 'gdrive_snapshot_hydrated_ts',
-            CACHE_TTL_MS: 60 * 60 * 1000  // 1 hour
+            FOLDER_ID: '', FILE_ID: '', ENABLED: false,
+            CACHE_KEY: 'gdrive_snapshot_hydrated_ts', CACHE_TTL_MS: 0
         };
+
+        // CSV Import from Google Drive
+        // The CSV is a TSV export from Xano with columns: id, created_at, docket_number, updated, stateData, fileDate
+        const CSV_IMPORT_CONFIG = {
+            FILE_ID: '1msmKy61zDbsPHtxFGCkL0S9L3If5APiV',
+            get URL() {
+                return `https://drive.google.com/uc?export=download&id=${this.FILE_ID}`;
+            }
+        };
+
+        // Parse TSV text with quoted fields (handles embedded newlines and double-quote escaping)
+        function parseTSV(text) {
+            const rows = [];
+            let i = 0;
+            const len = text.length;
+
+            while (i < len) {
+                const fields = [];
+                while (i < len) {
+                    if (text[i] === '"') {
+                        // Quoted field
+                        i++;
+                        let field = '';
+                        while (i < len) {
+                            if (text[i] === '"') {
+                                if (i + 1 < len && text[i + 1] === '"') {
+                                    field += '"';
+                                    i += 2;
+                                } else {
+                                    i++;
+                                    break;
+                                }
+                            } else {
+                                field += text[i];
+                                i++;
+                            }
+                        }
+                        fields.push(field);
+                    } else {
+                        let field = '';
+                        while (i < len && text[i] !== '\t' && text[i] !== '\n' && text[i] !== '\r') {
+                            field += text[i];
+                            i++;
+                        }
+                        fields.push(field);
+                    }
+
+                    if (i < len && text[i] === '\t') {
+                        i++;
+                    } else {
+                        if (i < len && text[i] === '\r') i++;
+                        if (i < len && text[i] === '\n') i++;
+                        break;
+                    }
+                }
+
+                if (fields.length >= 5) {
+                    rows.push(fields);
+                }
+            }
+
+            return rows;
+        }
+
+        // Convert parsed TSV rows into the format expected by EvictionAPI.replayRow()
+        function csvRowsToApiFormat(rows) {
+            const firstId = rows[0]?.[0];
+            const startIdx = (firstId === 'id' || isNaN(parseInt(firstId))) ? 1 : 0;
+
+            const records = [];
+            for (let i = startIdx; i < rows.length; i++) {
+                const f = rows[i];
+                let stateData;
+                try {
+                    stateData = JSON.parse(f[4] || '[]');
+                } catch (e) {
+                    console.warn('CSV: failed to parse stateData for row', i, f[2], e.message);
+                    stateData = [];
+                }
+
+                records.push({
+                    id: parseInt(f[0]) || 0,
+                    created_at: parseInt(f[1]) || 0,
+                    docket_number: f[2] || '',
+                    updated: parseInt(f[3]) || 0,
+                    stateData: Array.isArray(stateData) ? stateData : [stateData],
+                    fileDate: f[5] || ''
+                });
+            }
+
+            return records;
+        }
+
+        // Fill blank fileDates from the first stateData entry's File_Date
+        function fillFileDatesFromStateData(rows) {
+            let filled = 0;
+            for (const row of rows) {
+                if (row.fileDate && row.fileDate !== '') continue;
+                const first = Array.isArray(row.stateData) ? row.stateData[0] : null;
+                if (first && first.File_Date) {
+                    row.fileDate = first.File_Date;
+                    filled++;
+                }
+            }
+            if (filled > 0) console.log('CSV: filled', filled, 'blank fileDates from stateData');
+        }
+
+        // Fetch and import CSV data from Google Drive
+        async function fetchCSVFromDrive(onProgress) {
+            if (onProgress) onProgress({ stage: 'downloading' });
+            const response = await fetch(CSV_IMPORT_CONFIG.URL);
+            if (!response.ok) throw new Error(`CSV download failed: ${response.status} ${response.statusText}`);
+
+            const text = await response.text();
+            console.log('CSV: downloaded', (text.length / 1024).toFixed(0), 'KB');
+
+            if (onProgress) onProgress({ stage: 'parsing' });
+            const tsvRows = parseTSV(text);
+            console.log('CSV: parsed', tsvRows.length, 'rows');
+
+            if (onProgress) onProgress({ stage: 'converting', rows: tsvRows.length });
+            const apiFormatRows = csvRowsToApiFormat(tsvRows);
+
+            // Fill blank fileDates from stateData JSON before replay
+            fillFileDatesFromStateData(apiFormatRows);
+
+            // Replay stateData using the existing EvictionAPI.replayRow
+            const records = apiFormatRows.map(row => EvictionAPI.replayRow(row));
+            console.log('CSV: replayed stateData for', records.length, 'records');
+
+            return records;
+        }
 
         // Polling configuration
         const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -7259,30 +7370,18 @@
             return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // Update the refresh button and status indicators
+        // Update the refresh button UI state
         function updateRefreshUI() {
             const refreshBtn = document.getElementById('refreshBtn');
-            const countdownEl = document.getElementById('pollCountdown');
-            const statusDot = document.getElementById('pollStatusDot');
 
             if (refreshBtn) {
                 if (isLoadingData) {
                     refreshBtn.disabled = true;
-                    refreshBtn.innerHTML = '<span class="animate-spin inline-block">↻</span> Loading...';
+                    refreshBtn.innerHTML = '<span class="animate-spin inline-block">↻</span> Importing...';
                 } else {
                     refreshBtn.disabled = false;
-                    refreshBtn.innerHTML = '🔄 Refresh';
+                    refreshBtn.innerHTML = 'Re-import CSV';
                 }
-            }
-
-            if (countdownEl) {
-                const countdown = getNextPollCountdown();
-                countdownEl.textContent = countdown !== null ? `Next sync: ${formatCountdown(countdown)}` : '';
-            }
-
-            if (statusDot) {
-                statusDot.className = isPollingEnabled ? 'poll-status-dot active' : 'poll-status-dot paused';
-                statusDot.title = isPollingEnabled ? 'Auto-refresh active' : 'Auto-refresh paused';
             }
         }
 
@@ -7342,27 +7441,46 @@
         }
 
         // Manual refresh - always does a full refresh from the API
+        // Manual refresh: clear cache and re-import from CSV
         async function manualRefresh() {
             if (isLoadingData) return;
 
-            console.log('🔄 Manual refresh triggered - forcing full refresh');
-            lastPollTime = Date.now(); // Reset poll timer
-
-            // Always clear sync timestamp so loadData() does a full API fetch
+            console.log('Re-importing from CSV...');
+            // Clear cache so loadData() fetches fresh from CSV
+            await evictionDB.clear();
+            localStorage.removeItem('evictionDataTimestamp');
+            localStorage.removeItem('csvImportTimestamp');
+            localStorage.removeItem('evictionDataCompressed');
             localStorage.removeItem('eo_last_sync_ts');
             await loadData();
         }
 
-        // Force a complete refresh from the API, bypassing cache and incremental sync
+        // Alias for backwards compat
         async function forceFullRefresh() {
-            if (isLoadingData) return;
+            return manualRefresh();
+        }
 
-            console.log('🔄 Force full refresh triggered');
-            lastPollTime = Date.now();
+        // Update the "last imported" display in the nav bar
+        function updateLastImportedDisplay() {
+            const el = document.getElementById('lastUpdate');
+            const dot = document.getElementById('importStatusDot');
+            const ts = localStorage.getItem('csvImportTimestamp') || localStorage.getItem('evictionDataTimestamp');
 
-            // Clear sync timestamp to force full API fetch
-            localStorage.removeItem('eo_last_sync_ts');
-            await loadData();
+            if (ts) {
+                const importDate = new Date(parseInt(ts));
+                const now = new Date();
+                const diffHours = Math.round((now - importDate) / (1000 * 60 * 60));
+                let ageText;
+                if (diffHours < 1) ageText = 'just now';
+                else if (diffHours < 24) ageText = diffHours + 'h ago';
+                else ageText = Math.round(diffHours / 24) + 'd ago';
+
+                if (el) el.textContent = 'Data imported: ' + importDate.toLocaleString() + ' (' + ageText + ')';
+                if (dot) dot.style.background = '#10b981'; // green
+            } else {
+                if (el) el.textContent = 'No data imported yet';
+                if (dot) dot.style.background = '#f59e0b'; // amber
+            }
         }
 
         // Helper to check if cache is fresh (less than 24 hours old)
@@ -8237,7 +8355,7 @@
 
                 // Try IndexedDB cache first (instant load)
                 const cachedData = await loadCachedData();
-                if (cachedData && cachedData.length > 0 && isCacheFresh()) {
+                if (cachedData && cachedData.length > 0) {
                     console.log('Using cached data:', cachedData.length, 'records');
                     allData = cachedData;
                     filteredData = allData;
@@ -8250,8 +8368,7 @@
                     await loadDistrictDemographics();
                     initDemographicsCharts();
                     initGrid();
-                    document.getElementById('lastUpdate').textContent =
-                        new Date(parseInt(localStorage.getItem('evictionDataTimestamp') || Date.now())).toLocaleString();
+                    updateLastImportedDisplay();
                     restorePersistedFilters();
 
                     isLoadingData = false;
@@ -8259,17 +8376,20 @@
                     return;
                 }
 
-                // Fetch from API — paginated, stateData replayed by EvictionAPI, dedupe downstream
-                updateStatus('Loading data from court records API...', 'loading');
+                // No cache — fetch CSV from Google Drive
+                updateStatus('Downloading data from CSV...', 'loading');
 
-                const records = await EvictionAPI.fetchAll((progress) => {
-                    updateStatus(
-                        `Loading page ${progress.page}${progress.pageTotal ? '/' + progress.pageTotal : ''} (${progress.fetched} records)...`,
-                        'loading'
-                    );
+                const records = await fetchCSVFromDrive((progress) => {
+                    if (progress.stage === 'downloading') {
+                        updateStatus('Downloading CSV from Google Drive...', 'loading');
+                    } else if (progress.stage === 'parsing') {
+                        updateStatus('Parsing CSV data...', 'loading');
+                    } else if (progress.stage === 'converting') {
+                        updateStatus(`Processing ${progress.rows} records...`, 'loading');
+                    }
                 });
 
-                console.log('Fetched:', records.length, 'records');
+                console.log('CSV import: got', records.length, 'records');
 
                 // Normalize for grid display
                 const normalizedData = records.map(normalizeRecord);
@@ -8277,12 +8397,13 @@
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
 
-                // Cache to IndexedDB + localStorage
+                // Cache to IndexedDB
                 dataCache.invalidateAll();
                 const timestamp = Date.now();
                 evictionDB.saveFull(allData, timestamp).then(success => {
                     if (success) {
                         localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                        localStorage.setItem('csvImportTimestamp', timestamp.toString());
                         localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
                     }
                 });
@@ -8296,32 +8417,33 @@
 
                 console.log('Final record count:', allData.length);
 
-                updateStatus(`Loaded ${allData.length} records from public court data`, 'success');
+                updateStatus(`Imported ${allData.length} records from CSV`, 'success');
                 updateMetrics();
                 updateCharts();
                 createDistrictMap();
                 await loadDistrictDemographics();
                 initDemographicsCharts();
                 initGrid();
-                document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+                updateLastImportedDisplay();
                 restorePersistedFilters();
 
             } catch (error) {
                 console.error('Error loading data:', error);
 
-                // Fall back to stale cache if API fails
+                // Fall back to stale cache if CSV fetch fails
                 const fallback = await loadCachedData();
                 if (fallback && fallback.length > 0) {
                     allData = fallback;
                     filteredData = allData;
                     calculateGlobalDataRange(allData);
-                    updateStatus(`Loaded ${allData.length} cached records (API unavailable)`, 'success');
+                    updateStatus(`Loaded ${allData.length} cached records (CSV unavailable)`, 'success');
                     updateMetrics();
                     updateCharts();
                     createDistrictMap();
                     await loadDistrictDemographics();
                     initDemographicsCharts();
                     initGrid();
+                    updateLastImportedDisplay();
                     restorePersistedFilters();
                 } else {
                     updateStatus(`Error loading data: ${error.message}`, 'error');
@@ -8332,54 +8454,9 @@
             }
         }
 
-        // Refresh data from API (re-fetches everything, merges with current)
+        // Re-import from CSV (used by manual refresh)
         async function loadDataIncremental() {
-            if (!allData || allData.length === 0) return loadData();
-
-            isLoadingData = true;
-            updateRefreshUI();
-
-            try {
-                updateStatus('Refreshing data...', 'loading');
-
-                const records = await EvictionAPI.fetchAll();
-                const normalizedData = records.map(normalizeRecord);
-                const previousCount = allData.length;
-
-                allData = dedupeByDocketNumber(normalizedData);
-                filteredData = allData;
-                calculateGlobalDataRange(allData);
-                dataCache.invalidateAll();
-
-                // Cache
-                const timestamp = Date.now();
-                evictionDB.saveFull(allData, timestamp).then(success => {
-                    if (success) {
-                        localStorage.setItem('evictionDataTimestamp', timestamp.toString());
-                        localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
-                    }
-                });
-                try {
-                    const compressed = compressEvictionData(allData);
-                    localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
-                } catch (e) { /* quota exceeded */ }
-
-                const addedCount = Math.max(0, allData.length - previousCount);
-                updateStatus(`${allData.length} records (+${addedCount} new)`, 'success');
-                updateMetrics();
-                updateCharts();
-                createDistrictMap();
-                if (gridApi) gridApi.setRowData(filteredData);
-                document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
-                restorePersistedFilters();
-
-            } catch (error) {
-                console.error('Refresh failed:', error);
-                updateStatus(`Refresh failed: ${error.message}`, 'error');
-            } finally {
-                isLoadingData = false;
-                updateRefreshUI();
-            }
+            return loadData();
         }
 
         // Fetch all pages of data from the paginated EO API
