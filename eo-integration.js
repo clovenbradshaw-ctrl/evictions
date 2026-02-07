@@ -772,6 +772,310 @@ const EOIntegration = (function() {
   }
 
   // =============================================================================
+  // BINARY SNAPSHOT - Export & Hydration
+  // =============================================================================
+
+  /**
+   * Binary snapshot format (.bin):
+   *
+   * Header (17 bytes):
+   *   [0-3]   Magic: "EVIC" (4 bytes)
+   *   [4]     Version: 1 (1 byte)
+   *   [5-12]  Snapshot timestamp as float64 (8 bytes) - ms since epoch
+   *   [13-16] Entity count as uint32 (4 bytes)
+   *
+   * Field Dictionary:
+   *   [17-18] Number of fields as uint16 (2 bytes)
+   *   For each field:
+   *     [1 byte] field name length
+   *     [N bytes] field name (UTF-8)
+   *
+   * Entity Records:
+   *   For each entity:
+   *     [2 bytes] number of field-value pairs as uint16
+   *     For each pair:
+   *       [2 bytes] field index (into dictionary) as uint16
+   *       [1 byte]  value type tag:
+   *                   0 = null/empty
+   *                   1 = string (uint16 length + UTF-8 bytes)
+   *                   2 = number (float64, 8 bytes)
+   *                   3 = boolean (1 byte: 0 or 1)
+   *       [N bytes] value data (per type tag)
+   */
+
+  const SNAPSHOT_MAGIC = 'EVIC';
+  const SNAPSHOT_VERSION = 1;
+
+  /**
+   * Export current stateCache as a binary snapshot file (.bin)
+   * @returns {Blob} Binary blob ready for download
+   */
+  function exportBinarySnapshot() {
+    const entities = Array.from(stateCache.values());
+    const snapshotTs = lastSyncTimestamp || Date.now();
+
+    // Step 1: Build field dictionary from all entities
+    const fieldSet = new Set();
+    for (const entity of entities) {
+      for (const key of Object.keys(entity)) {
+        fieldSet.add(key);
+      }
+    }
+    const fieldList = Array.from(fieldSet);
+    const fieldIndex = new Map();
+    fieldList.forEach((f, i) => fieldIndex.set(f, i));
+
+    // Step 2: Estimate buffer size (generous) and encode
+    const encoder = new TextEncoder();
+
+    // Pre-encode all strings to measure size
+    const encodedFieldNames = fieldList.map(f => encoder.encode(f));
+    let estimatedSize = 17; // header
+    estimatedSize += 2; // field count
+    for (const ef of encodedFieldNames) {
+      estimatedSize += 1 + ef.byteLength; // length byte + name
+    }
+
+    // Estimate entity data size
+    for (const entity of entities) {
+      estimatedSize += 2; // pair count
+      for (const [key, value] of Object.entries(entity)) {
+        estimatedSize += 2 + 1; // field index + type tag
+        if (value === null || value === undefined || value === '') {
+          // type 0: no extra bytes
+        } else if (typeof value === 'number') {
+          estimatedSize += 8;
+        } else if (typeof value === 'boolean') {
+          estimatedSize += 1;
+        } else {
+          const strBytes = encoder.encode(String(value));
+          estimatedSize += 4 + strBytes.byteLength; // uint32 length + bytes
+        }
+      }
+    }
+
+    // Allocate buffer with some headroom
+    const buffer = new ArrayBuffer(estimatedSize + 1024);
+    const view = new DataView(buffer);
+    let offset = 0;
+
+    // Header: magic bytes
+    for (let i = 0; i < 4; i++) {
+      view.setUint8(offset++, SNAPSHOT_MAGIC.charCodeAt(i));
+    }
+    // Version
+    view.setUint8(offset++, SNAPSHOT_VERSION);
+    // Timestamp (float64)
+    view.setFloat64(offset, snapshotTs);
+    offset += 8;
+    // Entity count (uint32)
+    view.setUint32(offset, entities.length);
+    offset += 4;
+
+    // Field dictionary
+    view.setUint16(offset, fieldList.length);
+    offset += 2;
+    for (const encoded of encodedFieldNames) {
+      view.setUint8(offset++, encoded.byteLength);
+      new Uint8Array(buffer, offset, encoded.byteLength).set(encoded);
+      offset += encoded.byteLength;
+    }
+
+    // Entity records
+    for (const entity of entities) {
+      const entries = Object.entries(entity).filter(([, v]) => v !== undefined);
+      view.setUint16(offset, entries.length);
+      offset += 2;
+
+      for (const [key, value] of entries) {
+        // Field index
+        view.setUint16(offset, fieldIndex.get(key));
+        offset += 2;
+
+        if (value === null || value === '') {
+          // Type 0: null/empty
+          view.setUint8(offset++, 0);
+        } else if (typeof value === 'number') {
+          // Type 2: number
+          view.setUint8(offset++, 2);
+          view.setFloat64(offset, value);
+          offset += 8;
+        } else if (typeof value === 'boolean') {
+          // Type 3: boolean
+          view.setUint8(offset++, 3);
+          view.setUint8(offset++, value ? 1 : 0);
+        } else {
+          // Type 1: string
+          view.setUint8(offset++, 1);
+          const strBytes = encoder.encode(String(value));
+          view.setUint32(offset, strBytes.byteLength);
+          offset += 4;
+          new Uint8Array(buffer, offset, strBytes.byteLength).set(strBytes);
+          offset += strBytes.byteLength;
+        }
+      }
+    }
+
+    // Trim buffer to actual size
+    const trimmed = buffer.slice(0, offset);
+
+    console.log(`Binary snapshot: ${entities.length} entities, ${fieldList.length} fields, ${offset} bytes`);
+
+    return new Blob([trimmed], { type: 'application/octet-stream' });
+  }
+
+  /**
+   * Download the binary snapshot as a file
+   */
+  function downloadBinarySnapshot() {
+    const blob = exportBinarySnapshot();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `evictions-snapshot-${timestamp}.bin`;
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    console.log(`Downloaded snapshot: ${filename} (${(blob.size / 1024).toFixed(1)} KB)`);
+    return { filename, size: blob.size };
+  }
+
+  /**
+   * Parse a binary snapshot file back into state data
+   * @param {ArrayBuffer} buffer - The .bin file contents
+   * @returns {{ timestamp: number, entities: Array<object> }} Parsed snapshot data
+   */
+  function parseBinarySnapshot(buffer) {
+    const view = new DataView(buffer);
+    const decoder = new TextDecoder();
+    let offset = 0;
+
+    // Validate magic
+    const magic = String.fromCharCode(
+      view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3)
+    );
+    if (magic !== SNAPSHOT_MAGIC) {
+      throw new Error(`Invalid snapshot file: expected magic "${SNAPSHOT_MAGIC}", got "${magic}"`);
+    }
+    offset = 4;
+
+    // Version
+    const version = view.getUint8(offset++);
+    if (version !== SNAPSHOT_VERSION) {
+      throw new Error(`Unsupported snapshot version: ${version}`);
+    }
+
+    // Timestamp
+    const snapshotTs = view.getFloat64(offset);
+    offset += 8;
+
+    // Entity count
+    const entityCount = view.getUint32(offset);
+    offset += 4;
+
+    // Field dictionary
+    const fieldCount = view.getUint16(offset);
+    offset += 2;
+    const fieldList = [];
+    for (let i = 0; i < fieldCount; i++) {
+      const nameLen = view.getUint8(offset++);
+      const nameBytes = new Uint8Array(buffer, offset, nameLen);
+      fieldList.push(decoder.decode(nameBytes));
+      offset += nameLen;
+    }
+
+    // Entity records
+    const entities = [];
+    for (let e = 0; e < entityCount; e++) {
+      const pairCount = view.getUint16(offset);
+      offset += 2;
+      const entity = {};
+
+      for (let p = 0; p < pairCount; p++) {
+        const fIdx = view.getUint16(offset);
+        offset += 2;
+        const fieldName = fieldList[fIdx];
+
+        const typeTag = view.getUint8(offset++);
+        switch (typeTag) {
+          case 0: // null/empty
+            entity[fieldName] = null;
+            break;
+          case 1: // string
+            const strLen = view.getUint32(offset);
+            offset += 4;
+            const strBytes = new Uint8Array(buffer, offset, strLen);
+            entity[fieldName] = decoder.decode(strBytes);
+            offset += strLen;
+            break;
+          case 2: // number
+            entity[fieldName] = view.getFloat64(offset);
+            offset += 8;
+            break;
+          case 3: // boolean
+            entity[fieldName] = view.getUint8(offset++) === 1;
+            break;
+          default:
+            throw new Error(`Unknown type tag ${typeTag} at offset ${offset - 1}`);
+        }
+      }
+      entities.push(entity);
+    }
+
+    console.log(`Parsed snapshot: ${entities.length} entities, ts=${new Date(snapshotTs).toISOString()}`);
+    return { timestamp: snapshotTs, entities };
+  }
+
+  /**
+   * Hydrate the app state from a binary snapshot file.
+   * Loads the snapshot into stateCache and sets lastSyncTimestamp,
+   * enabling incremental replay for events that arrived after the snapshot.
+   *
+   * @param {ArrayBuffer} buffer - The .bin file contents
+   * @returns {{ entityCount: number, timestamp: number }}
+   */
+  function hydrateFromBinarySnapshot(buffer) {
+    const { timestamp, entities } = parseBinarySnapshot(buffer);
+
+    // Clear and rebuild stateCache from snapshot
+    stateCache.clear();
+    for (const entity of entities) {
+      const entityId = entity._entity_id || entity.Docket_Number;
+      if (entityId) {
+        stateCache.set(entityId, entity);
+      }
+    }
+
+    // Set lastSyncTimestamp so incremental sync fetches only newer events
+    lastSyncTimestamp = timestamp;
+    localStorage.setItem(CONFIG.LAST_SYNC_KEY, timestamp.toString());
+
+    // Clear the events cache since we're starting from a snapshot, not from events
+    eventsCache = [];
+
+    console.log(`Hydrated from snapshot: ${stateCache.size} entities, sync from ${new Date(timestamp).toISOString()}`);
+
+    return { entityCount: stateCache.size, timestamp };
+  }
+
+  /**
+   * Get snapshot metadata (for display in UI)
+   */
+  function getSnapshotInfo() {
+    return {
+      entityCount: stateCache.size,
+      lastSyncTimestamp,
+      lastSyncDate: lastSyncTimestamp ? new Date(lastSyncTimestamp).toISOString() : null,
+      eventsInCache: eventsCache.length
+    };
+  }
+
+  // =============================================================================
   // CONFIGURATION
   // =============================================================================
 
@@ -835,6 +1139,13 @@ const EOIntegration = (function() {
     // Migration
     bootstrapFromLegacy,
     verifyStateConsistency,
+
+    // Binary Snapshot
+    exportBinarySnapshot,
+    downloadBinarySnapshot,
+    parseBinarySnapshot,
+    hydrateFromBinarySnapshot,
+    getSnapshotInfo,
 
     // Configuration
     configure,

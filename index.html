@@ -4908,6 +4908,9 @@
                     <button id="adminTabBtnDocket" onclick="switchAdminTab('docket')" class="admin-tab-btn flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all text-gray-600 hover:text-gray-900">
                         Docket Processor
                     </button>
+                    <button id="adminTabBtnSnapshot" onclick="switchAdminTab('snapshot')" class="admin-tab-btn flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all text-gray-600 hover:text-gray-900">
+                        Binary Snapshot
+                    </button>
                 </div>
             </div>
 
@@ -5142,6 +5145,99 @@
                                 <div id="docketUploadLog" class="max-h-40 overflow-y-auto bg-gray-50 rounded-lg p-3 text-sm font-mono">
                                     <!-- Upload log entries -->
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Binary Snapshot Tab Content -->
+            <div id="adminTabSnapshot" class="admin-tab-content flex-1 flex flex-col overflow-hidden hidden">
+                <div class="flex-1 overflow-y-auto p-6">
+                    <div class="mb-6">
+                        <p class="text-sm text-gray-600 mb-4">Export the current application state as a compact binary snapshot (.bin). Upload it to Google Drive so new visitors hydrate instantly, with only new events replayed incrementally.</p>
+                        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                            <p class="text-sm text-amber-800"><strong>How it works:</strong> The binary snapshot captures the fully-reconstructed state of all entities at a point in time. On next load, the app reads this file instead of replaying all historical events, then fetches only events newer than the snapshot timestamp.</p>
+                        </div>
+                    </div>
+
+                    <!-- Current State Info -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                        <div class="bg-gray-50 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-gray-900" id="snapshotStatEntities">-</div>
+                            <div class="text-xs text-gray-500 uppercase tracking-wide">Entities</div>
+                        </div>
+                        <div class="bg-indigo-50 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-indigo-600" id="snapshotStatEvents">-</div>
+                            <div class="text-xs text-indigo-600 uppercase tracking-wide">Cached Events</div>
+                        </div>
+                        <div class="bg-emerald-50 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-emerald-600" id="snapshotStatLastSync">-</div>
+                            <div class="text-xs text-emerald-600 uppercase tracking-wide">Last Sync</div>
+                        </div>
+                        <div class="bg-purple-50 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-purple-600" id="snapshotStatSize">-</div>
+                            <div class="text-xs text-purple-600 uppercase tracking-wide">Est. Size</div>
+                        </div>
+                    </div>
+
+                    <!-- Export Section -->
+                    <div class="border rounded-xl p-6 mb-6 bg-gradient-to-br from-indigo-50 to-white">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Export Snapshot</h3>
+                        <p class="text-sm text-gray-600 mb-4">Download the current state as a .bin file. Replace the file in the shared Google Drive folder so all users get fast startup. Update FILE_ID in GDRIVE_SNAPSHOT_CONFIG if the Drive file ID changes.</p>
+                        <div class="flex flex-wrap gap-3 items-center">
+                            <button onclick="handleSnapshotExport()" id="snapshotExportBtn" class="btn btn-primary" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);">
+                                Download .bin Snapshot
+                            </button>
+                            <span id="snapshotExportStatus" class="text-sm text-gray-500"></span>
+                        </div>
+                        <div class="mt-3 flex flex-col gap-1">
+                            <a href="https://drive.google.com/drive/folders/1XXKJV9D6Lbo-rX9HLDRdEG1ACtKx4A4_" target="_blank" rel="noopener" class="text-sm text-indigo-600 hover:text-indigo-800 underline">
+                                Open Google Drive upload folder
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Auto-Hydration Status -->
+                    <div id="snapshotAutoHydrationInfo" class="border rounded-xl p-4 mb-6 bg-gray-50">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-1">Auto-Hydration from Google Drive</h3>
+                        <p class="text-xs text-gray-500 mb-2">On startup, when there's no fresh local cache, the app automatically downloads the public .bin snapshot from Google Drive, hydrates from it, and then replays only newer events incrementally.</p>
+                        <div class="flex items-center gap-2">
+                            <span id="snapshotAutoStatus" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"></span>
+                            <span id="snapshotFileIdStatus" class="text-xs text-gray-400"></span>
+                        </div>
+                    </div>
+
+                    <!-- Import / Hydrate Section -->
+                    <div class="border rounded-xl p-6 bg-gradient-to-br from-emerald-50 to-white">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Hydrate from Snapshot</h3>
+                        <p class="text-sm text-gray-600 mb-4">Load a .bin snapshot to instantly hydrate the app. Events newer than the snapshot will be fetched incrementally.</p>
+                        <div id="snapshotUploadZone" class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/30 transition-all mb-4" onclick="document.getElementById('snapshotFileInput').click()">
+                            <input type="file" id="snapshotFileInput" class="hidden" accept=".bin" onchange="handleSnapshotImport(event)">
+                            <div class="text-4xl mb-2">&#x1F4E6;</div>
+                            <p class="text-gray-700 font-semibold mb-1">Drop .bin file here or click to browse</p>
+                            <p class="text-sm text-gray-500">Binary snapshot files only</p>
+                        </div>
+
+                        <!-- Hydration Progress -->
+                        <div id="snapshotHydrationProgress" class="hidden">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm font-medium text-gray-700" id="snapshotHydrationStatus">Processing...</span>
+                                <span id="snapshotHydrationDetail" class="text-sm text-gray-500"></span>
+                            </div>
+                            <div class="h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
+                                <div id="snapshotHydrationBar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Hydration Result -->
+                        <div id="snapshotHydrationResult" class="hidden">
+                            <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                                <div class="flex items-center gap-2 text-emerald-700 mb-2">
+                                    <span class="text-lg">&#x2705;</span>
+                                    <span class="font-semibold">Snapshot loaded successfully</span>
+                                </div>
+                                <div class="text-sm text-emerald-600" id="snapshotHydrationSummary"></div>
                             </div>
                         </div>
                     </div>
@@ -7096,6 +7192,18 @@
         // Cache version - increment when data processing logic changes (e.g., district extraction fix)
         const CACHE_VERSION = 3;  // v3: Fixed replay logic - simple cumulative merge, no observationTS field versioning
 
+        // Google Drive binary snapshot configuration
+        // To update the snapshot: export a .bin from the Snapshot tab, upload to the Drive folder,
+        // then update FILE_ID below with the new file's Google Drive ID (from the shareable link).
+        const GDRIVE_SNAPSHOT_CONFIG = {
+            FOLDER_ID: '1XXKJV9D6Lbo-rX9HLDRdEG1ACtKx4A4_',
+            FILE_ID: '1q5gu-9EFGxptS71VuUvtij8UKArsg5D-',  // Public .bin file on Google Drive
+            ENABLED: true,
+            // Cache: skip re-downloading the snapshot for this long after a successful hydration
+            CACHE_KEY: 'gdrive_snapshot_hydrated_ts',
+            CACHE_TTL_MS: 60 * 60 * 1000  // 1 hour
+        };
+
         // Polling configuration
         const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
         let pollIntervalId = null;
@@ -7846,6 +7954,174 @@
             return Array.from(stateMap.values());
         }
 
+        // =================================================================
+        // Google Drive Binary Snapshot - Auto-fetch
+        // =================================================================
+
+        /**
+         * Download a public .bin file from Google Drive by file ID.
+         * No API key needed — just requires the file to be shared as "Anyone with the link".
+         * Uses the Google Drive direct download URL pattern.
+         * Returns an ArrayBuffer, or null on failure.
+         */
+        async function downloadSnapshotFromGoogleDrive(fileId) {
+            try {
+                // Google Drive public file download URL (no auth/API key required)
+                const url = `https://drive.google.com/uc?export=download&id=${fileId}`;
+                console.log('📥 Downloading snapshot from Google Drive...');
+                const response = await fetch(url);
+
+                // Google may redirect large files through a virus scan confirmation page.
+                // For files under ~100MB this direct link works. If the response is HTML
+                // instead of binary, it means the file is too large and needs the confirm token.
+                if (!response.ok) {
+                    console.warn('Google Drive download returned', response.status);
+                    return null;
+                }
+
+                const buffer = await response.arrayBuffer();
+
+                // Sanity check: verify it starts with "EVIC" magic bytes (not an HTML error page)
+                if (buffer.byteLength < 17) {
+                    console.warn('Downloaded file too small to be a valid snapshot');
+                    return null;
+                }
+                const magic = String.fromCharCode(
+                    new Uint8Array(buffer)[0], new Uint8Array(buffer)[1],
+                    new Uint8Array(buffer)[2], new Uint8Array(buffer)[3]
+                );
+                if (magic !== 'EVIC') {
+                    console.warn('Downloaded file is not a valid .bin snapshot (bad magic:', magic, ')');
+                    return null;
+                }
+
+                console.log(`📥 Downloaded snapshot: ${(buffer.byteLength / 1024).toFixed(1)} KB`);
+                return buffer;
+            } catch (e) {
+                console.warn('Google Drive download failed:', e.message);
+                return null;
+            }
+        }
+
+        /**
+         * Try to hydrate the app from a Google Drive binary snapshot.
+         * Returns { success: true, entityCount, timestamp } or { success: false }.
+         *
+         * Flow:
+         * 1. Download the .bin file by its known public file ID
+         * 2. Parse and hydrate into stateCache
+         * 3. Convert to allData array
+         * 4. Run incremental sync for events since the snapshot
+         */
+        async function tryHydrateFromGoogleDrive() {
+            const cfg = GDRIVE_SNAPSHOT_CONFIG;
+            if (!cfg.ENABLED || !cfg.FILE_ID) {
+                return { success: false, reason: 'disabled_or_no_file_id' };
+            }
+
+            if (typeof EOIntegration === 'undefined') {
+                return { success: false, reason: 'eo_integration_not_loaded' };
+            }
+
+            // Skip if we already hydrated recently (within cache TTL)
+            try {
+                const lastHydrated = localStorage.getItem(cfg.CACHE_KEY);
+                if (lastHydrated && (Date.now() - parseInt(lastHydrated)) < cfg.CACHE_TTL_MS) {
+                    console.log('📁 Recently hydrated from Drive, skipping');
+                    return { success: false, reason: 'recently_hydrated' };
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                // Step 1: Download snapshot
+                updateStatus('Downloading binary snapshot...', 'loading');
+                const buffer = await downloadSnapshotFromGoogleDrive(cfg.FILE_ID);
+                if (!buffer) {
+                    return { success: false, reason: 'download_failed' };
+                }
+
+                // Step 2: Hydrate
+                updateStatus('Hydrating from binary snapshot...', 'loading');
+                const hydrationResult = EOIntegration.hydrateFromBinarySnapshot(buffer);
+
+                // Step 3: Convert to allData
+                const cases = EOIntegration.getAllCases();
+                const normalized = cases.map(normalizeRecord);
+                allData = dedupeByDocketNumber(normalized);
+                filteredData = allData;
+                calculateGlobalDataRange(allData);
+
+                // Save to IndexedDB so subsequent loads use the fast cache path
+                const timestamp = Date.now();
+                evictionDB.saveFull(allData, timestamp).then(success => {
+                    if (success) {
+                        localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                        localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
+                    }
+                });
+
+                // Mark that we hydrated from Drive (to avoid re-downloading within TTL)
+                localStorage.setItem(cfg.CACHE_KEY, Date.now().toString());
+
+                console.log(`✅ Hydrated from Drive snapshot: ${allData.length} records`);
+
+                // Step 4: Incremental sync for events since snapshot
+                updateStatus('Fetching events since snapshot...', 'loading');
+                let incrementalCount = 0;
+                try {
+                    const incrementalUrl = buildEOApiUrl({ ts_gt: hydrationResult.timestamp.toString() });
+                    const response = await fetch(incrementalUrl);
+                    if (response.ok) {
+                        const result = await response.json();
+                        let newEvents = Array.isArray(result) ? result : (result?.items || result?.data || []);
+
+                        if (newEvents.length > 0 && typeof EOMigration !== 'undefined') {
+                            newEvents = newEvents.map(e => EOMigration.fromXanoFormat(e));
+                        }
+
+                        if (newEvents.length > 0) {
+                            console.log(`🔄 Applying ${newEvents.length} events since snapshot...`);
+                            const updatedRecords = applyEventsToState(allData, newEvents);
+
+                            let newestTs = hydrationResult.timestamp;
+                            for (const event of newEvents) {
+                                if (event.ts && event.ts > newestTs) newestTs = event.ts;
+                            }
+                            localStorage.setItem('eo_last_sync_ts', newestTs.toString());
+
+                            const normalizedUpdated = updatedRecords.map(normalizeRecord);
+                            allData = dedupeByDocketNumber(normalizedUpdated);
+                            filteredData = allData;
+                            calculateGlobalDataRange(allData);
+                            if (typeof dataCache !== 'undefined') dataCache.invalidateAll();
+
+                            const ts2 = Date.now();
+                            evictionDB.saveFull(allData, ts2).then(success => {
+                                if (success) {
+                                    localStorage.setItem('evictionDataTimestamp', ts2.toString());
+                                }
+                            });
+
+                            incrementalCount = newEvents.length;
+                        }
+                    }
+                } catch (syncErr) {
+                    console.warn('Incremental sync after Drive hydration failed:', syncErr.message);
+                }
+
+                return {
+                    success: true,
+                    entityCount: allData.length,
+                    timestamp: hydrationResult.timestamp,
+                    incrementalEvents: incrementalCount
+                };
+
+            } catch (e) {
+                console.warn('Google Drive hydration failed:', e.message);
+                return { success: false, reason: 'hydration_error', error: e.message };
+            }
+        }
+
         async function loadData() {
             isLoadingData = true;
             updateRefreshUI();
@@ -7875,10 +8151,50 @@
                 const cacheFresh = isCacheFresh();
                 console.log('📊 Cache status:', { ageHours: cacheAgeHours, fresh: cacheFresh });
 
-                // Always try to load cached data first
+                // ===================================================================
+                // PRIORITY 1: Try Google Drive binary snapshot hydration
+                // Only attempt when there's no fresh local cache (first visit or stale)
+                // ===================================================================
                 updateStatus('Loading cached data...', 'loading');
-                const cachedData = await loadCachedData();
-                const lastSyncTs = localStorage.getItem('eo_last_sync_ts');
+                let cachedData = await loadCachedData();
+                let lastSyncTs = localStorage.getItem('eo_last_sync_ts');
+                const noUsableLocalData = !cachedData || !lastSyncTs || (cacheAgeHours !== null && cacheAgeHours >= 4);
+
+                if (noUsableLocalData && GDRIVE_SNAPSHOT_CONFIG.ENABLED) {
+                    console.log('📁 No fresh local cache — trying Google Drive snapshot...');
+                    const driveResult = await tryHydrateFromGoogleDrive();
+
+                    if (driveResult.success) {
+                        const incrementalNote = driveResult.incrementalEvents > 0
+                            ? ` + ${driveResult.incrementalEvents} new events`
+                            : ' (already up to date)';
+                        console.log(`✅ Drive snapshot hydration complete: ${driveResult.entityCount} records${incrementalNote}`);
+                        console.groupEnd();
+
+                        updateStatus(`Loaded ${allData.length} records from snapshot${incrementalNote}`, 'success');
+                        updateMetrics();
+                        updateCharts();
+                        createDistrictMap();
+                        await loadDistrictDemographics();
+                        initDemographicsCharts();
+                        initGrid();
+                        document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
+                        restorePersistedFilters();
+
+                        isLoadingData = false;
+                        updateRefreshUI();
+                        startPolling();
+                        return;
+                    } else {
+                        console.log('📁 Drive snapshot not available:', driveResult.reason, '— falling back to normal load');
+                    }
+                }
+
+                // ===================================================================
+                // PRIORITY 2: Normal flow — local cache + incremental, or full sync
+                // ===================================================================
+                // Re-read lastSyncTs in case Drive hydration wrote it but then we fell through
+                lastSyncTs = localStorage.getItem('eo_last_sync_ts');
 
                 // If we have cached data and a last sync timestamp, do incremental sync
                 // But skip incremental if cache is very stale (>4 hours) to ensure fresh data
@@ -15401,6 +15717,13 @@
                         hideSecretModeIndicator();
                         showAdminToolModal('docket');
                     }
+                    // Check if "snapshot" was typed - show admin tool modal on binary snapshot tab
+                    else if (secretInputBuffer === 'snapshot') {
+                        secretInputBuffer = '';
+                        secretModeActive = false;
+                        hideSecretModeIndicator();
+                        showAdminToolModal('snapshot');
+                    }
                 }
                 return;
             }
@@ -15478,29 +15801,39 @@
         function switchAdminTab(tab) {
             const bulkTab = document.getElementById('adminTabBulk');
             const docketTab = document.getElementById('adminTabDocket');
+            const snapshotTab = document.getElementById('adminTabSnapshot');
             const bulkBtn = document.getElementById('adminTabBtnBulk');
             const docketBtn = document.getElementById('adminTabBtnDocket');
+            const snapshotBtn = document.getElementById('adminTabBtnSnapshot');
 
-            if (tab === 'bulk') {
-                // Show bulk upload tab
+            // Hide all tabs, deactivate all buttons
+            const allTabs = [bulkTab, docketTab, snapshotTab];
+            const allBtns = [bulkBtn, docketBtn, snapshotBtn];
+            for (const t of allTabs) {
+                if (t) t.classList.add('hidden');
+            }
+            for (const b of allBtns) {
+                if (b) {
+                    b.classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
+                    b.classList.add('text-gray-600', 'hover:text-gray-900');
+                }
+            }
+
+            // Show selected tab
+            if (tab === 'bulk' && bulkTab) {
                 bulkTab.classList.remove('hidden');
-                docketTab.classList.add('hidden');
-                // Update button styles
                 bulkBtn.classList.add('bg-white', 'text-gray-900', 'shadow-sm');
                 bulkBtn.classList.remove('text-gray-600', 'hover:text-gray-900');
-                docketBtn.classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
-                docketBtn.classList.add('text-gray-600', 'hover:text-gray-900');
-            } else if (tab === 'docket') {
-                // Show docket tab
-                bulkTab.classList.add('hidden');
+            } else if (tab === 'docket' && docketTab) {
                 docketTab.classList.remove('hidden');
-                // Update button styles
                 docketBtn.classList.add('bg-white', 'text-gray-900', 'shadow-sm');
                 docketBtn.classList.remove('text-gray-600', 'hover:text-gray-900');
-                bulkBtn.classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
-                bulkBtn.classList.add('text-gray-600', 'hover:text-gray-900');
-                // Initialize docket processing (check login state)
                 initDocketProcessing();
+            } else if (tab === 'snapshot' && snapshotTab) {
+                snapshotTab.classList.remove('hidden');
+                snapshotBtn.classList.add('bg-white', 'text-gray-900', 'shadow-sm');
+                snapshotBtn.classList.remove('text-gray-600', 'hover:text-gray-900');
+                refreshSnapshotStats();
             }
         }
 
@@ -15509,6 +15842,228 @@
         function hideBulkUploadModal() { hideAdminToolModal(); }
         function showDocketModal() { showAdminToolModal('docket'); }
         function hideDocketModal() { hideAdminToolModal(); }
+
+        // =====================================================================
+        // Binary Snapshot Functions
+        // =====================================================================
+
+        function refreshSnapshotStats() {
+            if (typeof EOIntegration === 'undefined') return;
+            const info = EOIntegration.getSnapshotInfo();
+
+            const entitiesEl = document.getElementById('snapshotStatEntities');
+            const eventsEl = document.getElementById('snapshotStatEvents');
+            const lastSyncEl = document.getElementById('snapshotStatLastSync');
+            const sizeEl = document.getElementById('snapshotStatSize');
+
+            if (entitiesEl) entitiesEl.textContent = info.entityCount.toLocaleString();
+            if (eventsEl) eventsEl.textContent = info.eventsInCache.toLocaleString();
+            if (lastSyncEl) {
+                lastSyncEl.textContent = info.lastSyncDate
+                    ? new Date(info.lastSyncTimestamp).toLocaleDateString()
+                    : 'Never';
+            }
+            // Rough size estimate: ~200 bytes per entity average
+            if (sizeEl) {
+                const estKB = Math.round(info.entityCount * 200 / 1024);
+                sizeEl.textContent = estKB > 1024
+                    ? (estKB / 1024).toFixed(1) + ' MB'
+                    : estKB + ' KB';
+            }
+
+            // Auto-hydration status
+            const autoStatusEl = document.getElementById('snapshotAutoStatus');
+            const fileIdStatusEl = document.getElementById('snapshotFileIdStatus');
+            if (autoStatusEl) {
+                const hasFileId = GDRIVE_SNAPSHOT_CONFIG.FILE_ID && GDRIVE_SNAPSHOT_CONFIG.FILE_ID.length > 0;
+                const enabled = GDRIVE_SNAPSHOT_CONFIG.ENABLED;
+                if (enabled && hasFileId) {
+                    autoStatusEl.textContent = 'Active';
+                    autoStatusEl.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800';
+                    if (fileIdStatusEl) fileIdStatusEl.textContent = 'File ID: ' + GDRIVE_SNAPSHOT_CONFIG.FILE_ID.slice(0, 12) + '...';
+                } else if (enabled && !hasFileId) {
+                    autoStatusEl.textContent = 'No File ID';
+                    autoStatusEl.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800';
+                    if (fileIdStatusEl) fileIdStatusEl.textContent = 'Set FILE_ID in GDRIVE_SNAPSHOT_CONFIG';
+                } else {
+                    autoStatusEl.textContent = 'Disabled';
+                    autoStatusEl.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600';
+                }
+            }
+        }
+
+        function handleSnapshotExport() {
+            const statusEl = document.getElementById('snapshotExportStatus');
+            try {
+                if (typeof EOIntegration === 'undefined') {
+                    if (statusEl) statusEl.textContent = 'Error: EOIntegration not loaded';
+                    return;
+                }
+                if (statusEl) statusEl.textContent = 'Generating snapshot...';
+                const result = EOIntegration.downloadBinarySnapshot();
+                if (statusEl) {
+                    const sizeStr = result.size > 1024 * 1024
+                        ? (result.size / 1024 / 1024).toFixed(1) + ' MB'
+                        : (result.size / 1024).toFixed(1) + ' KB';
+                    statusEl.textContent = `Exported: ${result.filename} (${sizeStr})`;
+                }
+            } catch (e) {
+                console.error('Snapshot export failed:', e);
+                if (statusEl) statusEl.textContent = 'Export failed: ' + e.message;
+            }
+        }
+
+        async function handleSnapshotImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const progressEl = document.getElementById('snapshotHydrationProgress');
+            const statusEl = document.getElementById('snapshotHydrationStatus');
+            const detailEl = document.getElementById('snapshotHydrationDetail');
+            const barEl = document.getElementById('snapshotHydrationBar');
+            const resultEl = document.getElementById('snapshotHydrationResult');
+            const summaryEl = document.getElementById('snapshotHydrationSummary');
+
+            // Show progress
+            if (progressEl) progressEl.classList.remove('hidden');
+            if (resultEl) resultEl.classList.add('hidden');
+            if (statusEl) statusEl.textContent = 'Reading file...';
+            if (barEl) barEl.style.width = '20%';
+
+            try {
+                const buffer = await file.arrayBuffer();
+                if (statusEl) statusEl.textContent = 'Parsing binary snapshot...';
+                if (barEl) barEl.style.width = '50%';
+
+                const result = EOIntegration.hydrateFromBinarySnapshot(buffer);
+                if (barEl) barEl.style.width = '80%';
+
+                if (statusEl) statusEl.textContent = 'Hydrating application state...';
+
+                // Convert stateCache to allData array and refresh the UI
+                const cases = EOIntegration.getAllCases();
+                if (typeof normalizeRecord === 'function' && typeof dedupeByDocketNumber === 'function') {
+                    const normalized = cases.map(normalizeRecord);
+                    allData = dedupeByDocketNumber(normalized);
+                } else {
+                    allData = cases;
+                }
+                filteredData = allData;
+
+                if (typeof calculateGlobalDataRange === 'function') calculateGlobalDataRange(allData);
+
+                // Save to IndexedDB for future loads
+                const timestamp = Date.now();
+                if (typeof evictionDB !== 'undefined') {
+                    evictionDB.saveFull(allData, timestamp).then(success => {
+                        if (success) {
+                            localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                        }
+                    });
+                }
+
+                // Refresh UI
+                if (typeof updateMetrics === 'function') updateMetrics();
+                if (typeof updateCharts === 'function') updateCharts();
+                if (typeof createDistrictMap === 'function') createDistrictMap();
+                if (typeof initGrid === 'function') initGrid();
+
+                if (barEl) barEl.style.width = '100%';
+
+                // Show result
+                if (progressEl) progressEl.classList.add('hidden');
+                if (resultEl) resultEl.classList.remove('hidden');
+                if (summaryEl) {
+                    const snapshotDate = new Date(result.timestamp).toLocaleString();
+                    summaryEl.innerHTML = `
+                        <strong>${result.entityCount.toLocaleString()}</strong> entities loaded from snapshot<br>
+                        Snapshot date: <strong>${snapshotDate}</strong><br>
+                        File size: <strong>${(file.size / 1024).toFixed(1)} KB</strong><br>
+                        <em>Incremental sync will fetch events newer than ${snapshotDate}</em>
+                    `;
+                }
+
+                // Refresh stats
+                refreshSnapshotStats();
+
+                // Now do incremental sync for events since the snapshot
+                if (detailEl) detailEl.textContent = 'Running incremental sync...';
+                try {
+                    await performIncrementalSyncAfterHydration(result.timestamp);
+                    if (detailEl) detailEl.textContent = 'Incremental sync complete';
+                } catch (syncErr) {
+                    console.warn('Incremental sync after hydration failed:', syncErr);
+                    if (detailEl) detailEl.textContent = 'Incremental sync skipped (will retry on next load)';
+                }
+            } catch (e) {
+                console.error('Snapshot import failed:', e);
+                if (statusEl) statusEl.textContent = 'Import failed: ' + e.message;
+                if (barEl) barEl.style.width = '0%';
+            }
+
+            // Reset file input
+            event.target.value = '';
+        }
+
+        async function performIncrementalSyncAfterHydration(snapshotTimestamp) {
+            // Fetch events newer than the snapshot timestamp
+            const incrementalUrl = buildEOApiUrl({ ts_gt: snapshotTimestamp.toString() });
+            console.log('Post-hydration incremental sync:', incrementalUrl);
+
+            const response = await fetch(incrementalUrl);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const result = await response.json();
+            let newEvents = Array.isArray(result) ? result : (result?.items || result?.data || []);
+
+            if (newEvents.length > 0 && typeof EOMigration !== 'undefined') {
+                newEvents = newEvents.map(e => EOMigration.fromXanoFormat(e));
+            }
+
+            console.log('Post-hydration: fetched', newEvents.length, 'new events');
+
+            if (newEvents.length === 0) return { synced: 0 };
+
+            // Apply events to the current state
+            const updatedRecords = applyEventsToState(allData, newEvents);
+
+            // Track newest timestamp
+            let newestTs = snapshotTimestamp;
+            for (const event of newEvents) {
+                if (event.ts && event.ts > newestTs) newestTs = event.ts;
+            }
+            localStorage.setItem('eo_last_sync_ts', newestTs.toString());
+
+            // Normalize and dedupe
+            if (typeof normalizeRecord === 'function' && typeof dedupeByDocketNumber === 'function') {
+                const normalized = updatedRecords.map(normalizeRecord);
+                allData = dedupeByDocketNumber(normalized);
+            } else {
+                allData = updatedRecords;
+            }
+            filteredData = allData;
+
+            if (typeof calculateGlobalDataRange === 'function') calculateGlobalDataRange(allData);
+            if (typeof dataCache !== 'undefined') dataCache.invalidateAll();
+
+            // Save updated state
+            const timestamp = Date.now();
+            if (typeof evictionDB !== 'undefined') {
+                evictionDB.saveFull(allData, timestamp).then(success => {
+                    if (success) {
+                        localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                    }
+                });
+            }
+
+            // Refresh UI
+            if (typeof updateMetrics === 'function') updateMetrics();
+            if (typeof updateCharts === 'function') updateCharts();
+            if (typeof initGrid === 'function') initGrid();
+
+            console.log('Post-hydration sync complete:', newEvents.length, 'events applied,', allData.length, 'total records');
+            return { synced: newEvents.length };
+        }
 
         function setupDropZone() {
             const dropZone = document.getElementById('uploadDropZone');
@@ -15541,6 +16096,35 @@
                     handleBulkUploadFileFromDrop(files[0]);
                 }
             }, false);
+
+            // Setup snapshot drop zone
+            const snapshotZone = document.getElementById('snapshotUploadZone');
+            if (snapshotZone) {
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    snapshotZone.addEventListener(eventName, preventDefaults, false);
+                });
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    snapshotZone.addEventListener(eventName, () => {
+                        snapshotZone.classList.add('dragover');
+                    }, false);
+                });
+                ['dragleave', 'drop'].forEach(eventName => {
+                    snapshotZone.addEventListener(eventName, () => {
+                        snapshotZone.classList.remove('dragover');
+                    }, false);
+                });
+                snapshotZone.addEventListener('drop', (e) => {
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0 && files[0].name.endsWith('.bin')) {
+                        // Trigger the import handler with a synthetic event
+                        const input = document.getElementById('snapshotFileInput');
+                        const dt = new DataTransfer();
+                        dt.items.add(files[0]);
+                        input.files = dt.files;
+                        handleSnapshotImport({ target: input });
+                    }
+                }, false);
+            }
         }
 
         function handleBulkUploadFile(event) {
