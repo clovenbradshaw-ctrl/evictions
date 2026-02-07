@@ -603,6 +603,12 @@ const EOMigration = (function() {
     // Simple cumulative state - no field versioning needed
     let state = {};
 
+    // Fields that represent original case properties and should not be overwritten
+    // by subsequent payload.data merges (e.g., from rescraping old cases on newer dockets).
+    // These use "first-write-wins" semantics for payload.data, but can still be
+    // explicitly updated via payload.changes or target.field (intentional corrections).
+    const PROTECTED_FIELDS = new Set(['File_Date', 'file_date', 'filing_date']);
+
     /**
      * Check if a value is empty (should not overwrite existing data)
      */
@@ -615,11 +621,17 @@ const EOMigration = (function() {
     /**
      * Merge non-empty fields from source into state.
      * Non-empty values always overwrite; empty values never overwrite.
+     * Protected fields (like File_Date) use first-write-wins: once set,
+     * they are not overwritten by payload.data merges to prevent rescrape
+     * events from clobbering original filing dates with later court dates.
      */
     function mergeFields(data) {
       if (!data) return;
       for (const [field, value] of Object.entries(data)) {
         if (!isEmpty(value)) {
+          if (PROTECTED_FIELDS.has(field) && !isEmpty(state[field])) {
+            continue; // Preserve original value
+          }
           state[field] = value;
         }
       }
