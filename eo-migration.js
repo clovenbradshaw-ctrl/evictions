@@ -1453,6 +1453,9 @@ const EOMigration = (function() {
     if (options.per_page) {
       params.append('per_page', options.per_page);
     }
+    if (options.object_id) {
+      params.append('object_id', options.object_id);
+    }
 
     const url = params.toString()
       ? `${CONFIG.CURRENT_STATE_GET_URL}?${params.toString()}`
@@ -1463,9 +1466,7 @@ const EOMigration = (function() {
       throw new Error(`Failed to fetch current state: ${response.status}`);
     }
 
-    const result = await response.json();
-    const items = result.items || result;
-    return Array.isArray(items) ? items : [items];
+    return await response.json();
   }
 
   /**
@@ -1500,8 +1501,9 @@ const EOMigration = (function() {
 
       const result = await fetchCurrentState(fetchOpts);
 
-      // Handle paginated vs flat response
+      // Handle paginated (object with items/nextPage) vs flat array response
       if (Array.isArray(result)) {
+        // Flat array response (no pagination metadata available)
         allRows = allRows.concat(result);
 
         if (onProgress) {
@@ -1518,7 +1520,7 @@ const EOMigration = (function() {
           break;
         }
       } else {
-        // Paginated response with metadata
+        // Paginated response with metadata (Xano format: items, nextPage, curPage, pageTotal, itemsTotal)
         const items = result.items || [];
         allRows = allRows.concat(items);
 
@@ -1536,7 +1538,12 @@ const EOMigration = (function() {
           });
         }
 
-        if (!result.nextPage || items.length === 0) {
+        // Stop when Xano signals no next page, or we got an empty page,
+        // or we've reached the known page total
+        if (result.nextPage === null || result.nextPage === undefined || items.length === 0) {
+          break;
+        }
+        if (pageTotal && page >= pageTotal) {
           break;
         }
       }
@@ -1641,11 +1648,13 @@ const EOMigration = (function() {
    * @returns {Array} The data entries array from the record
    */
   async function fetchCurrentStateHistory(objectId) {
-    const rows = await fetchCurrentState({ object_id: normalizeDocketNumber(objectId) });
+    const result = await fetchCurrentState({ object_id: normalizeDocketNumber(objectId) });
+    // Handle both paginated (object with items) and flat array responses
+    const rows = Array.isArray(result) ? result : (result.items || []);
     if (rows.length === 0) return [];
 
     const row = rows[0];
-    let dataEntries = row.data;
+    let dataEntries = row.stateData !== undefined ? row.stateData : row.data;
     if (typeof dataEntries === 'string') {
       dataEntries = safeJsonParse(dataEntries, []);
     }
