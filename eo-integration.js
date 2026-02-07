@@ -776,7 +776,7 @@ const EOIntegration = (function() {
   // =============================================================================
 
   /**
-   * Binary snapshot format (.evicbin):
+   * Binary snapshot format (.bin):
    *
    * Header (17 bytes):
    *   [0-3]   Magic: "EVIC" (4 bytes)
@@ -807,7 +807,7 @@ const EOIntegration = (function() {
   const SNAPSHOT_VERSION = 1;
 
   /**
-   * Export current stateCache as a binary snapshot file (.evicbin)
+   * Export current stateCache as a binary snapshot file (.bin)
    * @returns {Blob} Binary blob ready for download
    */
   function exportBinarySnapshot() {
@@ -930,7 +930,7 @@ const EOIntegration = (function() {
   function downloadBinarySnapshot() {
     const blob = exportBinarySnapshot();
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const filename = `evictions-snapshot-${timestamp}.evicbin`;
+    const filename = `evictions-snapshot-${timestamp}.bin`;
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -947,7 +947,7 @@ const EOIntegration = (function() {
 
   /**
    * Parse a binary snapshot file back into state data
-   * @param {ArrayBuffer} buffer - The .evicbin file contents
+   * @param {ArrayBuffer} buffer - The .bin file contents
    * @returns {{ timestamp: number, entities: Array<object> }} Parsed snapshot data
    */
   function parseBinarySnapshot(buffer) {
@@ -1036,7 +1036,7 @@ const EOIntegration = (function() {
    * Loads the snapshot into stateCache and sets lastSyncTimestamp,
    * enabling incremental replay for events that arrived after the snapshot.
    *
-   * @param {ArrayBuffer} buffer - The .evicbin file contents
+   * @param {ArrayBuffer} buffer - The .bin file contents
    * @returns {{ entityCount: number, timestamp: number }}
    */
   function hydrateFromBinarySnapshot(buffer) {

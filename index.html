@@ -5155,7 +5155,7 @@
             <div id="adminTabSnapshot" class="admin-tab-content flex-1 flex flex-col overflow-hidden hidden">
                 <div class="flex-1 overflow-y-auto p-6">
                     <div class="mb-6">
-                        <p class="text-sm text-gray-600 mb-4">Export the current application state as a compact binary snapshot (.evicbin). This snapshot can be used to hydrate the app instantly on load, with only new events replayed incrementally.</p>
+                        <p class="text-sm text-gray-600 mb-4">Export the current application state as a compact binary snapshot (.bin). Upload it to Google Drive so new visitors hydrate instantly, with only new events replayed incrementally.</p>
                         <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
                             <p class="text-sm text-amber-800"><strong>How it works:</strong> The binary snapshot captures the fully-reconstructed state of all entities at a point in time. On next load, the app reads this file instead of replaying all historical events, then fetches only events newer than the snapshot timestamp.</p>
                         </div>
@@ -5184,10 +5184,10 @@
                     <!-- Export Section -->
                     <div class="border rounded-xl p-6 mb-6 bg-gradient-to-br from-indigo-50 to-white">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">Export Snapshot</h3>
-                        <p class="text-sm text-gray-600 mb-4">Download the current state as a .evicbin file. Upload this to the shared Google Drive folder so all users benefit from fast startup.</p>
+                        <p class="text-sm text-gray-600 mb-4">Download the current state as a .bin file. Replace the file in the shared Google Drive folder so all users get fast startup. Update FILE_ID in GDRIVE_SNAPSHOT_CONFIG if the Drive file ID changes.</p>
                         <div class="flex flex-wrap gap-3 items-center">
                             <button onclick="handleSnapshotExport()" id="snapshotExportBtn" class="btn btn-primary" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);">
-                                Download .evicbin Snapshot
+                                Download .bin Snapshot
                             </button>
                             <span id="snapshotExportStatus" class="text-sm text-gray-500"></span>
                         </div>
@@ -5195,27 +5195,27 @@
                             <a href="https://drive.google.com/drive/folders/1XXKJV9D6Lbo-rX9HLDRdEG1ACtKx4A4_" target="_blank" rel="noopener" class="text-sm text-indigo-600 hover:text-indigo-800 underline">
                                 Open Google Drive upload folder
                             </a>
-                            <div id="snapshotApiKeyStatus" class="text-xs text-gray-400"></div>
                         </div>
                     </div>
 
                     <!-- Auto-Hydration Status -->
                     <div id="snapshotAutoHydrationInfo" class="border rounded-xl p-4 mb-6 bg-gray-50">
                         <h3 class="text-sm font-semibold text-gray-700 mb-1">Auto-Hydration from Google Drive</h3>
-                        <p class="text-xs text-gray-500 mb-2">When a Google API key is configured, the app will automatically check for a .evicbin file on Drive at startup. If one exists and is newer than local data, it hydrates from it and only replays newer events.</p>
+                        <p class="text-xs text-gray-500 mb-2">On startup, when there's no fresh local cache, the app automatically downloads the public .bin snapshot from Google Drive, hydrates from it, and then replays only newer events incrementally.</p>
                         <div class="flex items-center gap-2">
                             <span id="snapshotAutoStatus" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"></span>
+                            <span id="snapshotFileIdStatus" class="text-xs text-gray-400"></span>
                         </div>
                     </div>
 
                     <!-- Import / Hydrate Section -->
                     <div class="border rounded-xl p-6 bg-gradient-to-br from-emerald-50 to-white">
                         <h3 class="text-lg font-semibold text-gray-900 mb-2">Hydrate from Snapshot</h3>
-                        <p class="text-sm text-gray-600 mb-4">Load a .evicbin snapshot to instantly hydrate the app. Events newer than the snapshot will be fetched incrementally.</p>
+                        <p class="text-sm text-gray-600 mb-4">Load a .bin snapshot to instantly hydrate the app. Events newer than the snapshot will be fetched incrementally.</p>
                         <div id="snapshotUploadZone" class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/30 transition-all mb-4" onclick="document.getElementById('snapshotFileInput').click()">
-                            <input type="file" id="snapshotFileInput" class="hidden" accept=".evicbin" onchange="handleSnapshotImport(event)">
+                            <input type="file" id="snapshotFileInput" class="hidden" accept=".bin" onchange="handleSnapshotImport(event)">
                             <div class="text-4xl mb-2">&#x1F4E6;</div>
-                            <p class="text-gray-700 font-semibold mb-1">Drop .evicbin file here or click to browse</p>
+                            <p class="text-gray-700 font-semibold mb-1">Drop .bin file here or click to browse</p>
                             <p class="text-sm text-gray-500">Binary snapshot files only</p>
                         </div>
 
@@ -7193,14 +7193,15 @@
         const CACHE_VERSION = 3;  // v3: Fixed replay logic - simple cumulative merge, no observationTS field versioning
 
         // Google Drive binary snapshot configuration
+        // To update the snapshot: export a .bin from the Snapshot tab, upload to the Drive folder,
+        // then update FILE_ID below with the new file's Google Drive ID (from the shareable link).
         const GDRIVE_SNAPSHOT_CONFIG = {
             FOLDER_ID: '1XXKJV9D6Lbo-rX9HLDRdEG1ACtKx4A4_',
-            API_KEY: '',  // Set your Google API key here (APIs > Drive API v3, restricted to this site's origin)
+            FILE_ID: '1q5gu-9EFGxptS71VuUvtij8UKArsg5D-',  // Public .bin file on Google Drive
             ENABLED: true,
-            FILE_EXTENSION: '.evicbin',
-            // Cache the Drive file list check for 1 hour to avoid spamming the API
-            LIST_CACHE_KEY: 'gdrive_snapshot_cache',
-            LIST_CACHE_TTL_MS: 60 * 60 * 1000
+            // Cache: skip re-downloading the snapshot for this long after a successful hydration
+            CACHE_KEY: 'gdrive_snapshot_hydrated_ts',
+            CACHE_TTL_MS: 60 * 60 * 1000  // 1 hour
         };
 
         // Polling configuration
@@ -7947,73 +7948,42 @@
         // =================================================================
 
         /**
-         * List .evicbin files in the configured Google Drive folder.
-         * Returns the most recently modified file's metadata, or null.
-         * Uses Google Drive API v3 with an API key (folder must be shared publicly).
-         */
-        async function listSnapshotsOnGoogleDrive() {
-            const cfg = GDRIVE_SNAPSHOT_CONFIG;
-            if (!cfg.ENABLED || !cfg.API_KEY) return null;
-
-            // Check local cache to avoid hammering the Drive API
-            try {
-                const cached = localStorage.getItem(cfg.LIST_CACHE_KEY);
-                if (cached) {
-                    const parsed = JSON.parse(cached);
-                    if (Date.now() - parsed.ts < cfg.LIST_CACHE_TTL_MS) {
-                        console.log('📁 Using cached Drive file list');
-                        return parsed.file || null;
-                    }
-                }
-            } catch (e) { /* ignore cache parse errors */ }
-
-            try {
-                const query = encodeURIComponent(`'${cfg.FOLDER_ID}' in parents and name contains '${cfg.FILE_EXTENSION}' and trashed = false`);
-                const fields = encodeURIComponent('files(id,name,modifiedTime,size)');
-                const url = `https://www.googleapis.com/drive/v3/files?q=${query}&orderBy=modifiedTime%20desc&pageSize=1&fields=${fields}&key=${cfg.API_KEY}`;
-
-                console.log('📁 Checking Google Drive for snapshots...');
-                const response = await fetch(url);
-                if (!response.ok) {
-                    console.warn('Google Drive API returned', response.status);
-                    return null;
-                }
-
-                const data = await response.json();
-                const file = data.files && data.files.length > 0 ? data.files[0] : null;
-
-                // Cache the result
-                localStorage.setItem(cfg.LIST_CACHE_KEY, JSON.stringify({ ts: Date.now(), file }));
-
-                if (file) {
-                    console.log(`📁 Found snapshot: ${file.name} (${file.size} bytes, modified ${file.modifiedTime})`);
-                } else {
-                    console.log('📁 No snapshots found on Google Drive');
-                }
-                return file;
-            } catch (e) {
-                console.warn('Google Drive listing failed:', e.message);
-                return null;
-            }
-        }
-
-        /**
-         * Download a .evicbin file from Google Drive by file ID.
+         * Download a public .bin file from Google Drive by file ID.
+         * No API key needed — just requires the file to be shared as "Anyone with the link".
+         * Uses the Google Drive direct download URL pattern.
          * Returns an ArrayBuffer, or null on failure.
          */
         async function downloadSnapshotFromGoogleDrive(fileId) {
-            const cfg = GDRIVE_SNAPSHOT_CONFIG;
-            if (!cfg.API_KEY) return null;
-
             try {
-                const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${cfg.API_KEY}`;
+                // Google Drive public file download URL (no auth/API key required)
+                const url = `https://drive.google.com/uc?export=download&id=${fileId}`;
                 console.log('📥 Downloading snapshot from Google Drive...');
                 const response = await fetch(url);
+
+                // Google may redirect large files through a virus scan confirmation page.
+                // For files under ~100MB this direct link works. If the response is HTML
+                // instead of binary, it means the file is too large and needs the confirm token.
                 if (!response.ok) {
                     console.warn('Google Drive download returned', response.status);
                     return null;
                 }
+
                 const buffer = await response.arrayBuffer();
+
+                // Sanity check: verify it starts with "EVIC" magic bytes (not an HTML error page)
+                if (buffer.byteLength < 17) {
+                    console.warn('Downloaded file too small to be a valid snapshot');
+                    return null;
+                }
+                const magic = String.fromCharCode(
+                    new Uint8Array(buffer)[0], new Uint8Array(buffer)[1],
+                    new Uint8Array(buffer)[2], new Uint8Array(buffer)[3]
+                );
+                if (magic !== 'EVIC') {
+                    console.warn('Downloaded file is not a valid .bin snapshot (bad magic:', magic, ')');
+                    return null;
+                }
+
                 console.log(`📥 Downloaded snapshot: ${(buffer.byteLength / 1024).toFixed(1)} KB`);
                 return buffer;
             } catch (e) {
@@ -8023,64 +7993,54 @@
         }
 
         /**
-         * Try to hydrate the app from a Google Drive snapshot.
+         * Try to hydrate the app from a Google Drive binary snapshot.
          * Returns { success: true, entityCount, timestamp } or { success: false }.
          *
          * Flow:
-         * 1. List .evicbin files in the Drive folder
-         * 2. Download the latest one
-         * 3. Parse and hydrate into stateCache
-         * 4. Convert to allData array
-         * 5. Run incremental sync for events since the snapshot
+         * 1. Download the .bin file by its known public file ID
+         * 2. Parse and hydrate into stateCache
+         * 3. Convert to allData array
+         * 4. Run incremental sync for events since the snapshot
          */
         async function tryHydrateFromGoogleDrive() {
-            if (!GDRIVE_SNAPSHOT_CONFIG.ENABLED || !GDRIVE_SNAPSHOT_CONFIG.API_KEY) {
-                return { success: false, reason: 'disabled_or_no_api_key' };
+            const cfg = GDRIVE_SNAPSHOT_CONFIG;
+            if (!cfg.ENABLED || !cfg.FILE_ID) {
+                return { success: false, reason: 'disabled_or_no_file_id' };
             }
 
             if (typeof EOIntegration === 'undefined') {
                 return { success: false, reason: 'eo_integration_not_loaded' };
             }
 
+            // Skip if we already hydrated recently (within cache TTL)
             try {
-                // Step 1: Find latest snapshot
-                updateStatus('Checking for binary snapshot...', 'loading');
-                const fileInfo = await listSnapshotsOnGoogleDrive();
-                if (!fileInfo) {
-                    return { success: false, reason: 'no_snapshot_on_drive' };
+                const lastHydrated = localStorage.getItem(cfg.CACHE_KEY);
+                if (lastHydrated && (Date.now() - parseInt(lastHydrated)) < cfg.CACHE_TTL_MS) {
+                    console.log('📁 Recently hydrated from Drive, skipping');
+                    return { success: false, reason: 'recently_hydrated' };
                 }
+            } catch (e) { /* ignore */ }
 
-                // Step 2: Check if we already have newer local data
-                const localSyncTs = localStorage.getItem('eo_last_sync_ts');
-                if (localSyncTs) {
-                    const driveModified = new Date(fileInfo.modifiedTime).getTime();
-                    const localTs = parseInt(localSyncTs);
-                    // If our local sync is newer than the Drive snapshot, skip Drive
-                    if (localTs >= driveModified) {
-                        console.log('📁 Local data is newer than Drive snapshot, skipping');
-                        return { success: false, reason: 'local_data_newer' };
-                    }
-                }
-
-                // Step 3: Download snapshot
-                updateStatus(`Downloading snapshot: ${fileInfo.name}...`, 'loading');
-                const buffer = await downloadSnapshotFromGoogleDrive(fileInfo.id);
+            try {
+                // Step 1: Download snapshot
+                updateStatus('Downloading binary snapshot...', 'loading');
+                const buffer = await downloadSnapshotFromGoogleDrive(cfg.FILE_ID);
                 if (!buffer) {
                     return { success: false, reason: 'download_failed' };
                 }
 
-                // Step 4: Hydrate
+                // Step 2: Hydrate
                 updateStatus('Hydrating from binary snapshot...', 'loading');
                 const hydrationResult = EOIntegration.hydrateFromBinarySnapshot(buffer);
 
-                // Step 5: Convert to allData
+                // Step 3: Convert to allData
                 const cases = EOIntegration.getAllCases();
                 const normalized = cases.map(normalizeRecord);
                 allData = dedupeByDocketNumber(normalized);
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
 
-                // Save to IndexedDB so subsequent loads use the cache path
+                // Save to IndexedDB so subsequent loads use the fast cache path
                 const timestamp = Date.now();
                 evictionDB.saveFull(allData, timestamp).then(success => {
                     if (success) {
@@ -8089,9 +8049,12 @@
                     }
                 });
 
+                // Mark that we hydrated from Drive (to avoid re-downloading within TTL)
+                localStorage.setItem(cfg.CACHE_KEY, Date.now().toString());
+
                 console.log(`✅ Hydrated from Drive snapshot: ${allData.length} records`);
 
-                // Step 6: Incremental sync for events since snapshot
+                // Step 4: Incremental sync for events since snapshot
                 updateStatus('Fetching events since snapshot...', 'loading');
                 let incrementalCount = 0;
                 try {
@@ -15897,29 +15860,20 @@
                     : estKB + ' KB';
             }
 
-            // API key status
-            const apiKeyEl = document.getElementById('snapshotApiKeyStatus');
-            if (apiKeyEl) {
-                const hasKey = GDRIVE_SNAPSHOT_CONFIG.API_KEY && GDRIVE_SNAPSHOT_CONFIG.API_KEY.length > 0;
-                apiKeyEl.textContent = hasKey
-                    ? 'Google API key configured'
-                    : 'No Google API key set — auto-fetch from Drive disabled. Set GDRIVE_SNAPSHOT_CONFIG.API_KEY in source.';
-                apiKeyEl.className = hasKey
-                    ? 'text-xs text-emerald-600'
-                    : 'text-xs text-amber-600';
-            }
-
             // Auto-hydration status
             const autoStatusEl = document.getElementById('snapshotAutoStatus');
+            const fileIdStatusEl = document.getElementById('snapshotFileIdStatus');
             if (autoStatusEl) {
-                const hasKey = GDRIVE_SNAPSHOT_CONFIG.API_KEY && GDRIVE_SNAPSHOT_CONFIG.API_KEY.length > 0;
+                const hasFileId = GDRIVE_SNAPSHOT_CONFIG.FILE_ID && GDRIVE_SNAPSHOT_CONFIG.FILE_ID.length > 0;
                 const enabled = GDRIVE_SNAPSHOT_CONFIG.ENABLED;
-                if (enabled && hasKey) {
+                if (enabled && hasFileId) {
                     autoStatusEl.textContent = 'Active';
                     autoStatusEl.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800';
-                } else if (enabled && !hasKey) {
-                    autoStatusEl.textContent = 'Needs API Key';
+                    if (fileIdStatusEl) fileIdStatusEl.textContent = 'File ID: ' + GDRIVE_SNAPSHOT_CONFIG.FILE_ID.slice(0, 12) + '...';
+                } else if (enabled && !hasFileId) {
+                    autoStatusEl.textContent = 'No File ID';
                     autoStatusEl.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800';
+                    if (fileIdStatusEl) fileIdStatusEl.textContent = 'Set FILE_ID in GDRIVE_SNAPSHOT_CONFIG';
                 } else {
                     autoStatusEl.textContent = 'Disabled';
                     autoStatusEl.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600';
@@ -16150,7 +16104,7 @@
                 });
                 snapshotZone.addEventListener('drop', (e) => {
                     const files = e.dataTransfer.files;
-                    if (files.length > 0 && files[0].name.endsWith('.evicbin')) {
+                    if (files.length > 0 && files[0].name.endsWith('.bin')) {
                         // Trigger the import handler with a synthetic event
                         const input = document.getElementById('snapshotFileInput');
                         const dt = new DataTransfer();
