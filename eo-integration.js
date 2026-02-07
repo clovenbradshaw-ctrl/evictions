@@ -332,6 +332,105 @@ const EOIntegration = (function() {
     }
   }
 
+  // =============================================================================
+  // CURRENT STATE SYNC (new model)
+  // =============================================================================
+
+  /**
+   * Sync from the current-state endpoint (new model).
+   * Replaces event replay with direct state reads.
+   *
+   * @param {object} options - Sync options
+   * @param {function} options.onProgress - Progress callback
+   * @param {number} options.perPage - Items per page
+   * @param {boolean} options.incrementalFromLastSync - If true, only fetches records updated since last sync
+   * @returns {object} { synced, entities, pages }
+   */
+  async function syncFromCurrentState(options = {}) {
+    console.log('Syncing from current-state endpoint...');
+
+    try {
+      const fetchOptions = {
+        onProgress: options.onProgress,
+        perPage: options.perPage || EOMigration.CONFIG.DEFAULT_PAGE_SIZE,
+        log: console.log
+      };
+
+      // Incremental: only fetch records updated since last sync
+      if (options.incrementalFromLastSync && lastSyncTimestamp > 0) {
+        fetchOptions.updated_since = lastSyncTimestamp;
+        console.log('  Incremental sync from:', new Date(lastSyncTimestamp).toISOString());
+      }
+
+      const result = await EOMigration.fetchAllCurrentState(fetchOptions);
+
+      if (result.states.length === 0) {
+        console.log('  No records found');
+        return { synced: 0, entities: 0, pages: 0 };
+      }
+
+      console.log('  Fetched', result.states.length, 'entities across', result.pagesFetched, 'pages');
+
+      if (options.incrementalFromLastSync && stateCache.size > 0) {
+        // Merge new states into existing cache
+        for (const state of result.states) {
+          const entityId = state._entity_id || state.Docket_Number;
+          if (entityId) {
+            stateCache.set(entityId, state);
+          }
+        }
+      } else {
+        // Full sync - replace cache
+        stateCache.clear();
+        for (const state of result.states) {
+          const entityId = state._entity_id || state.Docket_Number;
+          if (entityId) {
+            stateCache.set(entityId, state);
+          }
+        }
+      }
+
+      // Update sync timestamp
+      const now = Date.now();
+      lastSyncTimestamp = now;
+      localStorage.setItem(CONFIG.LAST_SYNC_KEY, now.toString());
+
+      // Save to cache
+      await saveEventsToCache();
+
+      console.log('Synced', result.states.length, 'entities,', stateCache.size, 'total in cache');
+      return {
+        synced: result.states.length,
+        entities: stateCache.size,
+        pages: result.pagesFetched
+      };
+    } catch (e) {
+      console.error('Current-state sync failed:', e);
+      throw e;
+    }
+  }
+
+  /**
+   * Create or update a case via the current-state endpoint.
+   * Appends the new data as an entry in the `data` array.
+   *
+   * @param {string} rawDocket - Docket number
+   * @param {object} caseData - The case data to store
+   * @param {object} options - Additional options
+   * @returns {object} API response
+   */
+  async function pushCaseToCurrentState(rawDocket, caseData, options = {}) {
+    const docket = EOMigration.normalizeDocketNumber(rawDocket);
+    const body = EOMigration.toCurrentStateFormat(docket, caseData, options);
+    const result = await EOMigration.pushCurrentState(body);
+
+    // Update local cache
+    const state = { ...caseData, Docket_Number: docket, _entity_id: docket, _last_updated: Date.now() };
+    stateCache.set(docket, state);
+
+    return result;
+  }
+
   /**
    * Full sync using the paginated endpoint
    * More efficient for initial sync or full rebuilds
@@ -1112,11 +1211,15 @@ const EOIntegration = (function() {
     // Initialization
     initialize,
 
-    // Sync
+    // Sync (legacy event-sourcing)
     syncFromEO,
     syncFromEOPaginated,
     startBackgroundSync,
     stopBackgroundSync,
+
+    // Sync (current-state model)
+    syncFromCurrentState,
+    pushCaseToCurrentState,
 
     // CRUD operations
     createCase,

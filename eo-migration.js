@@ -29,12 +29,16 @@ const EOMigration = (function() {
   // =============================================================================
 
   const CONFIG = {
-    // EO operations endpoints (primary API)
+    // EO operations endpoints (legacy event-sourcing API)
     OPERATIONS_GET_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_operations',
     // Paginated endpoint for efficient full syncs
     OPERATIONS_PAGINATED_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/evictionseoeventsPage',
     // POST URL is encrypted and must be set via setPostEndpoint() after authentication
     OPERATIONS_POST_URL: null,
+
+    // Current-state API endpoints (new model)
+    CURRENT_STATE_GET_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_current_state',
+    CURRENT_STATE_POST_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_current_state',
 
     // Source table identifier
     SOURCE_TABLE: 'eviction_cases',
@@ -1317,6 +1321,333 @@ const EOMigration = (function() {
   }
 
   // =============================================================================
+  // CURRENT STATE API (new model)
+  // =============================================================================
+
+  /**
+   * Current State table schema:
+   * {
+   *   id: integer (auto-increment PK),
+   *   created_at: timestamp,
+   *   object_type: text (e.g., 'eviction_case'),
+   *   object_id: text (docket number),
+   *   data: json (array of state entries — enumerable payload for replay),
+   *   updated_at: timestamp,
+   *   deleted: boolean (soft-delete flag)
+   * }
+   *
+   * The `data` field is a JSON array. Each entry is a snapshot of the case at
+   * a point in time. New updates append entries to the array. Current state is
+   * derived by merging all entries cumulatively (same semantics as EO replay).
+   */
+
+  /**
+   * Parse a current-state row into internal case format.
+   * Replays the `data` array entries cumulatively to produce current state.
+   *
+   * @param {object} row - A row from the eviction_current_state table
+   * @returns {object} Reconstructed case state
+   */
+  function fromCurrentStateFormat(row) {
+    const objectId = row.object_id || '';
+    const normalizedId = normalizeDocketNumber(objectId);
+
+    // Parse the data field — it may be a JSON string or already parsed
+    let dataEntries = row.data;
+    if (typeof dataEntries === 'string') {
+      dataEntries = safeJsonParse(dataEntries, []);
+    }
+    if (!Array.isArray(dataEntries)) {
+      dataEntries = dataEntries ? [dataEntries] : [];
+    }
+
+    // Replay entries cumulatively to build current state
+    const state = {};
+
+    function isEmpty(value) {
+      if (value === null || value === undefined || value === '') return true;
+      if (Array.isArray(value) && value.length === 0) return true;
+      return false;
+    }
+
+    for (const entry of dataEntries) {
+      if (!entry || typeof entry !== 'object') continue;
+      for (const [field, value] of Object.entries(entry)) {
+        if (!isEmpty(value)) {
+          state[field] = value;
+        }
+      }
+    }
+
+    // Ensure identity fields are set
+    state.Docket_Number = state.Docket_Number || normalizedId;
+    state._entity_id = normalizedId;
+    state._last_updated = row.updated_at
+      ? new Date(row.updated_at).getTime()
+      : (row.created_at ? new Date(row.created_at).getTime() : Date.now());
+    state._current_state_id = row.id;
+    state._data_entries_count = dataEntries.length;
+    state._deleted = row.deleted || false;
+
+    return state;
+  }
+
+  /**
+   * Convert internal case data to current-state POST format.
+   *
+   * @param {string} objectId - The docket number (object_id)
+   * @param {object|Array} data - Case data entry or array of entries for the `data` field
+   * @param {object} options - Additional options
+   * @param {string} options.object_type - Entity type (default: 'eviction_case')
+   * @param {boolean} options.deleted - Soft-delete flag (default: false)
+   * @returns {object} Body ready for POST to /eviction_current_state
+   */
+  function toCurrentStateFormat(objectId, data, options = {}) {
+    const normalizedId = normalizeDocketNumber(objectId);
+    const dataArray = Array.isArray(data) ? data : [data];
+
+    return {
+      object_type: options.object_type || 'eviction_case',
+      object_id: normalizedId,
+      data: dataArray,
+      deleted: options.deleted || false
+    };
+  }
+
+  /**
+   * Fetch all records from the current-state endpoint.
+   *
+   * @param {object} options - Fetch options
+   * @param {string} options.object_id - Filter by docket number
+   * @param {string} options.object_type - Filter by entity type
+   * @param {number} options.updated_since - Only fetch records updated after this timestamp (ms)
+   * @param {number} options.page - Page number
+   * @param {number} options.per_page - Items per page
+   * @returns {Array} Array of current-state rows
+   */
+  async function fetchCurrentState(options = {}) {
+    const params = new URLSearchParams();
+
+    if (options.object_id) {
+      params.append('object_id', options.object_id);
+    }
+    if (options.object_type) {
+      params.append('object_type', options.object_type);
+    }
+    if (options.updated_since) {
+      params.append('updated_since', options.updated_since);
+    }
+    if (options.page) {
+      params.append('page', options.page);
+    }
+    if (options.per_page) {
+      params.append('per_page', options.per_page);
+    }
+
+    const url = params.toString()
+      ? `${CONFIG.CURRENT_STATE_GET_URL}?${params.toString()}`
+      : CONFIG.CURRENT_STATE_GET_URL;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch current state: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const items = result.items || result;
+    return Array.isArray(items) ? items : [items];
+  }
+
+  /**
+   * Fetch all current-state records with pagination.
+   * Iterates through all pages and reconstructs case states.
+   *
+   * @param {object} options - Fetch options
+   * @param {function} options.onProgress - Progress callback ({ page, pageTotal, itemsFetched, itemsTotal })
+   * @param {function} options.log - Logging function
+   * @param {number} options.perPage - Items per page (default: CONFIG.DEFAULT_PAGE_SIZE)
+   * @param {number} options.updated_since - Only fetch records updated after this timestamp (ms)
+   * @param {number} options.maxPages - Safety limit (default: 100)
+   * @returns {object} { rows, states, stateCount, pagesFetched, itemsTotal }
+   */
+  async function fetchAllCurrentState(options = {}) {
+    const log = options.log || console.log;
+    const onProgress = options.onProgress || null;
+    const perPage = options.perPage || CONFIG.DEFAULT_PAGE_SIZE;
+    const maxPages = options.maxPages || 100;
+
+    log('Fetching all current-state records...');
+
+    let allRows = [];
+    let page = 1;
+    let pageTotal = null;
+    let itemsTotal = null;
+
+    while (true) {
+      const fetchOpts = {
+        page,
+        per_page: perPage
+      };
+      if (options.updated_since) {
+        fetchOpts.updated_since = options.updated_since;
+      }
+
+      const result = await fetchCurrentState(fetchOpts);
+
+      // Handle paginated vs flat response
+      if (Array.isArray(result)) {
+        allRows = allRows.concat(result);
+
+        if (onProgress) {
+          onProgress({
+            page,
+            pageTotal: pageTotal || page,
+            itemsFetched: allRows.length,
+            itemsTotal: itemsTotal || allRows.length
+          });
+        }
+
+        // If we got fewer items than perPage, we've reached the end
+        if (result.length < perPage) {
+          break;
+        }
+      } else {
+        // Paginated response with metadata
+        const items = result.items || [];
+        allRows = allRows.concat(items);
+
+        if (page === 1) {
+          pageTotal = result.pageTotal || 1;
+          itemsTotal = result.itemsTotal || items.length;
+        }
+
+        if (onProgress) {
+          onProgress({
+            page,
+            pageTotal: result.pageTotal || page,
+            itemsFetched: allRows.length,
+            itemsTotal: result.itemsTotal || allRows.length
+          });
+        }
+
+        if (!result.nextPage || items.length === 0) {
+          break;
+        }
+      }
+
+      if (page >= maxPages) {
+        log('Reached page limit (' + maxPages + '), stopping fetch');
+        break;
+      }
+
+      page++;
+    }
+
+    log('Fetched ' + allRows.length + ' current-state rows across ' + page + ' pages');
+
+    // Convert rows to internal case states
+    const states = [];
+    for (const row of allRows) {
+      if (row.deleted) continue; // Skip soft-deleted records
+      const state = fromCurrentStateFormat(row);
+      if (state && state._entity_id) {
+        states.push(state);
+      }
+    }
+
+    log('Reconstructed ' + states.length + ' entities from current-state table');
+
+    return {
+      rows: allRows,
+      states: states,
+      stateCount: states.length,
+      pagesFetched: page,
+      itemsTotal: itemsTotal || allRows.length
+    };
+  }
+
+  /**
+   * Push a record to the current-state endpoint.
+   *
+   * @param {object} body - The POST body (from toCurrentStateFormat)
+   * @returns {object} API response
+   */
+  async function pushCurrentState(body) {
+    const response = await fetch(CONFIG.CURRENT_STATE_POST_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to push current state: ${response.status} - ${errorText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Push multiple current-state records in batches.
+   *
+   * @param {Array} records - Array of POST bodies (from toCurrentStateFormat)
+   * @param {function} onProgress - Progress callback
+   * @returns {object} { success, failed, errors }
+   */
+  async function pushCurrentStateBatch(records, onProgress = null) {
+    const results = { success: 0, failed: 0, errors: [] };
+
+    for (let i = 0; i < records.length; i += CONFIG.BATCH_SIZE) {
+      const batch = records.slice(i, i + CONFIG.BATCH_SIZE);
+
+      for (const record of batch) {
+        try {
+          await pushCurrentState(record);
+          results.success++;
+        } catch (error) {
+          results.failed++;
+          results.errors.push({ object_id: record.object_id, error: error.message });
+        }
+      }
+
+      if (onProgress) {
+        onProgress({
+          processed: Math.min(i + CONFIG.BATCH_SIZE, records.length),
+          total: records.length,
+          success: results.success,
+          failed: results.failed
+        });
+      }
+
+      // Small delay between batches
+      if (i + CONFIG.BATCH_SIZE < records.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Get the data entries (update history) for a specific record from the current-state table.
+   * Useful for audit/replay of a single entity.
+   *
+   * @param {string} objectId - The docket number
+   * @returns {Array} The data entries array from the record
+   */
+  async function fetchCurrentStateHistory(objectId) {
+    const rows = await fetchCurrentState({ object_id: normalizeDocketNumber(objectId) });
+    if (rows.length === 0) return [];
+
+    const row = rows[0];
+    let dataEntries = row.data;
+    if (typeof dataEntries === 'string') {
+      dataEntries = safeJsonParse(dataEntries, []);
+    }
+    return Array.isArray(dataEntries) ? dataEntries : [dataEntries];
+  }
+
+  // =============================================================================
   // XANO TABLE SCHEMA (for reference when creating table)
   // =============================================================================
 
@@ -1392,15 +1723,24 @@ const EOMigration = (function() {
     getCreatedInRange,
     getEntitiesWithFieldChange,
 
-    // Xano API
+    // Xano API (legacy event-sourcing)
     fetchEvents,
     fetchEventsPaginated,
     pushEvent,
     pushEventsBatch,
 
+    // Current State API (new model)
+    fetchCurrentState,
+    fetchAllCurrentState,
+    pushCurrentState,
+    pushCurrentStateBatch,
+    fetchCurrentStateHistory,
+
     // Format conversion
     toXanoFormat,
     fromXanoFormat,
+    fromCurrentStateFormat,
+    toCurrentStateFormat,
 
     // Schema reference
     XANO_TABLE_SCHEMA,
