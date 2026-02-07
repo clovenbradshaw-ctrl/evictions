@@ -7437,8 +7437,32 @@
             return null;
         }
 
-        // API query builder for EO eviction_operations endpoint with pagination and filtering
-        // Uses event sourcing - fetches events and reconstructs state
+        // Current-state API endpoint (new model — replaces event-sourcing for reads)
+        const CURRENT_STATE_API = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_current_state';
+
+        // API query builder for current-state endpoint
+        function buildCurrentStateApiUrl(options = {}) {
+            const params = new URLSearchParams();
+
+            if (options.page !== undefined && options.page !== null) {
+                params.append('page', options.page);
+            }
+            if (options.per_page !== undefined && options.per_page !== null) {
+                params.append('per_page', options.per_page);
+            }
+            if (options.object_id) {
+                params.append('object_id', options.object_id);
+            }
+            if (options.updated_since) {
+                params.append('updated_since', options.updated_since);
+            }
+
+            const queryString = params.toString();
+            return queryString ? `${CURRENT_STATE_API}?${queryString}` : CURRENT_STATE_API;
+        }
+
+        // Legacy API query builder for EO eviction_operations endpoint with pagination and filtering
+        // Kept for backwards compatibility / fallback
         function buildEOApiUrl(options = {}) {
             const API_BASE = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_operations';
             const params = new URLSearchParams();
@@ -8209,32 +8233,27 @@
                     console.log('📦 Found cached data:', cachedData.length, 'records');
                     console.log('📌 Last sync timestamp:', lastSyncTs, '(' + new Date(parseInt(lastSyncTs)).toISOString() + ')');
 
-                    // Fetch only new events since last sync
-                    const incrementalUrl = buildEOApiUrl({ ts_gt: lastSyncTs });
-                    console.log('🔄 Incremental sync URL:', incrementalUrl);
-                    updateStatus('Fetching new events since last sync...', 'loading');
+                    // Fetch only records updated since last sync from current-state endpoint
+                    const incrementalUrl = buildCurrentStateApiUrl({ updated_since: lastSyncTs });
+                    console.log('🔄 Incremental sync URL (current-state):', incrementalUrl);
+                    updateStatus('Fetching updated records since last sync...', 'loading');
 
                     try {
                         const response = await fetch(incrementalUrl);
                         if (response.ok) {
                             const result = await response.json();
-                            let newEvents = Array.isArray(result) ? result : (result?.items || result?.data || []);
+                            let updatedRows = Array.isArray(result) ? result : (result?.items || result?.data || []);
 
-                            // Parse events from Xano format
-                            if (newEvents.length > 0 && typeof EOMigration !== 'undefined') {
-                                newEvents = newEvents.map(e => EOMigration.fromXanoFormat(e));
-                            }
+                            console.log('📥 Fetched', updatedRows.length, 'updated current-state rows');
 
-                            console.log('📥 Fetched', newEvents.length, 'new events');
-
-                            if (newEvents.length === 0) {
-                                // No new events - use cached data as-is
+                            if (updatedRows.length === 0) {
+                                // No updates - use cached data as-is
                                 allData = cachedData;
                                 filteredData = allData;
                                 calculateGlobalDataRange(allData);
 
                                 const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
-                                console.log('✅ Cache is current, no new events');
+                                console.log('✅ Cache is current, no updates');
                                 console.groupEnd();
 
                                 updateStatus(`Loaded ${allData.length} records (already up to date)`, 'success');
@@ -8251,22 +8270,36 @@
                                 return;
                             }
 
-                            // Apply new events to cached state (incremental replay)
-                            console.log('🔄 Applying', newEvents.length, 'new events to cached state...');
-                            const updatedRecords = applyEventsToState(cachedData, newEvents);
-
-                            // Track newest timestamp for next sync
-                            let newestTs = parseInt(lastSyncTs);
-                            for (const event of newEvents) {
-                                if (event.ts && event.ts > newestTs) {
-                                    newestTs = event.ts;
-                                }
+                            // Convert current-state rows to case states and merge into cached data
+                            console.log('🔄 Merging', updatedRows.length, 'updated records into cached state...');
+                            const stateMap = new Map();
+                            for (const record of cachedData) {
+                                const id = normalizeDocketNumber(record.Docket_Number || record.Case_Number || record._entity_id || '');
+                                if (id) stateMap.set(id, record);
                             }
-                            localStorage.setItem('eo_last_sync_ts', newestTs.toString());
-                            console.log('📌 Updated sync timestamp:', newestTs);
+
+                            for (const row of updatedRows) {
+                                if (row.deleted) {
+                                    // Remove soft-deleted records
+                                    const delId = normalizeDocketNumber(row.object_id || '');
+                                    if (delId) stateMap.delete(delId);
+                                    continue;
+                                }
+                                const state = typeof EOMigration !== 'undefined'
+                                    ? EOMigration.fromCurrentStateFormat(row)
+                                    : row;
+                                const entityId = state._entity_id || state.Docket_Number || normalizeDocketNumber(row.object_id || '');
+                                if (entityId) stateMap.set(entityId, state);
+                            }
+
+                            // Track sync timestamp
+                            const now = Date.now();
+                            localStorage.setItem('eo_last_sync_ts', now.toString());
+                            console.log('📌 Updated sync timestamp:', now);
 
                             // Normalize and dedupe
-                            const normalizedData = updatedRecords.map(normalizeRecord);
+                            const mergedRecords = Array.from(stateMap.values());
+                            const normalizedData = mergedRecords.map(normalizeRecord);
                             allData = dedupeByDocketNumber(normalizedData);
                             filteredData = allData;
                             calculateGlobalDataRange(allData);
@@ -8293,7 +8326,7 @@
                             console.log('✅ Incremental sync complete:', allData.length, 'total records');
                             console.groupEnd();
 
-                            updateStatus(`Synced ${newEvents.length} new events (${allData.length} total records)`, 'success');
+                            updateStatus(`Synced ${updatedRows.length} updated records (${allData.length} total)`, 'success');
                             updateMetrics();
                             updateCharts();
                             createDistrictMap();
@@ -8318,10 +8351,30 @@
                 let newestTs = null;
                 let lastError = null;
 
-                // Primary: use paginated fetch to handle large datasets
-                if (typeof EOMigration !== 'undefined' && EOMigration.fetchAllEventsPaginated) {
+                // Primary: fetch from current-state endpoint (no replay needed)
+                if (typeof EOMigration !== 'undefined' && EOMigration.fetchAllCurrentState) {
                     try {
-                        console.log('📡 Using paginated fetch for full sync...');
+                        console.log('📡 Using current-state endpoint for full sync...');
+                        const csResult = await EOMigration.fetchAllCurrentState({
+                            onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
+                                updateStatus(`Loading page ${page}/${pageTotal || '?'} (${itemsFetched}/${itemsTotal || '?'} records)...`, 'loading');
+                            }
+                        });
+
+                        flattenedData = csResult.states;
+                        newestTs = Date.now(); // Current-state is already up-to-date
+
+                        console.log('✅ Current-state fetch complete:', csResult.stateCount, 'cases');
+                    } catch (csError) {
+                        console.warn('⚠️ Current-state fetch failed, falling back to legacy event fetch:', csError.message);
+                        lastError = csError;
+                    }
+                }
+
+                // Fallback 1: legacy paginated event fetch + replay
+                if (!flattenedData && typeof EOMigration !== 'undefined' && EOMigration.fetchAllEventsPaginated) {
+                    try {
+                        console.log('📡 Fallback: using paginated event fetch for full sync...');
                         const paginatedResult = await EOMigration.fetchAllEventsPaginated({
                             onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
                                 updateStatus(`Loading page ${page}/${pageTotal || '?'} (${itemsFetched}/${itemsTotal || '?'} events)...`, 'loading');
@@ -8330,7 +8383,6 @@
 
                         flattenedData = paginatedResult.states;
 
-                        // Track newest timestamp from fetched events for incremental sync
                         for (const event of paginatedResult.events) {
                             if (event.ts && (!newestTs || event.ts > newestTs)) {
                                 newestTs = event.ts;
@@ -8344,7 +8396,7 @@
                     }
                 }
 
-                // Fallback: direct (non-paginated) API call
+                // Fallback 2: direct (non-paginated) API call
                 if (!flattenedData) {
                     const API_URL = buildEOApiUrl();
                     console.log('API URL (full sync fallback):', API_URL);
@@ -8412,7 +8464,7 @@
                         data = [result];
                     }
 
-                    console.log('🔢 Raw event count:', data.length);
+                    console.log('🔢 Raw record count:', data.length);
 
                     // Track the newest timestamp for incremental sync
                     for (const record of data) {
@@ -8421,15 +8473,26 @@
                         }
                     }
 
+                    // Detect if this is current-state format (has object_id + data array)
+                    const isCurrentStateFormat = data.length > 0 && data[0].object_id !== undefined && data[0].data !== undefined;
+                    if (isCurrentStateFormat && typeof EOMigration !== 'undefined') {
+                        console.log('📊 Detected current-state format, parsing', data.length, 'rows...');
+                        flattenedData = data
+                            .filter(row => !row.deleted)
+                            .map(row => EOMigration.fromCurrentStateFormat(row));
+                        console.log('📊 Parsed', flattenedData.length, 'cases from current-state rows');
+                    }
                     // Detect if this is EO events format and reconstruct state
-                    const isEOFormat = data.length > 0 && data[0].op !== undefined && data[0].target !== undefined;
-                    if (isEOFormat && typeof EOMigration !== 'undefined') {
-                        console.log('📊 Detected EO event format, reconstructing state from', data.length, 'events...');
-                        const events = data.map(e => EOMigration.fromXanoFormat(e));
-                        flattenedData = EOMigration.reconstructAllStates(events);
-                        console.log('📊 Reconstructed', flattenedData.length, 'unique cases from', events.length, 'events');
-                    } else {
-                        flattenedData = data;
+                    else {
+                        const isEOFormat = data.length > 0 && data[0].op !== undefined && data[0].target !== undefined;
+                        if (isEOFormat && typeof EOMigration !== 'undefined') {
+                            console.log('📊 Detected EO event format, reconstructing state from', data.length, 'events...');
+                            const events = data.map(e => EOMigration.fromXanoFormat(e));
+                            flattenedData = EOMigration.reconstructAllStates(events);
+                            console.log('📊 Reconstructed', flattenedData.length, 'unique cases from', events.length, 'events');
+                        } else {
+                            flattenedData = data;
+                        }
                     }
                 }
 
@@ -8531,8 +8594,8 @@
             }
         }
 
-        // Incremental data loading - fetch only new records since last sync
-        // This is the "smart query" approach for fast refreshes
+        // Incremental data loading - fetch only updated records since last sync
+        // Uses current-state endpoint with updated_since filter
         async function loadDataIncremental() {
             // If no data loaded yet, do a full load
             if (!allData || allData.length === 0) {
@@ -8549,20 +8612,34 @@
                 // Get the last sync timestamp to query only newer records
                 const lastSyncTs = localStorage.getItem('eo_last_sync_ts');
 
-                // Build URL using the EO query builder
+                // Build URL using the current-state endpoint (primary) or EO fallback
                 const queryOptions = {};
+                let url;
+                let useCurrentState = true;
+
                 if (lastSyncTs) {
-                    queryOptions.ts_gt = lastSyncTs;
-                    console.log('📊 Smart query: fetching events after ts', lastSyncTs);
+                    queryOptions.updated_since = lastSyncTs;
+                    console.log('📊 Smart query: fetching records updated since', lastSyncTs);
+                    url = buildCurrentStateApiUrl(queryOptions);
                 } else {
                     console.log('📊 No previous timestamp, doing full fetch');
+                    url = buildCurrentStateApiUrl();
                 }
-
-                const url = buildEOApiUrl(queryOptions);
 
                 updateStatus('Checking for new records...', 'loading');
 
-                const response = await fetch(url);
+                let response;
+                try {
+                    response = await fetch(url);
+                } catch (fetchErr) {
+                    // If current-state fails, fall back to legacy EO endpoint
+                    console.warn('⚠️ Current-state fetch failed, trying legacy EO endpoint:', fetchErr.message);
+                    useCurrentState = false;
+                    const legacyOptions = {};
+                    if (lastSyncTs) legacyOptions.ts_gt = lastSyncTs;
+                    url = buildEOApiUrl(legacyOptions);
+                    response = await fetch(url);
+                }
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
@@ -8592,35 +8669,42 @@
                     return;
                 }
 
-                // Track the newest timestamp from new events
-                let newestTs = lastSyncTs ? parseInt(lastSyncTs) : 0;
-                for (const record of newData) {
-                    if (record.ts && record.ts > newestTs) {
-                        newestTs = record.ts;
-                    }
-                }
-
-                // Process new records - detect EO format vs legacy format
-                const isEOFormat = newData.length > 0 && newData[0].op !== undefined && newData[0].target !== undefined;
-                const isActivityStream = newData.length > 0 && newData[0].logged_at !== undefined && newData[0].case_data !== undefined;
-                const hasActivityMetadata = newData.length > 0 && newData[0].logged_at !== undefined;
-
                 let processedNewData;
-                if (isEOFormat && typeof EOMigration !== 'undefined') {
-                    // EO format: applyEventsToState returns the FULL updated state
-                    // (existing records + new events applied). No further merging needed.
-                    console.log('📊 Processing EO format events');
+
+                // Detect format and process accordingly
+                const isCurrentStateFormat = newData.length > 0 && newData[0].object_id !== undefined && newData[0].data !== undefined;
+                const isEOFormat = newData.length > 0 && newData[0].op !== undefined && newData[0].target !== undefined;
+
+                if (isCurrentStateFormat && typeof EOMigration !== 'undefined') {
+                    // Current-state format: merge updated rows into existing data
+                    console.log('📊 Processing current-state format records');
+                    const stateMap = new Map();
+                    for (const record of allData) {
+                        const id = normalizeDocketNumber(record.Docket_Number || record.Case_Number || record._entity_id || '');
+                        if (id) stateMap.set(id, record);
+                    }
+
+                    for (const row of newData) {
+                        if (row.deleted) {
+                            const delId = normalizeDocketNumber(row.object_id || '');
+                            if (delId) stateMap.delete(delId);
+                            continue;
+                        }
+                        const state = EOMigration.fromCurrentStateFormat(row);
+                        const entityId = state._entity_id || state.Docket_Number;
+                        if (entityId) stateMap.set(entityId, state);
+                    }
+
+                    processedNewData = Array.from(stateMap.values());
+                } else if (isEOFormat && typeof EOMigration !== 'undefined') {
+                    console.log('📊 Processing EO format events (fallback)');
                     const events = newData.map(e => EOMigration.fromXanoFormat(e));
                     processedNewData = applyEventsToState(allData, events);
-                } else if (isActivityStream) {
-                    processedNewData = reduceActivityStream(newData);
-                } else if (hasActivityMetadata) {
-                    processedNewData = reduceActivityStreamFlat(newData);
                 } else {
                     processedNewData = newData;
                 }
 
-                // Normalize and dedupe - applyEventsToState already merged everything
+                // Normalize and dedupe
                 const normalizedNewData = processedNewData.map(normalizeRecord);
                 const previousCount = allData.length;
                 allData = dedupeByDocketNumber(normalizedNewData);
@@ -8631,9 +8715,8 @@
                 const updatedCount = newData.length;
 
                 // Update the last sync timestamp
-                if (newestTs) {
-                    localStorage.setItem('eo_last_sync_ts', newestTs.toString());
-                }
+                const now = Date.now();
+                localStorage.setItem('eo_last_sync_ts', now.toString());
 
                 // Invalidate computed data caches
                 dataCache.invalidateAll();
@@ -8653,7 +8736,7 @@
                     console.warn('⚠️ localStorage quota exceeded for compressed data');
                 }
 
-                console.log(`✅ Sync complete: ${addedCount} new, ${updatedCount} events applied, ${allData.length} total`);
+                console.log(`✅ Sync complete: ${addedCount} new, ${updatedCount} records synced, ${allData.length} total`);
                 console.groupEnd();
 
                 // Update UI
@@ -16429,12 +16512,14 @@
             }
             const apiUrl = decryptedPostEndpoint;
 
-            // Upload each record as an EO event
+            // Upload each record to current-state endpoint
+            const currentStateApiUrl = CURRENT_STATE_API;
+
             for (let i = 0; i < transformedData.length; i++) {
                 const record = transformedData[i];
                 const progress = Math.round(((i + 1) / total) * 100);
 
-                // Validate that Docket_Number is present (required for entity_id)
+                // Validate that Docket_Number is present (required for object_id)
                 if (!record.Docket_Number) {
                     failed++;
                     addUploadStatusItem(statusLog, 'Missing required field', 'error', {
@@ -16450,28 +16535,22 @@
                 }
 
                 try {
-                    // Create EO INS event for each record
-                    const event = typeof EOMigration !== 'undefined'
-                        ? EOMigration.toXanoFormat(EOMigration.createInsertEvent(record, { source: 'csv_upload', version: '1.0' }))
+                    // Build current-state POST body
+                    const body = typeof EOMigration !== 'undefined'
+                        ? EOMigration.toCurrentStateFormat(record.Docket_Number, record, { object_type: 'eviction_case' })
                         : {
-                            id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                            ts: Date.now(),
-                            ts_iso: new Date().toISOString(),
-                            op: 'INS',
-                            entity_id: record.Docket_Number,
-                            entity_type: 'eviction_case',
-                            source_table: 'eviction_cases',
-                            target: JSON.stringify({ id: record.Docket_Number, type: 'eviction_case' }),
-                            payload: JSON.stringify({ table: 'eviction_cases', data: record }),
-                            frame: JSON.stringify({ source: 'csv_upload', version: '1.0' })
+                            object_type: 'eviction_case',
+                            object_id: record.Docket_Number,
+                            data: [record],
+                            deleted: false
                         };
 
-                    const response = await fetch(apiUrl, {
+                    const response = await fetch(currentStateApiUrl, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(event)
+                        body: JSON.stringify(body)
                     });
 
                     if (response.ok) {
@@ -18555,29 +18634,33 @@
                         pdf_created: docketPdfMetadata?.creationDate
                     };
 
+                    let body;
                     if (item.operation === 'INS') {
-                        // Create INSERT event with observationTS from PDF creation date
-                        event = EOMigration.createInsertEvent(item.record, frame, observationTS);
+                        // New record — POST full case data as a current-state entry
+                        body = EOMigration.toCurrentStateFormat(item.docketNumber, item.record, {
+                            object_type: 'eviction_case'
+                        });
                     } else {
-                        // Create ALTER event with observationTS from PDF creation date
-                        event = EOMigration.createBulkUpdateEvent(
-                            item.docketNumber,
-                            item.changes,
-                            frame,
-                            observationTS
-                        );
+                        // Update — build updated data entry with changes applied
+                        const updatedData = { ...item.record };
+                        if (item.changes) {
+                            for (const [field, change] of Object.entries(item.changes)) {
+                                const newValue = change.new !== undefined ? change.new : change;
+                                updatedData[field] = newValue;
+                            }
+                        }
+                        body = EOMigration.toCurrentStateFormat(item.docketNumber, updatedData, {
+                            object_type: 'eviction_case'
+                        });
                     }
 
-                    // Convert to Xano format
-                    const xanoEvent = EOMigration.toXanoFormat(event);
-
-                    // Upload to API
-                    const response = await fetch(decryptedPostEndpoint, {
+                    // Upload to current-state API
+                    const response = await fetch(CURRENT_STATE_API, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(xanoEvent)
+                        body: JSON.stringify(body)
                     });
 
                     if (!response.ok) {
