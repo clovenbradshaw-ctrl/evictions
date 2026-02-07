@@ -403,6 +403,28 @@ const EOIntegration = (function() {
   }
 
   /**
+   * Check if a value is empty (null, undefined, or empty string)
+   * Matches the no-nulls semantics of EOMigration.reconstructEntityState()
+   */
+  function isEmptyValue(value) {
+    return value === null || value === undefined || value === '';
+  }
+
+  /**
+   * Merge data into state, skipping empty/null/undefined values.
+   * This ensures that incremental sync matches the full replay behavior
+   * where empty values never overwrite existing data.
+   */
+  function mergeNonEmpty(target, source) {
+    if (!source) return;
+    for (const [key, value] of Object.entries(source)) {
+      if (!isEmptyValue(value)) {
+        target[key] = value;
+      }
+    }
+  }
+
+  /**
    * Apply a single event to the state cache
    *
    * Proper event sourcing implementation:
@@ -410,6 +432,7 @@ const EOIntegration = (function() {
    * - Creates entity from ALT data if it doesn't exist
    * - Tracks changes for all available data
    * - Uses normalized entity IDs for consistent deduplication
+   * - Empty/null values do NOT overwrite existing data (matches replay semantics)
    */
   function applyEventToStateCache(event) {
     const rawEntityId = event.entity_id || event.target?.id;
@@ -427,9 +450,11 @@ const EOIntegration = (function() {
         // New entity or update existing
         if (state) {
           // Merge into existing state (INS can be re-applied or come out of order)
-          if (payload.data) Object.assign(state, payload.data);
+          // Skip empty values to match replay semantics
+          mergeNonEmpty(state, payload.data);
         } else {
-          state = { ...(payload.data || {}) };
+          state = {};
+          mergeNonEmpty(state, payload.data);
           state.Docket_Number = entityId;
         }
         state._entity_id = entityId;
@@ -447,22 +472,26 @@ const EOIntegration = (function() {
         }
 
         // ALT with payload.data = full record upsert
-        if (payload.data) {
-          Object.assign(state, payload.data);
-        }
+        // Skip empty values to match replay semantics
+        mergeNonEmpty(state, payload.data);
 
         // ALT with payload.changes = delta update
         if (payload.changes) {
           for (const [field, change] of Object.entries(payload.changes)) {
             // change can be { old, new } or just a new value
             const newValue = change.new !== undefined ? change.new : change;
-            state[field] = newValue;
+            // Skip empty values - they don't delete fields
+            if (!isEmptyValue(newValue)) {
+              state[field] = newValue;
+            }
           }
         }
 
         // ALT with single field update via target.field
         if (event.target?.field && payload.new !== undefined) {
-          state[event.target.field] = payload.new;
+          if (!isEmptyValue(payload.new)) {
+            state[event.target.field] = payload.new;
+          }
         }
 
         state._last_updated = event.ts;
