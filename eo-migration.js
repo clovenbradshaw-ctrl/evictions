@@ -577,11 +577,11 @@ const EOMigration = (function() {
   /**
    * Reconstruct current state of a single entity from events
    *
-   * Proper event sourcing implementation:
-   * - Handles ALT events even without a prior INS event
-   * - Tracks the latest version of each field based on observationTS (not sync ts)
-   * - Supports partial updates (deltas) that only contain changed fields
-   * - Empty fields do NOT imply deletion
+   * Simple cumulative replay:
+   * - Sort events by ts (sync time) for stable ordering
+   * - First event (INS or ALT) creates the record
+   * - Subsequent events accumulate fields
+   * - Null/empty values NEVER overwrite existing data
    * - Supports both legacy 'context' and new 'payload' field names
    */
   function reconstructEntityState(entityId, events) {
@@ -591,110 +591,75 @@ const EOMigration = (function() {
     const entityEvents = events
       .filter(e => {
         const eventEntityId = e.entity_id || e.target?.id;
-        // Compare normalized IDs to properly group events with formatting variations
         return normalizeDocketNumber(eventEntityId) === normalizedEntityId;
       })
-      // Sort by observationTS for proper replay ordering
-      .sort((a, b) => getObservationTS(a) - getObservationTS(b));
+      // Sort by ts (sync time) for stable, simple ordering
+      .sort((a, b) => a.ts - b.ts);
 
     if (entityEvents.length === 0) {
       return null;
     }
 
-    let state = null;
-    // Track field versions: { fieldName: { value, observationTS } }
-    let fieldVersions = {};
+    // Simple cumulative state - no field versioning needed
+    let state = {};
 
     /**
-     * Get payload from event (supports both 'payload' and legacy 'context')
+     * Check if a value is empty (should not overwrite existing data)
      */
-    function getPayload(event) {
-      return event.payload || event.context || {};
+    function isEmpty(value) {
+      if (value === null || value === undefined || value === '') return true;
+      if (Array.isArray(value) && value.length === 0) return true;
+      return false;
     }
 
     /**
-     * Update a field only if this event's observation is newer than the last update
-     * Note: empty/null values do NOT delete fields
+     * Merge non-empty fields from source into state.
+     * Non-empty values always overwrite; empty values never overwrite.
      */
-    function updateField(fieldName, value, observationTS) {
-      // Only update if we have a value AND this observation is newer
-      // Empty values don't overwrite existing data
-      if (value === null || value === undefined || value === '') {
-        return; // Skip empty values - they don't delete fields
-      }
-      if (!fieldVersions[fieldName] || observationTS >= fieldVersions[fieldName].observationTS) {
-        fieldVersions[fieldName] = { value, observationTS };
-      }
-    }
-
-    /**
-     * Apply all fields from a data object
-     */
-    function applyData(data, observationTS) {
+    function mergeFields(data) {
       if (!data) return;
       for (const [field, value] of Object.entries(data)) {
-        if (value !== undefined) {
-          updateField(field, value, observationTS);
+        if (!isEmpty(value)) {
+          state[field] = value;
         }
       }
     }
 
     for (const event of entityEvents) {
-      const eventObservationTS = getObservationTS(event);
-      const payload = getPayload(event);
+      const payload = event.payload || event.context || {};
 
-      switch (event.op) {
-        case OPERATORS.INS:
-          // Initialize/update state from INS event data
-          applyData(payload.data, eventObservationTS);
-          break;
+      // INS or ALT - same logic: merge non-empty fields cumulatively
+      if (payload.data) {
+        mergeFields(payload.data);
+      }
 
-        case OPERATORS.ALT:
-          // ALT with payload.data = full record upsert
-          if (payload.data) {
-            applyData(payload.data, eventObservationTS);
+      // ALT with payload.changes = delta update
+      if (payload.changes) {
+        for (const [field, change] of Object.entries(payload.changes)) {
+          const newValue = change.new !== undefined ? change.new : change;
+          if (!isEmpty(newValue)) {
+            state[field] = newValue;
           }
+        }
+      }
 
-          // ALT with payload.changes = delta update (works even without prior INS)
-          if (payload.changes) {
-            for (const [field, change] of Object.entries(payload.changes)) {
-              // change can be { old, new } or just a new value
-              const newValue = change.new !== undefined ? change.new : change;
-              updateField(field, newValue, eventObservationTS);
-            }
-          }
-
-          // ALT with single field update via target.field
-          if (event.target.field && payload.new !== undefined) {
-            updateField(event.target.field, payload.new, eventObservationTS);
-          }
-          break;
+      // ALT with single field update via target.field
+      if (event.target && event.target.field && payload.new !== undefined) {
+        if (!isEmpty(payload.new)) {
+          state[event.target.field] = payload.new;
+        }
       }
     }
 
-    // Build final state from latest field versions
-    if (Object.keys(fieldVersions).length > 0) {
-      state = {};
-      for (const [field, versionInfo] of Object.entries(fieldVersions)) {
-        state[field] = versionInfo.value;
-      }
-
-      // Ensure Docket_Number is set with normalized value
-      if (!state.Docket_Number) {
-        state.Docket_Number = normalizedEntityId;
-      } else {
-        // Normalize any existing Docket_Number for consistency
-        state.Docket_Number = normalizeDocketNumber(state.Docket_Number);
-      }
+    if (Object.keys(state).length === 0) {
+      return null;
     }
 
-    // Add metadata using normalized entity ID
-    if (state) {
-      state._entity_id = normalizedEntityId;
-      // Use the latest observationTS for _last_updated
-      state._last_updated = getObservationTS(entityEvents[entityEvents.length - 1]);
-      state._event_count = entityEvents.length;
-    }
+    // Ensure Docket_Number is set with normalized value
+    state.Docket_Number = normalizedEntityId;
+    state._entity_id = normalizedEntityId;
+    state._last_updated = entityEvents[entityEvents.length - 1].ts;
+    state._event_count = entityEvents.length;
 
     return state;
   }
@@ -747,11 +712,10 @@ const EOMigration = (function() {
     const normalizedEntityId = normalizeDocketNumber(entityId);
     return events
       .filter(e => normalizeDocketNumber(e.entity_id || e.target?.id) === normalizedEntityId)
-      .sort((a, b) => getObservationTS(a) - getObservationTS(b))
+      .sort((a, b) => a.ts - b.ts)
       .map(e => ({
         id: e.id,
         when: new Date(e.ts).toISOString(),
-        observedAt: new Date(getObservationTS(e)).toISOString(),
         op: e.op,
         meaning: OPERATOR_MEANINGS[e.op] || e.op,
         details: e.payload || e.context,
@@ -789,14 +753,14 @@ const EOMigration = (function() {
    *
    * This is useful for understanding how each field evolved over time
    * and supports proper event sourcing where ALT events may only have partial data.
-   * Sorted by observationTS for proper temporal ordering.
+   * Sorted by ts (sync time) for stable ordering.
    */
   function getFieldHistory(entityId, events) {
     const normalizedEntityId = normalizeDocketNumber(entityId);
     const entityEvents = events
       .filter(e => normalizeDocketNumber(e.entity_id || e.target?.id) === normalizedEntityId)
-      // Sort by observationTS for proper replay ordering
-      .sort((a, b) => getObservationTS(a) - getObservationTS(b));
+      // Sort by ts (sync time) for stable ordering
+      .sort((a, b) => a.ts - b.ts);
 
     // Track all versions of each field
     const fieldHistory = {};
@@ -1362,10 +1326,9 @@ const EOMigration = (function() {
       { fields: ['op', 'ts'], name: 'idx_op_timeline' },
       { fields: ['source_table', 'ts'], name: 'idx_table_timeline' }
     ],
-    // Note: payload.observationTS is the time the data was observed/scraped
-    // ts is the time the event was synced to the database
-    // For replay, events should be ordered by observationTS when determining true data lineage
-    notes: 'payload.observationTS used for temporal ordering during replay; ts is sync time only'
+    // Note: ts is the time the event was synced to the database
+    // Events are replayed in ts order for simple, stable cumulative state building
+    notes: 'Events replayed in ts order; fields accumulate cumulatively, nulls never overwrite'
   };
 
   // =============================================================================
