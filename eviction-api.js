@@ -104,19 +104,10 @@ const EvictionAPI = (function () {
         });
       }
 
-      // Stop conditions
-      if (Array.isArray(result)) {
-        if (result.length < PER_PAGE || result.length === 0) break;
-        page++;
-      } else {
-        // Xano envelope
-        if (items.length === 0) break;
-        if (result.pageTotal && page >= result.pageTotal) break;
-        if (result.itemsTotal && allRows.length >= result.itemsTotal) break;
-        if (result.nextPage == null) break;
-        // Use nextPage from the API response to advance
-        page = result.nextPage;
-      }
+      // Stop when we have all the records or got an empty page
+      if (items.length === 0) break;
+      if (result.itemsTotal && allRows.length >= result.itemsTotal) break;
+      page++;
     }
 
     if (page >= MAX_PAGES) {
