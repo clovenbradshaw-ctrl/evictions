@@ -7519,6 +7519,80 @@
         }
 
         // =============================================
+        // PAGINATED FETCH UTILITY
+        // =============================================
+
+        /**
+         * Fetch all pages from a Xano paginated API endpoint.
+         * Handles both flat array responses and the Xano pagination envelope:
+         *   { items, itemsReceived, curPage, nextPage, prevPage, offset, perPage, itemsTotal, pageTotal }
+         *
+         * @param {string} baseUrl - Base API URL (pagination params will be appended)
+         * @param {object} options
+         * @param {number} options.perPage - Items per page (default: 2500)
+         * @param {number} options.maxPages - Safety limit (default: 100)
+         * @param {function} options.onProgress - Progress callback ({ page, pageTotal, itemsFetched, itemsTotal })
+         * @returns {Promise<Array>} All items collected across all pages
+         */
+        async function fetchAllPages(baseUrl, options = {}) {
+            const perPage = options.perPage || 2500;
+            const maxPages = options.maxPages || 100;
+            const onProgress = options.onProgress || null;
+
+            let allItems = [];
+            let page = 1;
+
+            while (true) {
+                const separator = baseUrl.includes('?') ? '&' : '?';
+                const url = `${baseUrl}${separator}page=${page}&per_page=${perPage}`;
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                // Handle flat array response (no pagination metadata)
+                if (Array.isArray(result)) {
+                    allItems = allItems.concat(result);
+                    if (result.length < perPage) break;
+                    page++;
+                    if (page > maxPages) {
+                        console.warn('fetchAllPages: reached page limit (' + maxPages + ')');
+                        break;
+                    }
+                    continue;
+                }
+
+                // Handle Xano paginated envelope format
+                const pageItems = result.items || [];
+                allItems = allItems.concat(pageItems);
+
+                if (onProgress) {
+                    onProgress({
+                        page,
+                        pageTotal: result.pageTotal || page,
+                        itemsFetched: allItems.length,
+                        itemsTotal: result.itemsTotal || allItems.length
+                    });
+                }
+
+                // Stop when Xano signals no next page, or empty page
+                if (result.nextPage == null || pageItems.length === 0) break;
+
+                if (page >= maxPages) {
+                    console.warn('fetchAllPages: reached page limit (' + maxPages + ')');
+                    break;
+                }
+
+                page++;
+            }
+
+            return allItems;
+        }
+
+        // =============================================
         // PROCESS QUEUE API - Update Queue Management
         // =============================================
         const PROCESS_QUEUE_API = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/process_queue';
@@ -7632,11 +7706,7 @@
                 : PROCESS_QUEUE_API;
 
             try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`Queue API error: ${response.status}`);
-                }
-                const items = await response.json();
+                const items = await fetchAllPages(url, { perPage: 2500 });
 
                 // Update queue state
                 queueState.items = items;
@@ -8105,15 +8175,12 @@
 
                 console.log(`✅ Hydrated from Drive snapshot: ${allData.length} records`);
 
-                // Step 4: Incremental sync for events since snapshot
+                // Step 4: Incremental sync for events since snapshot (paginated)
                 updateStatus('Fetching events since snapshot...', 'loading');
                 let incrementalCount = 0;
                 try {
                     const incrementalUrl = buildEOApiUrl({ ts_gt: hydrationResult.timestamp.toString() });
-                    const response = await fetch(incrementalUrl);
-                    if (response.ok) {
-                        const result = await response.json();
-                        let newEvents = Array.isArray(result) ? result : (result?.items || result?.data || []);
+                    let newEvents = await fetchAllPages(incrementalUrl, { perPage: 2500 });
 
                         if (newEvents.length > 0 && typeof EOMigration !== 'undefined') {
                             newEvents = newEvents.map(e => EOMigration.fromXanoFormat(e));
@@ -8144,7 +8211,6 @@
 
                             incrementalCount = newEvents.length;
                         }
-                    }
                 } catch (syncErr) {
                     console.warn('Incremental sync after Drive hydration failed:', syncErr.message);
                 }
@@ -8319,65 +8385,23 @@
         // Fetch all pages of data from the paginated EO API
         // Useful when you need complete data but the API returns paginated results
         async function fetchAllDetainerCases(options = {}) {
-            const allRecords = [];
-            let currentPage = 1;
-            let hasMore = true;
-            const perPage = options.per_page || 100;
-
             console.group('📥 Fetching all EO events');
             console.log('Options:', options);
 
-            while (hasMore) {
-                const url = buildEOApiUrl({
-                    ...options,
-                    page: currentPage,
-                    per_page: perPage
-                });
+            // Build URL without pagination params (fetchAllPages handles those)
+            const urlOptions = { ...options };
+            const perPage = urlOptions.per_page || 100;
+            delete urlOptions.page;
+            delete urlOptions.per_page;
+            const url = buildEOApiUrl(urlOptions);
 
-                console.log(`📄 Fetching page ${currentPage}...`);
-                const response = await fetch(url);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+            const allRecords = await fetchAllPages(url, {
+                perPage,
+                maxPages: 1000,
+                onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
+                    console.log(`📊 Page ${page}/${pageTotal}: ${itemsFetched}/${itemsTotal} records`);
                 }
-
-                const result = await response.json();
-
-                // Handle different response formats
-                let pageData;
-                let meta = null;
-
-                if (Array.isArray(result)) {
-                    pageData = result;
-                    // No pagination metadata, assume this is all the data
-                    hasMore = false;
-                } else if (result?.data && Array.isArray(result.data)) {
-                    pageData = result.data;
-                    meta = result.meta;
-                    hasMore = meta?.has_more || false;
-                } else if (result?.items && Array.isArray(result.items)) {
-                    pageData = result.items;
-                    hasMore = false;
-                } else {
-                    pageData = [result];
-                    hasMore = false;
-                }
-
-                allRecords.push(...pageData);
-                console.log(`📊 Page ${currentPage}: ${pageData.length} records (total so far: ${allRecords.length})`);
-
-                if (meta) {
-                    console.log(`📈 Progress: ${allRecords.length} of ${meta.total} (has_more: ${meta.has_more})`);
-                }
-
-                currentPage++;
-
-                // Safety limit to prevent infinite loops
-                if (currentPage > 1000) {
-                    console.warn('⚠️ Reached page limit (1000), stopping fetch');
-                    break;
-                }
-            }
+            });
 
             console.log(`✅ Fetched all ${allRecords.length} records`);
             console.groupEnd();
@@ -8411,6 +8435,18 @@
                         has_more: false
                     }
                 };
+            } else if (result?.items && Array.isArray(result.items)) {
+                // Xano paginated envelope: { items, nextPage, curPage, pageTotal, itemsTotal, ... }
+                return {
+                    data: result.items,
+                    meta: {
+                        total: result.itemsTotal || result.items.length,
+                        page: result.curPage || 1,
+                        limit: result.perPage || result.items.length,
+                        offset: result.offset || 0,
+                        has_more: result.nextPage != null
+                    }
+                };
             } else if (result?.data && Array.isArray(result.data)) {
                 return {
                     data: result.data,
@@ -8418,17 +8454,6 @@
                         total: result.data.length,
                         page: 1,
                         limit: result.data.length,
-                        offset: 0,
-                        has_more: false
-                    }
-                };
-            } else if (result?.items && Array.isArray(result.items)) {
-                return {
-                    data: result.items,
-                    meta: {
-                        total: result.items.length,
-                        page: 1,
-                        limit: result.items.length,
                         offset: 0,
                         has_more: false
                     }
@@ -15647,15 +15672,11 @@
         }
 
         async function performIncrementalSyncAfterHydration(snapshotTimestamp) {
-            // Fetch events newer than the snapshot timestamp
+            // Fetch all events newer than the snapshot timestamp (paginated)
             const incrementalUrl = buildEOApiUrl({ ts_gt: snapshotTimestamp.toString() });
             console.log('Post-hydration incremental sync:', incrementalUrl);
 
-            const response = await fetch(incrementalUrl);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const result = await response.json();
-            let newEvents = Array.isArray(result) ? result : (result?.items || result?.data || []);
+            let newEvents = await fetchAllPages(incrementalUrl, { perPage: 2500 });
 
             if (newEvents.length > 0 && typeof EOMigration !== 'undefined') {
                 newEvents = newEvents.map(e => EOMigration.fromXanoFormat(e));

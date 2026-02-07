@@ -46,9 +46,7 @@ const EvictionAPI = (function () {
           page,
           pageTotal: result.pageTotal || null,
           fetched: allRows.length,
-          total: result.itemsReceived != null
-            ? (result.pageTotal || 1) * PER_PAGE // estimate
-            : null,
+          total: result.itemsTotal || null,
         });
       }
 
