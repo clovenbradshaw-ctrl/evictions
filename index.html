@@ -7975,149 +7975,132 @@
                 }
 
                 // No cached data or incremental sync failed - do full sync
-                const API_URL = buildEOApiUrl();
                 updateStatus(cachedData && cachedData.length > 0
                     ? 'Incremental sync failed, loading all data...'
                     : 'Loading data from public records API...', 'loading');
-                console.log('API URL (full sync):', API_URL);
 
-                let result = null;
+                let flattenedData = null;
+                let newestTs = null;
                 let lastError = null;
 
-                // First, try direct API call (works if CORS is enabled in Xano)
-                try {
-                    console.log('Trying direct API call...');
-                    const response = await fetch(API_URL);
+                // Primary: use paginated fetch to handle large datasets
+                if (typeof EOMigration !== 'undefined' && EOMigration.fetchAllEventsPaginated) {
+                    try {
+                        console.log('📡 Using paginated fetch for full sync...');
+                        const paginatedResult = await EOMigration.fetchAllEventsPaginated({
+                            onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
+                                updateStatus(`Loading page ${page}/${pageTotal || '?'} (${itemsFetched}/${itemsTotal || '?'} events)...`, 'loading');
+                            }
+                        });
 
-                    console.log('📡 API Response:', {
-                        status: response.status,
-                        statusText: response.statusText,
-                        ok: response.ok,
-                        headers: Object.fromEntries([...response.headers.entries()]),
-                        url: response.url
-                    });
+                        flattenedData = paginatedResult.states;
 
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-                    }
+                        // Track newest timestamp from fetched events for incremental sync
+                        for (const event of paginatedResult.events) {
+                            if (event.ts && (!newestTs || event.ts > newestTs)) {
+                                newestTs = event.ts;
+                            }
+                        }
 
-                    result = await response.json();
-                    console.log('✅ Successfully fetched data directly from API');
-                    console.log('📊 Response structure:', {
-                        type: typeof result,
-                        isArray: Array.isArray(result),
-                        keys: result && typeof result === 'object' ? Object.keys(result) : 'N/A',
-                        length: Array.isArray(result) ? result.length : (result?.items?.length || result?.data?.length || 'N/A'),
-                        sample: Array.isArray(result) ? result[0] : (result?.items?.[0] || result?.data?.[0] || result)
-                    });
-                } catch (directError) {
-                    console.error('❌ Direct API call failed:', {
-                        message: directError.message,
-                        name: directError.name,
-                        stack: directError.stack
-                    });
-                    lastError = directError;
-                }
-
-                // If direct API call failed, try cache fallback (localStorage or IndexedDB)
-                if (result === null) {
-                    console.log('API call failed, checking cache for fallback...');
-                    const cachedData = await loadCachedData();
-                    const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
-
-                    if (cachedData && cachedData.length > 0) {
-                        allData = cachedData;
-                        filteredData = allData;
-                        calculateGlobalDataRange(allData);
-
-                        const cacheAge = getCacheAgeHours();
-                        const ageText = cacheAge !== null ? `${cacheAge} hours` : 'unknown time';
-
-                        console.log('⚠️ Using stale cache as fallback:', allData.length, 'records, cached', ageText, 'ago');
-                        console.groupEnd();
-
-                        updateStatus(`Loaded ${allData.length} cached records (cached ${ageText} ago). Live API unavailable.`, 'success');
-                        updateMetrics();
-                        updateCharts();
-                        createDistrictMap();
-                        await loadDistrictDemographics();
-                        initDemographicsCharts();
-                        initGrid();
-                        document.getElementById('lastUpdate').textContent = storedTimestamp
-                            ? new Date(parseInt(storedTimestamp)).toLocaleString() + ' (cached)'
-                            : 'Cached data';
-
-                        // Re-apply persisted filters after data loads
-                        restorePersistedFilters();
-                        return;
-                    }
-
-                    // No cache available, throw the last error
-                    throw lastError || new Error('Unable to fetch data from API');
-                }
-
-                // Handle different response formats
-                let data;
-                let responseMeta = null;
-                if (Array.isArray(result)) {
-                    data = result;
-                    console.log('📦 Data format: Direct array');
-                } else if (result?.items && Array.isArray(result.items)) {
-                    data = result.items;
-                    console.log('📦 Data format: {items: [...]}');
-                } else if (result?.data && Array.isArray(result.data)) {
-                    data = result.data;
-                    responseMeta = result.meta || null;
-                    console.log('📦 Data format: {data: [...], meta: {...}}');
-                    if (responseMeta) {
-                        console.log('📊 Response metadata:', responseMeta);
-                        // Update server pagination state from response metadata
-                        serverPaginationState.total = responseMeta.total || 0;
-                        serverPaginationState.page = responseMeta.page || 1;
-                        serverPaginationState.per_page = responseMeta.limit || serverPaginationState.per_page;
-                        serverPaginationState.has_more = responseMeta.has_more || false;
-                        console.log('📄 Server pagination state updated:', serverPaginationState);
-                    }
-                } else {
-                    data = [result];
-                    console.log('📦 Data format: Single object wrapped in array');
-                }
-
-                console.log('🔢 Raw event count:', data.length);
-
-                // Debug: log first event structure
-                if (data.length > 0) {
-                    console.log('🔍 First event keys:', Object.keys(data[0]));
-                    console.log('🔍 First event sample:', JSON.stringify(data[0], null, 2).substring(0, 1000));
-                }
-
-                // Detect if this is EO events format (has op, target, context fields)
-                const isEOFormat = data.length > 0 && data[0].op !== undefined && data[0].target !== undefined;
-
-                // Track the newest timestamp for incremental sync
-                let newestTs = null;
-                for (const record of data) {
-                    if (record.ts && (!newestTs || record.ts > newestTs)) {
-                        newestTs = record.ts;
+                        console.log('✅ Paginated fetch complete:', paginatedResult.eventCount, 'events →', paginatedResult.stateCount, 'cases');
+                    } catch (paginatedError) {
+                        console.warn('⚠️ Paginated fetch failed, falling back to direct fetch:', paginatedError.message);
+                        lastError = paginatedError;
                     }
                 }
+
+                // Fallback: direct (non-paginated) API call
+                if (!flattenedData) {
+                    const API_URL = buildEOApiUrl();
+                    console.log('API URL (full sync fallback):', API_URL);
+
+                    let result = null;
+                    try {
+                        console.log('Trying direct API call...');
+                        const response = await fetch(API_URL);
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+                        }
+
+                        result = await response.json();
+                        console.log('✅ Direct API call succeeded');
+                    } catch (directError) {
+                        console.error('❌ Direct API call failed:', directError.message);
+                        lastError = directError;
+                    }
+
+                    // If direct API call also failed, try cache fallback
+                    if (result === null) {
+                        console.log('API calls failed, checking cache for fallback...');
+                        const fallbackData = await loadCachedData();
+                        const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
+
+                        if (fallbackData && fallbackData.length > 0) {
+                            allData = fallbackData;
+                            filteredData = allData;
+                            calculateGlobalDataRange(allData);
+
+                            const cacheAge = getCacheAgeHours();
+                            const ageText = cacheAge !== null ? `${cacheAge} hours` : 'unknown time';
+
+                            console.log('⚠️ Using stale cache as fallback:', allData.length, 'records, cached', ageText, 'ago');
+                            console.groupEnd();
+
+                            updateStatus(`Loaded ${allData.length} cached records (cached ${ageText} ago). Live API unavailable.`, 'success');
+                            updateMetrics();
+                            updateCharts();
+                            createDistrictMap();
+                            await loadDistrictDemographics();
+                            initDemographicsCharts();
+                            initGrid();
+                            document.getElementById('lastUpdate').textContent = storedTimestamp
+                                ? new Date(parseInt(storedTimestamp)).toLocaleString() + ' (cached)'
+                                : 'Cached data';
+
+                            restorePersistedFilters();
+                            return;
+                        }
+
+                        throw lastError || new Error('Unable to fetch data from API');
+                    }
+
+                    // Handle different response formats from direct fetch
+                    let data;
+                    if (Array.isArray(result)) {
+                        data = result;
+                    } else if (result?.items && Array.isArray(result.items)) {
+                        data = result.items;
+                    } else if (result?.data && Array.isArray(result.data)) {
+                        data = result.data;
+                    } else {
+                        data = [result];
+                    }
+
+                    console.log('🔢 Raw event count:', data.length);
+
+                    // Track the newest timestamp for incremental sync
+                    for (const record of data) {
+                        if (record.ts && (!newestTs || record.ts > newestTs)) {
+                            newestTs = record.ts;
+                        }
+                    }
+
+                    // Detect if this is EO events format and reconstruct state
+                    const isEOFormat = data.length > 0 && data[0].op !== undefined && data[0].target !== undefined;
+                    if (isEOFormat && typeof EOMigration !== 'undefined') {
+                        console.log('📊 Detected EO event format, reconstructing state from', data.length, 'events...');
+                        const events = data.map(e => EOMigration.fromXanoFormat(e));
+                        flattenedData = EOMigration.reconstructAllStates(events);
+                        console.log('📊 Reconstructed', flattenedData.length, 'unique cases from', events.length, 'events');
+                    } else {
+                        flattenedData = data;
+                    }
+                }
+
                 if (newestTs) {
                     localStorage.setItem('eo_last_sync_ts', newestTs.toString());
                     console.log('📌 Saved newest ts for incremental sync:', newestTs);
-                }
-
-                let flattenedData;
-                if (isEOFormat && typeof EOMigration !== 'undefined') {
-                    console.log('📊 Detected EO event format, reconstructing state from', data.length, 'events...');
-                    // Parse events from Xano format (stringified JSON fields)
-                    const events = data.map(e => EOMigration.fromXanoFormat(e));
-                    // Reconstruct current state from events
-                    flattenedData = EOMigration.reconstructAllStates(events);
-                    console.log('📊 Reconstructed', flattenedData.length, 'unique cases from', events.length, 'events');
-                } else {
-                    // Fallback for non-EO data formats (backwards compatibility)
-                    console.log('📊 Using direct data format (no EO reconstruction)');
-                    flattenedData = data;
                 }
 
                 const normalizedData = flattenedData.map(normalizeRecord);
