@@ -7094,7 +7094,7 @@
         const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
         // Cache version - increment when data processing logic changes (e.g., district extraction fix)
-        const CACHE_VERSION = 2;  // v2: Fixed district extraction from string council_district_number
+        const CACHE_VERSION = 3;  // v3: Fixed replay logic - simple cumulative merge, no observationTS field versioning
 
         // Polling configuration
         const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -7763,105 +7763,72 @@
         // - payload.data and payload.changes are applied independently (not if/else)
         // - Events sorted by observationTS for proper temporal ordering
         function applyEventsToState(existingRecords, newEvents) {
-            // Create a map of existing records by entity ID for fast lookup
+            // Create a map of existing records by NORMALIZED entity ID
             const stateMap = new Map();
             for (const record of existingRecords) {
-                const entityId = record.Docket_Number || record._entity_id;
+                const rawId = record.Docket_Number || record._entity_id || record.Case_Number;
+                const entityId = normalizeDocketNumber(rawId);
                 if (entityId) {
                     stateMap.set(entityId, { ...record });
                 }
             }
 
-            // Check if a value is empty (null, undefined, or empty string)
-            // Matches the no-nulls semantics of EOMigration.reconstructEntityState
-            function isEmptyValue(value) {
-                return value === null || value === undefined || value === '';
+            function isEmpty(value) {
+                if (value === null || value === undefined || value === '') return true;
+                if (Array.isArray(value) && value.length === 0) return true;
+                return false;
             }
 
-            // Merge data into state, skipping empty/null/undefined values
+            // Merge non-empty fields from source into target
             function mergeNonEmpty(target, source) {
                 if (!source) return;
                 for (const [key, value] of Object.entries(source)) {
-                    if (!isEmptyValue(value)) {
+                    if (!isEmpty(value)) {
                         target[key] = value;
                     }
                 }
             }
 
-            // Get observationTS from event (when data was observed, not when synced)
-            function getObservationTS(event) {
-                return event.payload?.observationTS || event.context?.observationTS || event.ts;
-            }
+            // Sort new events by ts (sync time) for stable ordering
+            const sortedEvents = [...newEvents].sort((a, b) => a.ts - b.ts);
 
-            // Sort new events by observationTS for proper replay ordering
-            const sortedEvents = [...newEvents].sort((a, b) => getObservationTS(a) - getObservationTS(b));
-
-            // Apply each event
+            // Apply each event - simple cumulative merge, same as reconstructEntityState
             for (const event of sortedEvents) {
-                const entityId = event.target?.id;
+                const rawId = event.entity_id || event.target?.id;
+                const entityId = normalizeDocketNumber(rawId);
                 if (!entityId) continue;
 
-                const op = event.op;
+                const payload = event.payload || event.context || {};
                 let state = stateMap.get(entityId);
 
-                // Backwards compatibility: support both 'payload' (new) and 'context' (legacy)
-                const payload = event.payload || event.context || {};
-
-                switch (op) {
-                    case 'INS':
-                        if (state) {
-                            // Merge into existing state, skip empty values
-                            mergeNonEmpty(state, payload.data);
-                        } else {
-                            // New entity - create from event data
-                            state = {};
-                            mergeNonEmpty(state, payload.data);
-                            state.Docket_Number = entityId;
-                        }
-                        state._entity_id = entityId;
-                        state._last_updated = event.ts;
-                        state._event_count = (state._event_count || 0) + 1;
-                        stateMap.set(entityId, state);
-                        break;
-
-                    case 'ALT':
-                        // Ensure state exists for ALT - create if needed (upsert)
-                        // This handles cases that only have ALTs and no INS:
-                        // the first ALT effectively becomes the INS for this case
-                        if (!state) {
-                            state = {
-                                Docket_Number: entityId,
-                                _entity_id: entityId
-                            };
-                        }
-
-                        // ALT with payload.data = full record upsert
-                        // Skip empty values to match replay semantics
-                        mergeNonEmpty(state, payload.data);
-
-                        // ALT with payload.changes = delta update
-                        if (payload.changes) {
-                            for (const [field, change] of Object.entries(payload.changes)) {
-                                const newValue = change.new !== undefined ? change.new : change;
-                                if (!isEmptyValue(newValue)) {
-                                    state[field] = newValue;
-                                }
-                            }
-                        }
-
-                        // ALT with single field update via target.field
-                        if (event.target?.field && payload.new !== undefined) {
-                            if (!isEmptyValue(payload.new)) {
-                                state[event.target.field] = payload.new;
-                            }
-                        }
-
-                        state._last_updated = event.ts;
-                        state._event_count = (state._event_count || 0) + 1;
-                        stateMap.set(entityId, state);
-                        break;
-
+                // Create state if it doesn't exist (first event for this docket, INS or ALT)
+                if (!state) {
+                    state = { Docket_Number: entityId, _entity_id: entityId };
                 }
+
+                // Merge payload.data (full record)
+                mergeNonEmpty(state, payload.data);
+
+                // Merge payload.changes (delta update)
+                if (payload.changes) {
+                    for (const [field, change] of Object.entries(payload.changes)) {
+                        const newValue = change.new !== undefined ? change.new : change;
+                        if (!isEmpty(newValue)) {
+                            state[field] = newValue;
+                        }
+                    }
+                }
+
+                // Single field update via target.field
+                if (event.target?.field && payload.new !== undefined) {
+                    if (!isEmpty(payload.new)) {
+                        state[event.target.field] = payload.new;
+                    }
+                }
+
+                state._last_updated = event.ts;
+                state._event_count = (state._event_count || 0) + 1;
+                stateMap.set(entityId, state);
             }
 
             // Convert back to array
@@ -8313,7 +8280,8 @@
 
                 let processedNewData;
                 if (isEOFormat && typeof EOMigration !== 'undefined') {
-                    // Process EO format events - parse from Xano and apply to state
+                    // EO format: applyEventsToState returns the FULL updated state
+                    // (existing records + new events applied). No further merging needed.
                     console.log('📊 Processing EO format events');
                     const events = newData.map(e => EOMigration.fromXanoFormat(e));
                     processedNewData = applyEventsToState(allData, events);
@@ -8325,48 +8293,15 @@
                     processedNewData = newData;
                 }
 
+                // Normalize and dedupe - applyEventsToState already merged everything
                 const normalizedNewData = processedNewData.map(normalizeRecord);
-
-                // Merge new data with existing data
-                // Use a Map for efficient deduplication by Case_Number
-                const dataMap = new Map();
-
-                // Add existing data first
-                for (const record of allData) {
-                    const key = (record.Case_Number || '').trim();
-                    if (key) {
-                        dataMap.set(key, record);
-                    }
-                }
-
-                // Add/update with new data (new data takes precedence)
-                let updatedCount = 0;
-                let addedCount = 0;
-                for (const record of normalizedNewData) {
-                    const key = (record.Case_Number || '').trim();
-                    if (key) {
-                        if (dataMap.has(key)) {
-                            // Merge fields, preferring new record values
-                            const existing = dataMap.get(key);
-                            const merged = { ...existing };
-                            for (const [field, value] of Object.entries(record)) {
-                                if (hasValue(value)) {
-                                    merged[field] = value;
-                                }
-                            }
-                            dataMap.set(key, merged);
-                            updatedCount++;
-                        } else {
-                            dataMap.set(key, record);
-                            addedCount++;
-                        }
-                    }
-                }
-
-                // Convert back to array
-                allData = Array.from(dataMap.values());
+                const previousCount = allData.length;
+                allData = dedupeByDocketNumber(normalizedNewData);
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
+
+                const addedCount = Math.max(0, allData.length - previousCount);
+                const updatedCount = newData.length;
 
                 // Update the last sync timestamp
                 if (newestTs) {
@@ -8391,12 +8326,12 @@
                     console.warn('⚠️ localStorage quota exceeded for compressed data');
                 }
 
-                console.log(`✅ Sync complete: ${addedCount} new, ${updatedCount} updated, ${allData.length} total`);
+                console.log(`✅ Sync complete: ${addedCount} new, ${updatedCount} events applied, ${allData.length} total`);
                 console.groupEnd();
 
                 // Update UI
                 const changeMsg = addedCount > 0 || updatedCount > 0
-                    ? `Synced: +${addedCount} new, ${updatedCount} updated`
+                    ? `Synced: +${addedCount} new, ${updatedCount} events applied`
                     : 'No changes';
                 updateStatus(`${allData.length} records (${changeMsg})`, 'success');
                 updateMetrics();
