@@ -7773,6 +7773,12 @@
                 }
             }
 
+            // Fields that represent original case properties and should not be overwritten
+            // by subsequent payload.data merges (e.g., from rescraping old cases on newer dockets).
+            // These use "first-write-wins" for payload.data, but can still be explicitly
+            // updated via payload.changes or target.field (intentional corrections).
+            const PROTECTED_FIELDS = new Set(['File_Date', 'file_date', 'filing_date']);
+
             function isEmpty(value) {
                 if (value === null || value === undefined || value === '') return true;
                 if (Array.isArray(value) && value.length === 0) return true;
@@ -7780,10 +7786,15 @@
             }
 
             // Merge non-empty fields from source into target
+            // Protected fields use first-write-wins to prevent rescrape events
+            // from clobbering original filing dates with later court dates.
             function mergeNonEmpty(target, source) {
                 if (!source) return;
                 for (const [key, value] of Object.entries(source)) {
                     if (!isEmpty(value)) {
+                        if (PROTECTED_FIELDS.has(key) && !isEmpty(target[key])) {
+                            continue; // Preserve original value
+                        }
                         target[key] = value;
                     }
                 }
@@ -17609,18 +17620,19 @@
         function compareDocketCases(parsedCases) {
             const results = [];
 
-            // Build lookup map from existing data
+            // Build lookup map from existing data using NORMALIZED docket numbers
+            // to prevent format mismatches from creating false INS events
             const existingMap = new Map();
             allData.forEach(record => {
                 const docket = record.Docket_Number || record.docket_number;
                 if (docket) {
-                    existingMap.set(docket, record);
+                    existingMap.set(normalizeDocketNumber(docket), record);
                 }
             });
 
             for (const parsed of parsedCases) {
                 const docketNumber = parsed.docket_number;
-                const existing = existingMap.get(docketNumber);
+                const existing = existingMap.get(normalizeDocketNumber(docketNumber));
 
                 // Convert parsed case to record format for comparison
                 const parsedRecord = convertParsedToRecord(parsed);
