@@ -13,15 +13,32 @@ const EvictionAPI = (function () {
 
   const PER_PAGE = 2500;
   const MAX_PAGES = 100; // safety limit
+  const FETCH_TIMEOUT_MS = 45000; // 45s per page
+  const MAX_RETRIES = 3;
 
   // ---------------------------------------------------------------------------
-  // Fetch a single page
+  // Fetch a single page (with timeout + retry)
   // ---------------------------------------------------------------------------
   async function fetchPage(page) {
     const url = `${API_URL}?page=${page}&per_page=${PER_PAGE}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`API error ${res.status}`);
-    return res.json();
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timer);
+
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        return await res.json();
+      } catch (err) {
+        if (attempt === MAX_RETRIES) throw err;
+        const delay = 1000 * Math.pow(2, attempt); // 1s, 2s, 4s
+        console.warn(`Page ${page} attempt ${attempt + 1} failed: ${err.message}. Retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
