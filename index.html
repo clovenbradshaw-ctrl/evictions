@@ -8198,7 +8198,7 @@
 
                 const records = await EvictionAPI.fetchAll((progress) => {
                     updateStatus(
-                        `Loading page ${progress.page}${progress.pageTotal ? '/' + progress.pageTotal : ''} (${progress.fetched} records)...`,
+                        `Loading page ${progress.page} (${progress.unique} unique cases)...`,
                         'loading'
                     );
                 });
