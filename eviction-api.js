@@ -11,11 +11,8 @@ const EvictionAPI = (function () {
   const API_URL =
     'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_current_state';
 
-  // Use a smaller page size than the Xano default (2500) to ensure
-  // proper pagination. When PER_PAGE equals the server's max, edge
-  // cases can cause pageTotal=1 even when more records exist.
-  const PER_PAGE = 500;
-  const MAX_PAGES = 500; // safety limit (500 pages × 500 = 250k max)
+  const PER_PAGE = 2500;
+  const MAX_PAGES = 500; // safety limit
 
   // ---------------------------------------------------------------------------
   // Fetch a single page
@@ -109,17 +106,17 @@ const EvictionAPI = (function () {
 
       // Stop conditions
       if (Array.isArray(result)) {
-        // Flat array: stop when we get fewer items than requested
-        if (result.length < PER_PAGE) break;
+        if (result.length < PER_PAGE || result.length === 0) break;
+        page++;
       } else {
-        // Xano envelope: stop when no more pages
+        // Xano envelope
         if (items.length === 0) break;
         if (result.pageTotal && page >= result.pageTotal) break;
-        // Fallback: if nextPage is genuinely null/undefined (some endpoints)
+        if (result.itemsTotal && allRows.length >= result.itemsTotal) break;
         if (result.nextPage == null) break;
+        // Use nextPage from the API response to advance
+        page = result.nextPage;
       }
-
-      page++;
     }
 
     if (page >= MAX_PAGES) {
