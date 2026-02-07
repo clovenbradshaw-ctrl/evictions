@@ -7210,7 +7210,7 @@
         const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
         // Cache version - increment when data processing logic changes (e.g., district extraction fix)
-        const CACHE_VERSION = 3;  // v3: Fixed replay logic - simple cumulative merge, no observationTS field versioning
+        const CACHE_VERSION = 4;  // v4: Fixed pagination - use Xano nextPage/pageTotal to stop fetching correctly
 
         // Google Drive binary snapshot configuration
         // To update the snapshot: export a .bin from the Snapshot tab, upload to the Drive folder,
