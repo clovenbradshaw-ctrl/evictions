@@ -2,8 +2,9 @@
  * Eviction Current-State API Client
  *
  * Fetches from GET /eviction_current_state (2500/page),
- * replays stateData[] per row, dedupes by docket_number as it goes,
- * and stops when a full page adds no new dockets.
+ * replays stateData[] per row, dedupes by docket_number.
+ *
+ * API response: { items, itemsTotal, pageTotal, curPage, nextPage, perPage }
  */
 const EvictionAPI = (function () {
   'use strict';
@@ -12,7 +13,6 @@ const EvictionAPI = (function () {
     'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_current_state';
 
   const PER_PAGE = 2500;
-  const MAX_PAGES = 100;
 
   // ---------------------------------------------------------------------------
   // Fetch one page
@@ -70,10 +70,9 @@ const EvictionAPI = (function () {
     if (!existing) {
       state.Docket_Number = key;
       map.set(key, state);
-      return true; // new docket
+      return true;
     }
 
-    // Merge: newer _updated wins as base, backfill empty fields from older
     const newer = (state._updated || 0) >= (existing._updated || 0) ? state : existing;
     const older = newer === state ? existing : state;
     for (const [k, v] of Object.entries(older)) {
@@ -81,40 +80,41 @@ const EvictionAPI = (function () {
     }
     newer.Docket_Number = key;
     map.set(key, newer);
-    return false; // existing docket updated
+    return false;
   }
 
   // ---------------------------------------------------------------------------
-  // Fetch all, replay, dedupe as we go, stop when no new dockets on a page
+  // Fetch all pages, replay + dedupe as we go
   // ---------------------------------------------------------------------------
   async function fetchAll(onProgress) {
     const map = new Map();
     let page = 1;
+    let pageTotal = null;
+    let itemsTotal = null;
 
-    while (page <= MAX_PAGES) {
+    while (true) {
       const result = await fetchPage(page);
-      const items = Array.isArray(result) ? result : (result.items || []);
+      const items = result.items || [];
+
+      // Grab totals from first response
+      if (page === 1) {
+        pageTotal = result.pageTotal;
+        itemsTotal = result.itemsTotal;
+      }
 
       if (items.length === 0) break;
 
-      // Replay + dedupe this page
-      let newOnPage = 0;
       for (const row of items) {
-        const state = replayRow(row);
-        if (mergeInto(map, state)) newOnPage++;
+        mergeInto(map, replayRow(row));
       }
 
       if (onProgress) {
-        onProgress({ page, unique: map.size, newOnPage });
+        onProgress({ page, pageTotal, itemsTotal, unique: map.size });
       }
 
-      console.log(`Page ${page}: ${items.length} rows, ${newOnPage} new dockets, ${map.size} unique total`);
-
-      // Stop when we've seen (nearly) all unique dockets
-      const newRate = newOnPage / items.length;
-      if (newRate < 0.01) break; // <1% new = we've collected them all
-      if (Array.isArray(result) && result.length < PER_PAGE) break;
-      if (!Array.isArray(result) && result.nextPage == null) break;
+      // Stop at last page
+      if (result.nextPage == null) break;
+      if (pageTotal && page >= pageTotal) break;
 
       page++;
     }

@@ -8196,9 +8196,9 @@
                 // Fetch from API — paginated, replay stateData, dedupe by docket_number
                 updateStatus('Loading data from court records API...', 'loading');
 
-                const records = await EvictionAPI.fetchAll((progress) => {
+                const records = await EvictionAPI.fetchAll(({ page, pageTotal, itemsTotal, unique }) => {
                     updateStatus(
-                        `Loading page ${progress.page} (${progress.unique} unique cases)...`,
+                        `Loading page ${page}/${pageTotal || '?'} — ${unique.toLocaleString()} of ${(itemsTotal || '?').toLocaleString()} cases`,
                         'loading'
                     );
                 });
