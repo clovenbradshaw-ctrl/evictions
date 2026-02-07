@@ -55,6 +55,7 @@ const EvictionAPI = (function () {
         if (result.length < PER_PAGE) break;
       } else {
         if (result.nextPage == null || items.length === 0) break;
+        if (result.pageTotal && page >= result.pageTotal) break;
       }
 
       page++;
