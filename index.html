@@ -12,6 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="eo-migration.js"></script>
     <script src="eo-integration.js"></script>
+    <script src="eviction-api.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/styles/ag-grid.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/styles/ag-theme-alpine.css">
     <style>
@@ -8166,607 +8167,149 @@
             updateRefreshUI();
 
             try {
-                console.group('🔄 Data Loading (EO Event Sourcing)');
-                console.log('Timestamp:', new Date().toISOString());
+                console.log('Loading eviction data...');
 
-                // Check cache version - invalidate if outdated (e.g., after bug fixes)
-                const storedCacheVersion = parseInt(localStorage.getItem('evictionCacheVersion') || '0');
-                if (storedCacheVersion < CACHE_VERSION) {
-                    console.log('🔄 Cache version outdated (v' + storedCacheVersion + ' → v' + CACHE_VERSION + '), clearing cache...');
-                    localStorage.removeItem('evictionDataCompressed');
-                    localStorage.removeItem('evictionDataTimestamp');
-                    localStorage.removeItem('eo_last_sync_ts');
-                    localStorage.removeItem('evictionData');
-                    try {
-                        await evictionDB.clear();
-                    } catch (e) {
-                        console.warn('Failed to clear IndexedDB:', e);
-                    }
-                    localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
+                // Try IndexedDB cache first (instant load)
+                const cachedData = await loadCachedData();
+                if (cachedData && cachedData.length > 0 && isCacheFresh()) {
+                    console.log('Using cached data:', cachedData.length, 'records');
+                    allData = cachedData;
+                    filteredData = allData;
+                    calculateGlobalDataRange(allData);
+
+                    updateStatus(`Loaded ${allData.length} cached records`, 'success');
+                    updateMetrics();
+                    updateCharts();
+                    createDistrictMap();
+                    await loadDistrictDemographics();
+                    initDemographicsCharts();
+                    initGrid();
+                    document.getElementById('lastUpdate').textContent =
+                        new Date(parseInt(localStorage.getItem('evictionDataTimestamp') || Date.now())).toLocaleString();
+                    restorePersistedFilters();
+
+                    isLoadingData = false;
+                    updateRefreshUI();
+                    return;
                 }
 
-                // Check cache status
-                const cacheAgeHours = getCacheAgeHours();
-                const cacheFresh = isCacheFresh();
-                console.log('📊 Cache status:', { ageHours: cacheAgeHours, fresh: cacheFresh });
+                // Fetch from API — paginated, replay stateData, dedupe by docket_number
+                updateStatus('Loading data from court records API...', 'loading');
 
-                // ===================================================================
-                // PRIORITY 1: Try Google Drive binary snapshot hydration
-                // Only attempt when there's no fresh local cache (first visit or stale)
-                // ===================================================================
-                updateStatus('Loading cached data...', 'loading');
-                let cachedData = await loadCachedData();
-                let lastSyncTs = localStorage.getItem('eo_last_sync_ts');
-                const noUsableLocalData = !cachedData || !lastSyncTs || (cacheAgeHours !== null && cacheAgeHours >= 4);
-
-                if (noUsableLocalData && GDRIVE_SNAPSHOT_CONFIG.ENABLED) {
-                    console.log('📁 No fresh local cache — trying Google Drive snapshot...');
-                    const driveResult = await tryHydrateFromGoogleDrive();
-
-                    if (driveResult.success) {
-                        const incrementalNote = driveResult.incrementalEvents > 0
-                            ? ` + ${driveResult.incrementalEvents} new events`
-                            : ' (already up to date)';
-                        console.log(`✅ Drive snapshot hydration complete: ${driveResult.entityCount} records${incrementalNote}`);
-                        console.groupEnd();
-
-                        updateStatus(`Loaded ${allData.length} records from snapshot${incrementalNote}`, 'success');
-                        updateMetrics();
-                        updateCharts();
-                        createDistrictMap();
-                        await loadDistrictDemographics();
-                        initDemographicsCharts();
-                        initGrid();
-                        document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
-                        restorePersistedFilters();
-
-                        isLoadingData = false;
-                        updateRefreshUI();
-                        startPolling();
-                        return;
-                    } else {
-                        console.log('📁 Drive snapshot not available:', driveResult.reason, '— falling back to normal load');
-                    }
-                }
-
-                // ===================================================================
-                // PRIORITY 2: Normal flow — local cache + incremental, or full sync
-                // ===================================================================
-                // Re-read lastSyncTs in case Drive hydration wrote it but then we fell through
-                lastSyncTs = localStorage.getItem('eo_last_sync_ts');
-
-                // If we have cached data and a last sync timestamp, do incremental sync
-                // But skip incremental if cache is very stale (>4 hours) to ensure fresh data
-                const SKIP_INCREMENTAL_HOURS = 4;
-                const cacheIsTooStale = cacheAgeHours !== null && cacheAgeHours >= SKIP_INCREMENTAL_HOURS;
-                if (cacheIsTooStale) {
-                    console.log('📊 Cache is too stale (' + cacheAgeHours + ' hours), skipping incremental sync for full refresh');
-                    localStorage.removeItem('eo_last_sync_ts'); // Force full refresh
-                }
-
-                if (cachedData && cachedData.length > 0 && lastSyncTs && !cacheIsTooStale) {
-                    console.log('📦 Found cached data:', cachedData.length, 'records');
-                    console.log('📌 Last sync timestamp:', lastSyncTs, '(' + new Date(parseInt(lastSyncTs)).toISOString() + ')');
-
-                    // Fetch all records from current-state endpoint (no server-side filtering available)
-                    const incrementalUrl = buildCurrentStateApiUrl();
-                    console.log('🔄 Sync URL (current-state):', incrementalUrl);
-                    updateStatus('Fetching records from current-state endpoint...', 'loading');
-
-                    try {
-                        const response = await fetch(incrementalUrl);
-                        if (response.ok) {
-                            const result = await response.json();
-                            let updatedRows = Array.isArray(result) ? result : (result?.items || result?.data || []);
-
-                            console.log('📥 Fetched', updatedRows.length, 'updated current-state rows');
-
-                            if (updatedRows.length === 0) {
-                                // No updates - use cached data as-is
-                                allData = cachedData;
-                                filteredData = allData;
-                                calculateGlobalDataRange(allData);
-
-                                const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
-                                console.log('✅ Cache is current, no updates');
-                                console.groupEnd();
-
-                                updateStatus(`Loaded ${allData.length} records (already up to date)`, 'success');
-                                updateMetrics();
-                                updateCharts();
-                                createDistrictMap();
-                                await loadDistrictDemographics();
-                                initDemographicsCharts();
-                                initGrid();
-                                document.getElementById('lastUpdate').textContent = storedTimestamp
-                                    ? new Date(parseInt(storedTimestamp)).toLocaleString()
-                                    : 'Cached data';
-                                restorePersistedFilters();
-                                return;
-                            }
-
-                            // Convert current-state rows to case states and merge into cached data
-                            console.log('🔄 Merging', updatedRows.length, 'updated records into cached state...');
-                            const stateMap = new Map();
-                            for (const record of cachedData) {
-                                const id = normalizeDocketNumber(record.Docket_Number || record.Case_Number || record._entity_id || '');
-                                if (id) stateMap.set(id, record);
-                            }
-
-                            for (const row of updatedRows) {
-                                const state = typeof EOMigration !== 'undefined'
-                                    ? EOMigration.fromCurrentStateFormat(row)
-                                    : row;
-                                const entityId = state._entity_id || state.Docket_Number || normalizeDocketNumber(row.docket_number || row.object_id || '');
-                                if (entityId) stateMap.set(entityId, state);
-                            }
-
-                            // Track sync timestamp
-                            const now = Date.now();
-                            localStorage.setItem('eo_last_sync_ts', now.toString());
-                            console.log('📌 Updated sync timestamp:', now);
-
-                            // Normalize and dedupe
-                            const mergedRecords = Array.from(stateMap.values());
-                            const normalizedData = mergedRecords.map(normalizeRecord);
-                            allData = dedupeByDocketNumber(normalizedData);
-                            filteredData = allData;
-                            calculateGlobalDataRange(allData);
-
-                            // Invalidate caches and save
-                            dataCache.invalidateAll();
-                            const timestamp = Date.now();
-
-                            evictionDB.saveFull(allData, timestamp).then(success => {
-                                if (success) {
-                                    localStorage.setItem('evictionDataTimestamp', timestamp.toString());
-                                    localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
-                                }
-                            });
-
-                            const compressed = compressEvictionData(allData);
-                            try {
-                                localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
-                                localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
-                            } catch (e) {
-                                console.warn('⚠️ localStorage quota exceeded:', e.message);
-                            }
-
-                            console.log('✅ Incremental sync complete:', allData.length, 'total records');
-                            console.groupEnd();
-
-                            updateStatus(`Synced ${updatedRows.length} updated records (${allData.length} total)`, 'success');
-                            updateMetrics();
-                            updateCharts();
-                            createDistrictMap();
-                            await loadDistrictDemographics();
-                            initDemographicsCharts();
-                            initGrid();
-                            document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
-                            restorePersistedFilters();
-                            return;
-                        }
-                    } catch (incrementalError) {
-                        console.warn('⚠️ Incremental sync failed, falling back to full sync:', incrementalError.message);
-                    }
-                }
-
-                // No cached data or incremental sync failed - do full sync
-                updateStatus(cachedData && cachedData.length > 0
-                    ? 'Incremental sync failed, loading all data...'
-                    : 'Loading data from public records API...', 'loading');
-
-                let flattenedData = null;
-                let newestTs = null;
-                let lastError = null;
-
-                // Primary: fetch from current-state endpoint (no replay needed)
-                if (typeof EOMigration !== 'undefined' && EOMigration.fetchAllCurrentState) {
-                    try {
-                        console.log('📡 Using current-state endpoint for full sync...');
-                        const csResult = await EOMigration.fetchAllCurrentState({
-                            onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
-                                updateStatus(`Loading page ${page}/${pageTotal || '?'} (${itemsFetched}/${itemsTotal || '?'} records)...`, 'loading');
-                            }
-                        });
-
-                        flattenedData = csResult.states;
-                        newestTs = Date.now(); // Current-state is already up-to-date
-
-                        console.log('✅ Current-state fetch complete:', csResult.stateCount, 'cases');
-                    } catch (csError) {
-                        console.warn('⚠️ Current-state fetch failed, falling back to legacy event fetch:', csError.message);
-                        lastError = csError;
-                    }
-                }
-
-                // Fallback 1: legacy paginated event fetch + replay
-                if (!flattenedData && typeof EOMigration !== 'undefined' && EOMigration.fetchAllEventsPaginated) {
-                    try {
-                        console.log('📡 Fallback: using paginated event fetch for full sync...');
-                        const paginatedResult = await EOMigration.fetchAllEventsPaginated({
-                            onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
-                                updateStatus(`Loading page ${page}/${pageTotal || '?'} (${itemsFetched}/${itemsTotal || '?'} events)...`, 'loading');
-                            }
-                        });
-
-                        flattenedData = paginatedResult.states;
-
-                        for (const event of paginatedResult.events) {
-                            if (event.ts && (!newestTs || event.ts > newestTs)) {
-                                newestTs = event.ts;
-                            }
-                        }
-
-                        console.log('✅ Paginated fetch complete:', paginatedResult.eventCount, 'events →', paginatedResult.stateCount, 'cases');
-                    } catch (paginatedError) {
-                        console.warn('⚠️ Paginated fetch failed, falling back to direct fetch:', paginatedError.message);
-                        lastError = paginatedError;
-                    }
-                }
-
-                // Fallback 2: direct (non-paginated) API call
-                if (!flattenedData) {
-                    const API_URL = buildEOApiUrl();
-                    console.log('API URL (full sync fallback):', API_URL);
-
-                    let result = null;
-                    try {
-                        console.log('Trying direct API call...');
-                        const response = await fetch(API_URL);
-
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-                        }
-
-                        result = await response.json();
-                        console.log('✅ Direct API call succeeded');
-                    } catch (directError) {
-                        console.error('❌ Direct API call failed:', directError.message);
-                        lastError = directError;
-                    }
-
-                    // If direct API call also failed, try cache fallback
-                    if (result === null) {
-                        console.log('API calls failed, checking cache for fallback...');
-                        const fallbackData = await loadCachedData();
-                        const storedTimestamp = localStorage.getItem('evictionDataTimestamp');
-
-                        if (fallbackData && fallbackData.length > 0) {
-                            allData = fallbackData;
-                            filteredData = allData;
-                            calculateGlobalDataRange(allData);
-
-                            const cacheAge = getCacheAgeHours();
-                            const ageText = cacheAge !== null ? `${cacheAge} hours` : 'unknown time';
-
-                            console.log('⚠️ Using stale cache as fallback:', allData.length, 'records, cached', ageText, 'ago');
-                            console.groupEnd();
-
-                            updateStatus(`Loaded ${allData.length} cached records (cached ${ageText} ago). Live API unavailable.`, 'success');
-                            updateMetrics();
-                            updateCharts();
-                            createDistrictMap();
-                            await loadDistrictDemographics();
-                            initDemographicsCharts();
-                            initGrid();
-                            document.getElementById('lastUpdate').textContent = storedTimestamp
-                                ? new Date(parseInt(storedTimestamp)).toLocaleString() + ' (cached)'
-                                : 'Cached data';
-
-                            restorePersistedFilters();
-                            return;
-                        }
-
-                        throw lastError || new Error('Unable to fetch data from API');
-                    }
-
-                    // Handle different response formats from direct fetch
-                    let data;
-                    if (Array.isArray(result)) {
-                        data = result;
-                    } else if (result?.items && Array.isArray(result.items)) {
-                        data = result.items;
-                    } else if (result?.data && Array.isArray(result.data)) {
-                        data = result.data;
-                    } else {
-                        data = [result];
-                    }
-
-                    console.log('🔢 Raw record count:', data.length);
-
-                    // Track the newest timestamp for sync bookkeeping
-                    for (const record of data) {
-                        const recordTs = record.updated || record.ts;
-                        if (recordTs && (!newestTs || recordTs > newestTs)) {
-                            newestTs = recordTs;
-                        }
-                    }
-
-                    // Detect if this is current-state format (has docket_number + stateData, or legacy object_id + data)
-                    const isCurrentStateFormat = data.length > 0 && (
-                        (data[0].docket_number !== undefined && data[0].stateData !== undefined) ||
-                        (data[0].object_id !== undefined && data[0].data !== undefined)
+                const records = await EvictionAPI.fetchAll((progress) => {
+                    updateStatus(
+                        `Loading page ${progress.page}${progress.pageTotal ? '/' + progress.pageTotal : ''} (${progress.fetched} records)...`,
+                        'loading'
                     );
-                    if (isCurrentStateFormat && typeof EOMigration !== 'undefined') {
-                        console.log('📊 Detected current-state format, parsing', data.length, 'rows...');
-                        flattenedData = data
-                            .map(row => EOMigration.fromCurrentStateFormat(row));
-                        console.log('📊 Parsed', flattenedData.length, 'cases from current-state rows');
-                    }
-                    // Detect if this is EO events format and reconstruct state
-                    else {
-                        const isEOFormat = data.length > 0 && data[0].op !== undefined && data[0].target !== undefined;
-                        if (isEOFormat && typeof EOMigration !== 'undefined') {
-                            console.log('📊 Detected EO event format, reconstructing state from', data.length, 'events...');
-                            const events = data.map(e => EOMigration.fromXanoFormat(e));
-                            flattenedData = EOMigration.reconstructAllStates(events);
-                            console.log('📊 Reconstructed', flattenedData.length, 'unique cases from', events.length, 'events');
-                        } else {
-                            flattenedData = data;
-                        }
-                    }
-                }
+                });
 
-                if (newestTs) {
-                    localStorage.setItem('eo_last_sync_ts', newestTs.toString());
-                    console.log('📌 Saved newest ts for incremental sync:', newestTs);
-                }
+                console.log('Fetched and deduped:', records.length, 'records');
 
-                const normalizedData = flattenedData.map(normalizeRecord);
+                // Normalize for grid display
+                const normalizedData = records.map(normalizeRecord);
                 allData = dedupeByDocketNumber(normalizedData);
-
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
 
-                // Log district distribution
-                const districtCounts = {};
-                allData.forEach(r => {
-                    const d = r.District || 'Processing';
-                    districtCounts[d] = (districtCounts[d] || 0) + 1;
-                });
-                console.log('🗺️ District distribution:', districtCounts);
-                console.log('📈 Records with valid district:', Object.entries(districtCounts).filter(([k]) => k !== 'Processing').reduce((s, [,v]) => s + v, 0));
-                console.log('❓ Records without district:', districtCounts['Processing'] || 0);
-
-                // Invalidate computed data caches since we have new data
+                // Cache to IndexedDB + localStorage
                 dataCache.invalidateAll();
-                console.log('🧹 Cleared computed data caches for new data');
-
-                // Store eviction data: full records in IndexedDB, compressed in localStorage
                 const timestamp = Date.now();
-
-                // Always save FULL records to IndexedDB (instant loading on next visit)
                 evictionDB.saveFull(allData, timestamp).then(success => {
                     if (success) {
                         localStorage.setItem('evictionDataTimestamp', timestamp.toString());
                         localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
                     }
                 });
-
-                // Also save compressed to localStorage for CM rankings page compatibility
-                const compressed = compressEvictionData(allData);
                 try {
+                    const compressed = compressEvictionData(allData);
                     localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
                     localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
-                    localStorage.removeItem('evictionData'); // Remove old uncompressed data
-                    console.log('💾 Stored compressed data in localStorage for CM rankings');
                 } catch (e) {
-                    console.warn('⚠️ localStorage quota exceeded for compressed data:', e.message);
+                    console.warn('localStorage quota exceeded:', e.message);
                 }
 
-                const dupeCount = normalizedData.length - allData.length;
-                const dupeMsg = dupeCount > 0 ? ` (${dupeCount} duplicates removed)` : '';
-                console.log('✅ Final record count:', allData.length, dupeMsg);
+                console.log('Final record count:', allData.length);
 
-                // Log any dynamic case_data fields discovered
-                if (dynamicCaseDataKeys.size > 0) {
-                    console.log('📋 Dynamic case_data columns discovered:', Array.from(dynamicCaseDataKeys).sort());
-                }
-                console.groupEnd();
-
-                updateStatus(`Loaded ${allData.length} records from public court data${dupeMsg}`, 'success');
+                updateStatus(`Loaded ${allData.length} records from public court data`, 'success');
                 updateMetrics();
                 updateCharts();
                 createDistrictMap();
                 await loadDistrictDemographics();
                 initDemographicsCharts();
                 initGrid();
-
-                // Update last update time
                 document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
-
-                // Re-apply persisted filters after data loads
                 restorePersistedFilters();
 
             } catch (error) {
-                console.groupEnd();
-                console.error('❌ Error loading data:', {
-                    message: error.message,
-                    name: error.name,
-                    stack: error.stack
-                });
-                updateStatus(`Error loading data: ${error.message}. Please try refreshing the page.`, 'error');
+                console.error('Error loading data:', error);
+
+                // Fall back to stale cache if API fails
+                const fallback = await loadCachedData();
+                if (fallback && fallback.length > 0) {
+                    allData = fallback;
+                    filteredData = allData;
+                    calculateGlobalDataRange(allData);
+                    updateStatus(`Loaded ${allData.length} cached records (API unavailable)`, 'success');
+                    updateMetrics();
+                    updateCharts();
+                    createDistrictMap();
+                    await loadDistrictDemographics();
+                    initDemographicsCharts();
+                    initGrid();
+                    restorePersistedFilters();
+                } else {
+                    updateStatus(`Error loading data: ${error.message}`, 'error');
+                }
             } finally {
                 isLoadingData = false;
                 updateRefreshUI();
-
-                // PAUSED: Queue system disabled - uncomment to re-enable
-                // Initialize queue system after data loads and auto-queue stale records
-                // if (allData && allData.length > 0) {
-                //     initializeQueueSystem().then(() => {
-                //         // Automatically queue stale records without requiring user to open individual cases
-                //         queueStaleRecords(25).then(result => {
-                //             if (result && result.queued > 0) {
-                //                 console.log(`Auto-queued ${result.queued} stale records on load`);
-                //             }
-                //         }).catch(err => console.error('Auto-queue failed:', err));
-                //     });
-                // }
             }
         }
 
-        // Incremental data loading - fetch only updated records since last sync
-        // Uses current-state endpoint with updated_since filter
+        // Refresh data from API (re-fetches everything, merges with current)
         async function loadDataIncremental() {
-            // If no data loaded yet, do a full load
-            if (!allData || allData.length === 0) {
-                return loadData();
-            }
+            if (!allData || allData.length === 0) return loadData();
 
             isLoadingData = true;
             updateRefreshUI();
 
             try {
-                console.group('🔄 Incremental Data Sync');
-                console.log('Timestamp:', new Date().toISOString());
+                updateStatus('Refreshing data...', 'loading');
 
-                // Get the last sync timestamp to query only newer records
-                const lastSyncTs = localStorage.getItem('eo_last_sync_ts');
-
-                // Build URL using the current-state endpoint (primary) or EO fallback
-                const queryOptions = {};
-                let url;
-                let useCurrentState = true;
-
-                // API has no server-side filtering; always fetch all records
-                console.log('📊 Fetching all current-state records');
-                url = buildCurrentStateApiUrl();
-
-                updateStatus('Checking for new records...', 'loading');
-
-                let response;
-                try {
-                    response = await fetch(url);
-                } catch (fetchErr) {
-                    // If current-state fails, fall back to legacy EO endpoint
-                    console.warn('⚠️ Current-state fetch failed, trying legacy EO endpoint:', fetchErr.message);
-                    useCurrentState = false;
-                    const legacyOptions = {};
-                    if (lastSyncTs) legacyOptions.ts_gt = lastSyncTs;
-                    url = buildEOApiUrl(legacyOptions);
-                    response = await fetch(url);
-                }
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-                }
-
-                const result = await response.json();
-
-                // Handle different response formats
-                let newData;
-                if (Array.isArray(result)) {
-                    newData = result;
-                } else if (result?.items && Array.isArray(result.items)) {
-                    newData = result.items;
-                } else if (result?.data && Array.isArray(result.data)) {
-                    newData = result.data;
-                } else {
-                    newData = [result];
-                }
-
-                console.log('🔢 New records received:', newData.length);
-
-                if (newData.length === 0) {
-                    console.log('✅ No new records found');
-                    console.groupEnd();
-                    updateStatus(`Data is up to date (${allData.length} records)`, 'success');
-                    document.getElementById('lastUpdate').textContent = new Date().toLocaleString() + ' (no changes)';
-                    return;
-                }
-
-                let processedNewData;
-
-                // Detect format and process accordingly
-                const isCurrentStateFormat = newData.length > 0 && (
-                    (newData[0].docket_number !== undefined && newData[0].stateData !== undefined) ||
-                    (newData[0].object_id !== undefined && newData[0].data !== undefined)
-                );
-                const isEOFormat = newData.length > 0 && newData[0].op !== undefined && newData[0].target !== undefined;
-
-                if (isCurrentStateFormat && typeof EOMigration !== 'undefined') {
-                    // Current-state format: merge updated rows into existing data
-                    console.log('📊 Processing current-state format records');
-                    const stateMap = new Map();
-                    for (const record of allData) {
-                        const id = normalizeDocketNumber(record.Docket_Number || record.Case_Number || record._entity_id || '');
-                        if (id) stateMap.set(id, record);
-                    }
-
-                    for (const row of newData) {
-                        const state = EOMigration.fromCurrentStateFormat(row);
-                        const entityId = state._entity_id || state.Docket_Number;
-                        if (entityId) stateMap.set(entityId, state);
-                    }
-
-                    processedNewData = Array.from(stateMap.values());
-                } else if (isEOFormat && typeof EOMigration !== 'undefined') {
-                    console.log('📊 Processing EO format events (fallback)');
-                    const events = newData.map(e => EOMigration.fromXanoFormat(e));
-                    processedNewData = applyEventsToState(allData, events);
-                } else {
-                    processedNewData = newData;
-                }
-
-                // Normalize and dedupe
-                const normalizedNewData = processedNewData.map(normalizeRecord);
+                const records = await EvictionAPI.fetchAll();
+                const normalizedData = records.map(normalizeRecord);
                 const previousCount = allData.length;
-                allData = dedupeByDocketNumber(normalizedNewData);
+
+                allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
-
-                const addedCount = Math.max(0, allData.length - previousCount);
-                const updatedCount = newData.length;
-
-                // Update the last sync timestamp
-                const now = Date.now();
-                localStorage.setItem('eo_last_sync_ts', now.toString());
-
-                // Invalidate computed data caches
                 dataCache.invalidateAll();
 
-                // Persist updated data: full records to IndexedDB
+                // Cache
                 const timestamp = Date.now();
-                await evictionDB.saveFull(allData, timestamp);
-                localStorage.setItem('evictionDataTimestamp', timestamp.toString());
-                localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
-
-                // Also update compressed localStorage for compatibility
-                const compressed = compressEvictionData(allData);
+                evictionDB.saveFull(allData, timestamp).then(success => {
+                    if (success) {
+                        localStorage.setItem('evictionDataTimestamp', timestamp.toString());
+                        localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
+                    }
+                });
                 try {
+                    const compressed = compressEvictionData(allData);
                     localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
-                    localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
-                } catch (e) {
-                    console.warn('⚠️ localStorage quota exceeded for compressed data');
-                }
+                } catch (e) { /* quota exceeded */ }
 
-                console.log(`✅ Sync complete: ${addedCount} new, ${updatedCount} records synced, ${allData.length} total`);
-                console.groupEnd();
-
-                // Update UI
-                const changeMsg = addedCount > 0 || updatedCount > 0
-                    ? `Synced: +${addedCount} new, ${updatedCount} events applied`
-                    : 'No changes';
-                updateStatus(`${allData.length} records (${changeMsg})`, 'success');
+                const addedCount = Math.max(0, allData.length - previousCount);
+                updateStatus(`${allData.length} records (+${addedCount} new)`, 'success');
                 updateMetrics();
                 updateCharts();
                 createDistrictMap();
-
-                // Refresh grid if initialized
-                if (gridApi) {
-                    gridApi.setRowData(filteredData);
-                }
-
+                if (gridApi) gridApi.setRowData(filteredData);
                 document.getElementById('lastUpdate').textContent = new Date().toLocaleString();
-
-                // Re-apply filters
                 restorePersistedFilters();
 
             } catch (error) {
-                console.groupEnd();
-                console.error('❌ Incremental sync error:', error);
-                updateStatus(`Sync failed: ${error.message}`, 'error');
+                console.error('Refresh failed:', error);
+                updateStatus(`Refresh failed: ${error.message}`, 'error');
             } finally {
                 isLoadingData = false;
                 updateRefreshUI();
