@@ -7757,6 +7757,11 @@
         };
 
         // Helper function to apply new events incrementally to existing state
+        // Matches semantics of EOMigration.reconstructEntityState and applyEventToStateCache:
+        // - ALT events without prior INS create new entities (first ALT = INS for that case)
+        // - Empty/null values never overwrite existing data
+        // - payload.data and payload.changes are applied independently (not if/else)
+        // - Events sorted by observationTS for proper temporal ordering
         function applyEventsToState(existingRecords, newEvents) {
             // Create a map of existing records by entity ID for fast lookup
             const stateMap = new Map();
@@ -7767,8 +7772,29 @@
                 }
             }
 
-            // Sort new events by timestamp to apply in order
-            const sortedEvents = [...newEvents].sort((a, b) => a.ts - b.ts);
+            // Check if a value is empty (null, undefined, or empty string)
+            // Matches the no-nulls semantics of EOMigration.reconstructEntityState
+            function isEmptyValue(value) {
+                return value === null || value === undefined || value === '';
+            }
+
+            // Merge data into state, skipping empty/null/undefined values
+            function mergeNonEmpty(target, source) {
+                if (!source) return;
+                for (const [key, value] of Object.entries(source)) {
+                    if (!isEmptyValue(value)) {
+                        target[key] = value;
+                    }
+                }
+            }
+
+            // Get observationTS from event (when data was observed, not when synced)
+            function getObservationTS(event) {
+                return event.payload?.observationTS || event.context?.observationTS || event.ts;
+            }
+
+            // Sort new events by observationTS for proper replay ordering
+            const sortedEvents = [...newEvents].sort((a, b) => getObservationTS(a) - getObservationTS(b));
 
             // Apply each event
             for (const event of sortedEvents) {
@@ -7783,41 +7809,56 @@
 
                 switch (op) {
                     case 'INS':
-                        // New entity - create from event data
-                        state = { ...payload.data };
+                        if (state) {
+                            // Merge into existing state, skip empty values
+                            mergeNonEmpty(state, payload.data);
+                        } else {
+                            // New entity - create from event data
+                            state = {};
+                            mergeNonEmpty(state, payload.data);
+                            state.Docket_Number = entityId;
+                        }
                         state._entity_id = entityId;
                         state._last_updated = event.ts;
-                        state._event_count = 1;
+                        state._event_count = (state._event_count || 0) + 1;
                         stateMap.set(entityId, state);
                         break;
 
                     case 'ALT':
-                        // ALT with payload.data = upsert (create if not exists, update if exists)
-                        if (payload.data) {
-                            if (state) {
-                                // Merge new data into existing state
-                                Object.assign(state, payload.data);
-                            } else {
-                                // Create new entity from ALT data
-                                state = { ...payload.data };
-                                state.Docket_Number = entityId;
-                            }
-                            state._entity_id = entityId;
-                            state._last_updated = event.ts;
-                            state._event_count = (state._event_count || 0) + 1;
-                            stateMap.set(entityId, state);
-                        } else if (state) {
-                            // ALT with changes or single field update (only if state exists)
-                            if (payload.changes) {
-                                for (const [field, change] of Object.entries(payload.changes)) {
-                                    state[field] = change.new;
+                        // Ensure state exists for ALT - create if needed (upsert)
+                        // This handles cases that only have ALTs and no INS:
+                        // the first ALT effectively becomes the INS for this case
+                        if (!state) {
+                            state = {
+                                Docket_Number: entityId,
+                                _entity_id: entityId
+                            };
+                        }
+
+                        // ALT with payload.data = full record upsert
+                        // Skip empty values to match replay semantics
+                        mergeNonEmpty(state, payload.data);
+
+                        // ALT with payload.changes = delta update
+                        if (payload.changes) {
+                            for (const [field, change] of Object.entries(payload.changes)) {
+                                const newValue = change.new !== undefined ? change.new : change;
+                                if (!isEmptyValue(newValue)) {
+                                    state[field] = newValue;
                                 }
-                            } else if (event.target?.field && payload.new !== undefined) {
+                            }
+                        }
+
+                        // ALT with single field update via target.field
+                        if (event.target?.field && payload.new !== undefined) {
+                            if (!isEmptyValue(payload.new)) {
                                 state[event.target.field] = payload.new;
                             }
-                            state._last_updated = event.ts;
-                            state._event_count = (state._event_count || 0) + 1;
                         }
+
+                        state._last_updated = event.ts;
+                        state._event_count = (state._event_count || 0) + 1;
+                        stateMap.set(entityId, state);
                         break;
 
                 }
