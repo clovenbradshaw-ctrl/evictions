@@ -46,8 +46,8 @@ const EOMigration = (function() {
     // Batch size for migrations
     BATCH_SIZE: 100,
 
-    // Default page size for paginated fetches
-    DEFAULT_PAGE_SIZE: 3000
+    // Default page size for paginated fetches (API default is 2500)
+    DEFAULT_PAGE_SIZE: 2500
   };
 
   /**
@@ -1343,17 +1343,22 @@ const EOMigration = (function() {
 
   /**
    * Parse a current-state row into internal case format.
-   * Replays the `data` array entries cumulatively to produce current state.
+   * Replays the `stateData` array entries cumulatively to produce current state.
+   *
+   * New API schema (eviction_current_state):
+   *   { id, created_at, docket_number, updated, stateData, fileDate }
    *
    * @param {object} row - A row from the eviction_current_state table
    * @returns {object} Reconstructed case state
    */
   function fromCurrentStateFormat(row) {
-    const objectId = row.object_id || '';
+    // Support new field name (docket_number) with fallback to legacy (object_id)
+    const objectId = row.docket_number || row.object_id || '';
     const normalizedId = normalizeDocketNumber(objectId);
 
-    // Parse the data field — it may be a JSON string or already parsed
-    let dataEntries = row.data;
+    // Parse the stateData field — it may be a JSON string or already parsed
+    // Support new field name (stateData) with fallback to legacy (data)
+    let dataEntries = row.stateData !== undefined ? row.stateData : row.data;
     if (typeof dataEntries === 'string') {
       dataEntries = safeJsonParse(dataEntries, []);
     }
@@ -1382,12 +1387,17 @@ const EOMigration = (function() {
     // Ensure identity fields are set
     state.Docket_Number = state.Docket_Number || normalizedId;
     state._entity_id = normalizedId;
-    state._last_updated = row.updated_at
-      ? new Date(row.updated_at).getTime()
-      : (row.created_at ? new Date(row.created_at).getTime() : Date.now());
+    // Support new field name (updated) with fallback to legacy (updated_at)
+    const updatedTs = row.updated || row.updated_at;
+    state._last_updated = updatedTs
+      ? (typeof updatedTs === 'number' ? updatedTs : new Date(updatedTs).getTime())
+      : (row.created_at ? (typeof row.created_at === 'number' ? row.created_at : new Date(row.created_at).getTime()) : Date.now());
     state._current_state_id = row.id;
     state._data_entries_count = dataEntries.length;
-    state._deleted = row.deleted || false;
+    // fileDate from the new API schema
+    if (row.fileDate) {
+      state.File_Date = state.File_Date || row.fileDate;
+    }
 
     return state;
   }
@@ -1395,32 +1405,41 @@ const EOMigration = (function() {
   /**
    * Convert internal case data to current-state POST format.
    *
-   * @param {string} objectId - The docket number (object_id)
-   * @param {object|Array} data - Case data entry or array of entries for the `data` field
+   * New API schema: { docket_number, stateData, fileDate }
+   *
+   * @param {string} objectId - The docket number
+   * @param {object|Array} data - Case data entry or array of entries for the `stateData` field
    * @param {object} options - Additional options
-   * @param {string} options.object_type - Entity type (default: 'eviction_case')
-   * @param {boolean} options.deleted - Soft-delete flag (default: false)
+   * @param {string} options.fileDate - File date for the case (YYYY-MM-DD)
    * @returns {object} Body ready for POST to /eviction_current_state
    */
   function toCurrentStateFormat(objectId, data, options = {}) {
     const normalizedId = normalizeDocketNumber(objectId);
     const dataArray = Array.isArray(data) ? data : [data];
 
-    return {
-      object_type: options.object_type || 'eviction_case',
-      object_id: normalizedId,
-      data: dataArray,
-      deleted: options.deleted || false
+    const body = {
+      docket_number: normalizedId,
+      stateData: dataArray
     };
+
+    // Include fileDate if provided or derivable from data
+    if (options.fileDate) {
+      body.fileDate = options.fileDate;
+    } else {
+      // Try to derive from data entries
+      const fileDate = dataArray[0]?.File_Date || dataArray[0]?.file_date;
+      if (fileDate) body.fileDate = fileDate;
+    }
+
+    return body;
   }
 
   /**
-   * Fetch all records from the current-state endpoint.
+   * Fetch records from the current-state endpoint.
+   * The API returns a paginated list sorted by fileDate desc (2500 per page default).
+   * No server-side filtering is supported — only pagination params.
    *
    * @param {object} options - Fetch options
-   * @param {string} options.object_id - Filter by docket number
-   * @param {string} options.object_type - Filter by entity type
-   * @param {number} options.updated_since - Only fetch records updated after this timestamp (ms)
    * @param {number} options.page - Page number
    * @param {number} options.per_page - Items per page
    * @returns {Array} Array of current-state rows
@@ -1428,15 +1447,6 @@ const EOMigration = (function() {
   async function fetchCurrentState(options = {}) {
     const params = new URLSearchParams();
 
-    if (options.object_id) {
-      params.append('object_id', options.object_id);
-    }
-    if (options.object_type) {
-      params.append('object_type', options.object_type);
-    }
-    if (options.updated_since) {
-      params.append('updated_since', options.updated_since);
-    }
     if (options.page) {
       params.append('page', options.page);
     }
@@ -1466,7 +1476,6 @@ const EOMigration = (function() {
    * @param {function} options.onProgress - Progress callback ({ page, pageTotal, itemsFetched, itemsTotal })
    * @param {function} options.log - Logging function
    * @param {number} options.perPage - Items per page (default: CONFIG.DEFAULT_PAGE_SIZE)
-   * @param {number} options.updated_since - Only fetch records updated after this timestamp (ms)
    * @param {number} options.maxPages - Safety limit (default: 100)
    * @returns {object} { rows, states, stateCount, pagesFetched, itemsTotal }
    */
@@ -1488,9 +1497,6 @@ const EOMigration = (function() {
         page,
         per_page: perPage
       };
-      if (options.updated_since) {
-        fetchOpts.updated_since = options.updated_since;
-      }
 
       const result = await fetchCurrentState(fetchOpts);
 
@@ -1548,7 +1554,6 @@ const EOMigration = (function() {
     // Convert rows to internal case states
     const states = [];
     for (const row of allRows) {
-      if (row.deleted) continue; // Skip soft-deleted records
       const state = fromCurrentStateFormat(row);
       if (state && state._entity_id) {
         states.push(state);
@@ -1606,7 +1611,7 @@ const EOMigration = (function() {
           results.success++;
         } catch (error) {
           results.failed++;
-          results.errors.push({ object_id: record.object_id, error: error.message });
+          results.errors.push({ docket_number: record.docket_number || record.object_id, error: error.message });
         }
       }
 

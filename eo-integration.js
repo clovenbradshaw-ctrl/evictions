@@ -356,10 +356,10 @@ const EOIntegration = (function() {
         log: console.log
       };
 
-      // Incremental: only fetch records updated since last sync
+      // Note: API has no server-side filtering; full fetch is always performed.
+      // Client-side merging handles incremental updates.
       if (options.incrementalFromLastSync && lastSyncTimestamp > 0) {
-        fetchOptions.updated_since = lastSyncTimestamp;
-        console.log('  Incremental sync from:', new Date(lastSyncTimestamp).toISOString());
+        console.log('  Full fetch (will merge client-side since:', new Date(lastSyncTimestamp).toISOString() + ')');
       }
 
       const result = await EOMigration.fetchAllCurrentState(fetchOptions);

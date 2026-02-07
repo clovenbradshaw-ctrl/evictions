@@ -7441,6 +7441,7 @@
         const CURRENT_STATE_API = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_current_state';
 
         // API query builder for current-state endpoint
+        // The API has no server-side filtering — only pagination params are supported
         function buildCurrentStateApiUrl(options = {}) {
             const params = new URLSearchParams();
 
@@ -7449,12 +7450,6 @@
             }
             if (options.per_page !== undefined && options.per_page !== null) {
                 params.append('per_page', options.per_page);
-            }
-            if (options.object_id) {
-                params.append('object_id', options.object_id);
-            }
-            if (options.updated_since) {
-                params.append('updated_since', options.updated_since);
             }
 
             const queryString = params.toString();
@@ -8233,10 +8228,10 @@
                     console.log('📦 Found cached data:', cachedData.length, 'records');
                     console.log('📌 Last sync timestamp:', lastSyncTs, '(' + new Date(parseInt(lastSyncTs)).toISOString() + ')');
 
-                    // Fetch only records updated since last sync from current-state endpoint
-                    const incrementalUrl = buildCurrentStateApiUrl({ updated_since: lastSyncTs });
-                    console.log('🔄 Incremental sync URL (current-state):', incrementalUrl);
-                    updateStatus('Fetching updated records since last sync...', 'loading');
+                    // Fetch all records from current-state endpoint (no server-side filtering available)
+                    const incrementalUrl = buildCurrentStateApiUrl();
+                    console.log('🔄 Sync URL (current-state):', incrementalUrl);
+                    updateStatus('Fetching records from current-state endpoint...', 'loading');
 
                     try {
                         const response = await fetch(incrementalUrl);
@@ -8279,16 +8274,10 @@
                             }
 
                             for (const row of updatedRows) {
-                                if (row.deleted) {
-                                    // Remove soft-deleted records
-                                    const delId = normalizeDocketNumber(row.object_id || '');
-                                    if (delId) stateMap.delete(delId);
-                                    continue;
-                                }
                                 const state = typeof EOMigration !== 'undefined'
                                     ? EOMigration.fromCurrentStateFormat(row)
                                     : row;
-                                const entityId = state._entity_id || state.Docket_Number || normalizeDocketNumber(row.object_id || '');
+                                const entityId = state._entity_id || state.Docket_Number || normalizeDocketNumber(row.docket_number || row.object_id || '');
                                 if (entityId) stateMap.set(entityId, state);
                             }
 
@@ -8466,19 +8455,22 @@
 
                     console.log('🔢 Raw record count:', data.length);
 
-                    // Track the newest timestamp for incremental sync
+                    // Track the newest timestamp for sync bookkeeping
                     for (const record of data) {
-                        if (record.ts && (!newestTs || record.ts > newestTs)) {
-                            newestTs = record.ts;
+                        const recordTs = record.updated || record.ts;
+                        if (recordTs && (!newestTs || recordTs > newestTs)) {
+                            newestTs = recordTs;
                         }
                     }
 
-                    // Detect if this is current-state format (has object_id + data array)
-                    const isCurrentStateFormat = data.length > 0 && data[0].object_id !== undefined && data[0].data !== undefined;
+                    // Detect if this is current-state format (has docket_number + stateData, or legacy object_id + data)
+                    const isCurrentStateFormat = data.length > 0 && (
+                        (data[0].docket_number !== undefined && data[0].stateData !== undefined) ||
+                        (data[0].object_id !== undefined && data[0].data !== undefined)
+                    );
                     if (isCurrentStateFormat && typeof EOMigration !== 'undefined') {
                         console.log('📊 Detected current-state format, parsing', data.length, 'rows...');
                         flattenedData = data
-                            .filter(row => !row.deleted)
                             .map(row => EOMigration.fromCurrentStateFormat(row));
                         console.log('📊 Parsed', flattenedData.length, 'cases from current-state rows');
                     }
@@ -8617,14 +8609,9 @@
                 let url;
                 let useCurrentState = true;
 
-                if (lastSyncTs) {
-                    queryOptions.updated_since = lastSyncTs;
-                    console.log('📊 Smart query: fetching records updated since', lastSyncTs);
-                    url = buildCurrentStateApiUrl(queryOptions);
-                } else {
-                    console.log('📊 No previous timestamp, doing full fetch');
-                    url = buildCurrentStateApiUrl();
-                }
+                // API has no server-side filtering; always fetch all records
+                console.log('📊 Fetching all current-state records');
+                url = buildCurrentStateApiUrl();
 
                 updateStatus('Checking for new records...', 'loading');
 
@@ -8672,7 +8659,10 @@
                 let processedNewData;
 
                 // Detect format and process accordingly
-                const isCurrentStateFormat = newData.length > 0 && newData[0].object_id !== undefined && newData[0].data !== undefined;
+                const isCurrentStateFormat = newData.length > 0 && (
+                    (newData[0].docket_number !== undefined && newData[0].stateData !== undefined) ||
+                    (newData[0].object_id !== undefined && newData[0].data !== undefined)
+                );
                 const isEOFormat = newData.length > 0 && newData[0].op !== undefined && newData[0].target !== undefined;
 
                 if (isCurrentStateFormat && typeof EOMigration !== 'undefined') {
@@ -8685,11 +8675,6 @@
                     }
 
                     for (const row of newData) {
-                        if (row.deleted) {
-                            const delId = normalizeDocketNumber(row.object_id || '');
-                            if (delId) stateMap.delete(delId);
-                            continue;
-                        }
                         const state = EOMigration.fromCurrentStateFormat(row);
                         const entityId = state._entity_id || state.Docket_Number;
                         if (entityId) stateMap.set(entityId, state);
