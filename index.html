@@ -8259,7 +8259,7 @@
                     return;
                 }
 
-                // Fetch from API — paginated, replay stateData, dedupe by docket_number
+                // Fetch from API — paginated, stateData replayed by EvictionAPI, dedupe downstream
                 updateStatus('Loading data from court records API...', 'loading');
 
                 const records = await EvictionAPI.fetchAll((progress) => {
