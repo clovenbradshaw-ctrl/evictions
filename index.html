@@ -3873,8 +3873,8 @@
             </div>
 
             <!-- Hidden legacy inputs for compatibility -->
-            <input type="date" id="dateFrom" class="hidden">
-            <input type="date" id="dateTo" class="hidden">
+            <input type="date" id="dateFrom" class="hidden" min="2018-01-01">
+            <input type="date" id="dateTo" class="hidden" min="2018-01-01">
         </div>
 
         <!-- Demographics Visualization Section -->
@@ -7130,44 +7130,64 @@
             }
         }
 
+        // Earliest accepted file date (historical data goes back to 2018)
+        const EARLIEST_ACCEPTED_DATE = '2018-01-01';
+
         function parseDate(dateValue) {
             if (!dateValue) return null;
 
             // If already a Date object
             if (dateValue instanceof Date) {
-                return isNaN(dateValue.getTime()) ? null : dateValue.toISOString().split('T')[0];
+                if (isNaN(dateValue.getTime())) return null;
+                const iso = dateValue.toISOString().split('T')[0];
+                return iso >= EARLIEST_ACCEPTED_DATE ? iso : null;
             }
 
             const dateStr = String(dateValue).trim();
             if (!dateStr) return null;
 
+            let isoDate = null;
+
             // Try parsing as ISO format first (YYYY-MM-DD)
             if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
                 const date = new Date(dateStr);
-                return isNaN(date.getTime()) ? null : dateStr.split('T')[0];
+                isoDate = isNaN(date.getTime()) ? null : dateStr.split('T')[0];
             }
 
             // Handle MM/DD/YYYY or M/D/YYYY format
-            const slashMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-            if (slashMatch) {
-                const [, month, day, year] = slashMatch;
-                const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                const date = new Date(isoDate);
-                return isNaN(date.getTime()) ? null : isoDate;
+            if (!isoDate) {
+                const slashMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+                if (slashMatch) {
+                    const [, month, day, year] = slashMatch;
+                    isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                    const date = new Date(isoDate);
+                    if (isNaN(date.getTime())) isoDate = null;
+                }
             }
 
             // Handle MM-DD-YYYY format
-            const dashMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
-            if (dashMatch) {
-                const [, month, day, year] = dashMatch;
-                const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                const date = new Date(isoDate);
-                return isNaN(date.getTime()) ? null : isoDate;
+            if (!isoDate) {
+                const dashMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
+                if (dashMatch) {
+                    const [, month, day, year] = dashMatch;
+                    isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                    const date = new Date(isoDate);
+                    if (isNaN(date.getTime())) isoDate = null;
+                }
             }
 
             // Fallback: try native parsing
-            const date = new Date(dateStr);
-            return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
+            if (!isoDate) {
+                const date = new Date(dateStr);
+                isoDate = isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
+            }
+
+            // Accept dates from 2018 onwards
+            if (isoDate && isoDate >= EARLIEST_ACCEPTED_DATE) {
+                return isoDate;
+            }
+
+            return null;
         }
 
         // Format an ISO date string (YYYY-MM-DD) for display without timezone shift.
@@ -9420,6 +9440,16 @@
                 _logged_at: record._logged_at,
                 _action: record._action
             };
+
+            // Normalize all date fields through parseDate to ensure consistent
+            // ISO format and 2018+ validation for historical data
+            const dateFields = ['service_date', 'paper_writ_date', 'writ_issued_date',
+                                'writ_served_date', 'judgment_date', 'dismissal_date'];
+            for (const field of dateFields) {
+                if (normalized[field]) {
+                    normalized[field] = parseDate(normalized[field]);
+                }
+            }
 
             // Derive fields from pleadings array if not already set
             if (Array.isArray(normalized.pleadings) && normalized.pleadings.length > 0) {
@@ -16478,6 +16508,12 @@
                 }
             }
 
+            // Date fields that should be normalized through parseDate (accepts 2018+)
+            const dateFieldKeys = new Set([
+                'File_Date', 'service_date', 'paper_writ_date',
+                'writ_issued_date', 'writ_served_date', 'judgment_date', 'dismissal_date'
+            ]);
+
             // Transform data to target format
             const transformedData = bulkUploadData.map(row => {
                 const transformed = {};
@@ -16488,6 +16524,11 @@
                     const fieldDef = targetSchemaFields.find(f => f.key === targetField);
                     if (fieldDef && fieldDef.type === 'integer') {
                         value = parseInt(value, 10) || 0;
+                    }
+
+                    // Normalize date fields to ISO format (accepts dates from 2018+)
+                    if (dateFieldKeys.has(targetField) && value) {
+                        value = parseDate(value) || value;
                     }
 
                     transformed[targetField] = value;
@@ -17036,15 +17077,15 @@
                 if (condition.operator === 'between') {
                     valueInput = `
                         <div class="flex gap-2 items-center">
-                            <input type="date" value="${condition.value}" onchange="updateCondition(${groupId}, ${condition.id}, 'value', this.value)">
+                            <input type="date" min="2018-01-01" value="${condition.value}" onchange="updateCondition(${groupId}, ${condition.id}, 'value', this.value)">
                             <span class="text-xs text-gray-500">to</span>
-                            <input type="date" value="${condition.value2 || ''}" onchange="updateCondition(${groupId}, ${condition.id}, 'value2', this.value)">
+                            <input type="date" min="2018-01-01" value="${condition.value2 || ''}" onchange="updateCondition(${groupId}, ${condition.id}, 'value2', this.value)">
                         </div>
                     `;
                 } else if (condition.operator === 'last_n_days') {
                     valueInput = `<input type="number" min="1" placeholder="Number of days" value="${condition.value}" onchange="updateCondition(${groupId}, ${condition.id}, 'value', this.value)">`;
                 } else {
-                    valueInput = `<input type="date" value="${condition.value}" onchange="updateCondition(${groupId}, ${condition.id}, 'value', this.value)">`;
+                    valueInput = `<input type="date" min="2018-01-01" value="${condition.value}" onchange="updateCondition(${groupId}, ${condition.id}, 'value', this.value)">`;
                 }
             } else {
                 valueInput = `<input type="text" placeholder="Enter value..." value="${escapeHtml(condition.value)}" onchange="updateCondition(${groupId}, ${condition.id}, 'value', this.value)">`;
@@ -18350,14 +18391,8 @@
         function convertParsedToRecord(parsed) {
             const defendant = parsed.defendants[0] || {};
 
-            // Parse court date to ISO format
-            let fileDate = null;
-            if (parsed.court_date) {
-                const parts = parsed.court_date.split('/');
-                if (parts.length === 3) {
-                    fileDate = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-                }
-            }
+            // Parse court date through parseDate for consistent ISO format and 2018+ validation
+            const fileDate = parsed.court_date ? parseDate(parsed.court_date) : null;
 
             return {
                 Docket_Number: parsed.docket_number,
