@@ -1,11 +1,9 @@
 /**
  * Eviction Current-State API Client
  *
- * Fetches paginated records from the current-state endpoint,
- * deduplicates by docket_number (keeping the most recently updated row).
- *
- * stateData extraction is deferred — for now we return the top-level
- * row data as-is.
+ * Fetches paginated records from the current-state endpoint.
+ * Returns raw rows — deduplication is handled downstream in index.html
+ * after normalizeRecord extracts docket numbers from stateData.
  */
 const EvictionAPI = (function () {
   'use strict';
@@ -63,45 +61,13 @@ const EvictionAPI = (function () {
   }
 
   // ---------------------------------------------------------------------------
-  // Deduplicate rows by docket_number — keep the most recently updated row
-  // ---------------------------------------------------------------------------
-  function dedupeByDocket(rows) {
-    const map = new Map();
-
-    for (const row of rows) {
-      const key = normalizeDocket(row.docket_number);
-      if (!key) continue;
-
-      const existing = map.get(key);
-      if (!existing) {
-        map.set(key, row);
-      } else {
-        // Keep whichever row was updated more recently
-        const rowTs = row.updated || row.created_at || 0;
-        const existingTs = existing.updated || existing.created_at || 0;
-        if (rowTs > existingTs) {
-          map.set(key, row);
-        }
-      }
-    }
-
-    return Array.from(map.values());
-  }
-
-  function normalizeDocket(d) {
-    if (!d) return '';
-    return String(d).trim().replace(/\s+/g, ' ').toUpperCase();
-  }
-
-  // ---------------------------------------------------------------------------
-  // Public: fetch all pages, dedupe, return raw rows
+  // Public: fetch all pages and return raw rows
   // ---------------------------------------------------------------------------
   async function fetchAll(onProgress) {
-    const rows = await fetchAllPages(onProgress);
-    return dedupeByDocket(rows);
+    return fetchAllPages(onProgress);
   }
 
-  return { fetchAll, fetchAllPages, fetchPage, dedupeByDocket, normalizeDocket };
+  return { fetchAll, fetchAllPages, fetchPage };
 })();
 
 if (typeof module !== 'undefined' && module.exports) {
