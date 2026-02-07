@@ -253,10 +253,22 @@ const API_BASE = "https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_curre
 const PER_PAGE = 2500;
 const MAX_TABLE_ROWS = 200;
 
+// Schema: { id, created_at, docket_number, updated, stateData: [json], fileDate }
+// stateData entries: { op, ts, Office, Status, source, Attorney, File_Date, Description, individual_ll, Defendant_Respondent, Plaintiff_Petitioner }
+
+const TABLE_COLUMNS = [
+  { key: "docket_number",        label: "Docket" },
+  { key: "fileDate",             label: "File Date" },
+  { key: "Status",               label: "Status",      from: "stateData" },
+  { key: "Plaintiff_Petitioner", label: "Plaintiff",   from: "stateData" },
+  { key: "Defendant_Respondent", label: "Defendant",   from: "stateData" },
+  { key: "Attorney",             label: "Attorney",    from: "stateData" },
+  { key: "Description",          label: "Description", from: "stateData" },
+];
+
 let records = [];
 let abortController = null;
 let expandedRow = null;
-let columns = [];
 
 document.getElementById("apiUrl").textContent = API_BASE;
 
@@ -285,15 +297,51 @@ function setStatus(text, cls) {
   el.className = "val " + (cls || "");
 }
 
+// Parse stateData: could be a JSON string or already an array
+function parseStateData(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw); } catch (e) { return []; }
+  }
+  return [];
+}
+
+// Get the latest event from the stateData array (last entry = current state)
+function latestState(record) {
+  const events = parseStateData(record.stateData);
+  return events.length > 0 ? events[events.length - 1] : {};
+}
+
+// Format a timestamp field for display (epoch ms or date string)
+function formatDate(val) {
+  if (val == null) return "\u2014";
+  if (typeof val === "number") {
+    return new Date(val).toISOString().slice(0, 10);
+  }
+  const s = String(val);
+  // Already a date string like "2025-02-26"
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  // Epoch as string
+  const n = Number(s);
+  if (!isNaN(n) && s.length >= 10) return new Date(n).toISOString().slice(0, 10);
+  return s;
+}
+
+// Get a display value for a column from a record
+function getColValue(record, col) {
+  if (col.from === "stateData") {
+    return latestState(record)[col.key] ?? null;
+  }
+  if (col.key === "fileDate") return formatDate(record.fileDate);
+  return record[col.key] ?? null;
+}
+
 function updateTable() {
   if (records.length === 0) return;
 
-  if (columns.length === 0) {
-    columns = Object.keys(records[0]).slice(0, 8);
-    $("thead").innerHTML = "<tr><th>#</th>" +
-      columns.map(c => `<th>${c}</th>`).join("") +
-      "<th>\u2026</th></tr>";
-  }
+  $("thead").innerHTML = "<tr><th>#</th>" +
+    TABLE_COLUMNS.map(c => `<th>${c.label}</th>`).join("") +
+    "<th></th></tr>";
 
   show("tableWrap");
   const display = records.slice(0, MAX_TABLE_ROWS);
@@ -302,17 +350,31 @@ function updateTable() {
     const arrow = expandedRow === i ? "\u25B2" : "\u25BC";
     let row = `<tr class="${cls}" onclick="toggleRow(${i})">` +
       `<td>${i + 1}</td>` +
-      columns.map(c => {
-        const val = r[c];
-        const est = (c === "fileDate" && r._fileDateEstimated);
-        const display = truncate(val, 40);
-        return est
-          ? `<td style="color:#f5c542" title="Estimated from neighbors">~${display}</td>`
-          : `<td>${display}</td>`;
+      TABLE_COLUMNS.map(c => {
+        const val = getColValue(r, c);
+        const est = (c.key === "fileDate" && r._fileDateEstimated);
+        const d = truncate(val, 40);
+        if (est) return `<td style="color:#f5c542" title="Estimated from neighbors">~${d}</td>`;
+        if (c.key === "Status" && val) {
+          const color = val === "PENDING" ? "#f5c542" : val === "CLOSED" ? "#34d399" : "#c8d3e0";
+          return `<td style="color:${color}">${d}</td>`;
+        }
+        return `<td>${d}</td>`;
       }).join("") +
       `<td style="color:#3d5a80">${arrow}</td></tr>`;
     if (expandedRow === i) {
-      row += `<tr><td colspan="${columns.length + 2}" class="expanded-cell"><pre>${JSON.stringify(r, null, 2)}</pre></td></tr>`;
+      const state = latestState(r);
+      const detail = {
+        id: r.id,
+        created_at: formatDate(r.created_at),
+        docket_number: r.docket_number,
+        updated: formatDate(r.updated),
+        fileDate: formatDate(r.fileDate),
+        _fileDateEstimated: r._fileDateEstimated || false,
+        stateData_events: parseStateData(r.stateData).length,
+        current_state: state,
+      };
+      row += `<tr><td colspan="${TABLE_COLUMNS.length + 2}" class="expanded-cell"><pre>${JSON.stringify(detail, null, 2)}</pre></td></tr>`;
     }
     return row;
   }).join("");
@@ -330,7 +392,6 @@ function toggleRow(i) {
 
 async function fetchAll() {
   records = [];
-  columns = [];
   expandedRow = null;
   $("logBox").innerHTML = "";
   $("thead").innerHTML = "";
@@ -564,24 +625,65 @@ function stopFetch() {
 }
 
 function exportJSON() {
-  const blob = new Blob([JSON.stringify(records, null, 2)], { type: "application/json" });
+  // Export with flattened current state for each record
+  const out = records.map(r => {
+    const state = latestState(r);
+    return {
+      id: r.id,
+      created_at: r.created_at,
+      docket_number: r.docket_number,
+      updated: r.updated,
+      fileDate: r.fileDate,
+      _fileDateEstimated: r._fileDateEstimated || false,
+      status: state.Status || null,
+      plaintiff: state.Plaintiff_Petitioner || null,
+      defendant: state.Defendant_Respondent || null,
+      attorney: state.Attorney || null,
+      description: state.Description || null,
+      office: state.Office || null,
+      individual_ll: state.individual_ll ?? null,
+      stateData_raw: r.stateData,
+    };
+  });
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
   dl(blob, `eviction_data_${today()}.json`);
 }
 
 function exportCSV() {
   if (!records.length) return;
-  const keys = Object.keys(records[0]);
-  const lines = [
-    keys.join(","),
-    ...records.map(r =>
-      keys.map(k => {
-        const v = r[k];
-        const s = v == null ? "" : String(v);
-        return (s.includes(",") || s.includes('"') || s.includes("\n"))
-          ? `"${s.replace(/"/g, '""')}"` : s;
-      }).join(",")
-    )
+  const CSV_COLS = [
+    "id", "created_at", "docket_number", "updated", "fileDate", "_fileDateEstimated",
+    "Status", "Plaintiff_Petitioner", "Defendant_Respondent", "Attorney",
+    "Description", "Office", "individual_ll", "File_Date", "source", "op", "stateData_events"
   ];
+  const lines = [CSV_COLS.join(",")];
+  for (const r of records) {
+    const state = latestState(r);
+    const vals = [
+      r.id,
+      formatDate(r.created_at),
+      r.docket_number,
+      formatDate(r.updated),
+      formatDate(r.fileDate),
+      r._fileDateEstimated || false,
+      state.Status,
+      state.Plaintiff_Petitioner,
+      state.Defendant_Respondent,
+      state.Attorney,
+      state.Description,
+      state.Office,
+      state.individual_ll,
+      state.File_Date,
+      state.source,
+      state.op,
+      parseStateData(r.stateData).length,
+    ];
+    lines.push(vals.map(v => {
+      const s = v == null ? "" : String(v);
+      return (s.includes(",") || s.includes('"') || s.includes("\n"))
+        ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(","));
+  }
   const blob = new Blob([lines.join("\n")], { type: "text/csv" });
   dl(blob, `eviction_data_${today()}.csv`);
 }
