@@ -7208,8 +7208,15 @@
         // The CSV is a TSV export from Xano with columns: id, created_at, docket_number, updated, stateData, fileDate
         const CSV_IMPORT_CONFIG = {
             FILE_ID: '1msmKy61zDbsPHtxFGCkL0S9L3If5APiV',
-            get URL() {
-                return `https://drive.google.com/uc?export=download&id=${this.FILE_ID}`;
+            // Try multiple URL patterns — Google Sheets export URLs support CORS,
+            // plain Drive download URLs typically do not.
+            get URLS() {
+                return [
+                    `https://docs.google.com/spreadsheets/d/${this.FILE_ID}/gviz/tq?tqx=out:csv`,
+                    `https://docs.google.com/spreadsheets/d/${this.FILE_ID}/export?format=csv`,
+                    `https://drive.usercontent.google.com/download?id=${this.FILE_ID}&export=download&confirm=t`,
+                    `https://drive.google.com/uc?export=download&id=${this.FILE_ID}`,
+                ];
             }
         };
 
@@ -7313,8 +7320,30 @@
         // Fetch and import CSV data from Google Drive
         async function fetchCSVFromDrive(onProgress) {
             if (onProgress) onProgress({ stage: 'downloading' });
-            const response = await fetch(CSV_IMPORT_CONFIG.URL);
-            if (!response.ok) throw new Error(`CSV download failed: ${response.status} ${response.statusText}`);
+
+            // Try each URL pattern until one works (CORS blocks vary by endpoint)
+            const urls = CSV_IMPORT_CONFIG.URLS;
+            let response = null;
+            let lastError = null;
+
+            for (let i = 0; i < urls.length; i++) {
+                try {
+                    console.log(`CSV: trying URL pattern ${i + 1}/${urls.length}...`);
+                    if (onProgress) onProgress({ stage: 'downloading', attempt: i + 1, total: urls.length });
+                    const res = await fetch(urls[i]);
+                    if (res.ok) {
+                        response = res;
+                        console.log(`CSV: URL pattern ${i + 1} succeeded`);
+                        break;
+                    }
+                    lastError = new Error(`HTTP ${res.status} ${res.statusText}`);
+                } catch (e) {
+                    lastError = e;
+                    console.warn(`CSV: URL pattern ${i + 1} failed:`, e.message);
+                }
+            }
+
+            if (!response) throw new Error(`All download URLs failed. Last error: ${lastError?.message}. Make sure the file is shared as "Anyone with the link".`);
 
             const text = await response.text();
             console.log('CSV: downloaded', (text.length / 1024).toFixed(0), 'KB');
