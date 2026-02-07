@@ -7204,14 +7204,9 @@
             CACHE_KEY: 'gdrive_snapshot_hydrated_ts', CACHE_TTL_MS: 0
         };
 
-        // CSV Import from Google Drive
+        // CSV Import — direct URL to hosted CSV export
         // The CSV is a TSV export from Xano with columns: id, created_at, docket_number, updated, stateData, fileDate
-        const CSV_IMPORT_CONFIG = {
-            FILE_ID: '1msmKy61zDbsPHtxFGCkL0S9L3If5APiV',
-            get URL() {
-                return `https://drive.google.com/uc?export=download&id=${this.FILE_ID}`;
-            }
-        };
+        const CSV_IMPORT_URL = 'https://storage.googleapis.com/intelechia-content/im/dbo-eviction_current_state-143-live.1770506103.csv';
 
         // Parse TSV text with quoted fields (handles embedded newlines and double-quote escaping)
         function parseTSV(text) {
@@ -7313,7 +7308,8 @@
         // Fetch and import CSV data from Google Drive
         async function fetchCSVFromDrive(onProgress) {
             if (onProgress) onProgress({ stage: 'downloading' });
-            const response = await fetch(CSV_IMPORT_CONFIG.URL);
+
+            const response = await fetch(CSV_IMPORT_URL);
             if (!response.ok) throw new Error(`CSV download failed: ${response.status} ${response.statusText}`);
 
             const text = await response.text();
