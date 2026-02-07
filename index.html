@@ -8979,12 +8979,12 @@
 
             const normalized = {
                 ...record,
-                File_Date: parseDate(record.File_Date || record.file_date),
+                File_Date: parseDate(record.File_Date || record.file_date || record.fileDate),
                 Plaintiff: record.Plaintiff_Petitioner || record.Plaintiff || record.plaintiff || '',
                 Defendant: record.Defendant_Respondent || record.Defendant || record.defendant || '',
                 Address: record.address_formatted || record.formatted_address || record.Address_1 || record.address || '',
                 District: district,
-                Case_Number: record.Docket_Number || record.Case_Number || record.case_number || record.id || '',
+                Case_Number: record.Docket_Number || record.docket_number || record.Case_Number || record.case_number || record.id || '',
                 Attorney: plaintiffAttorney,
                 Defense_Attorney: defenseAttorney,
                 CouncilMember: record.council_member || '',

@@ -1,12 +1,11 @@
 /**
  * Eviction Current-State API Client
  *
- * Simple fetch + replay + dedupe from:
- *   GET /eviction_current_state
+ * Fetches paginated records from the current-state endpoint,
+ * deduplicates by docket_number (keeping the most recently updated row).
  *
- * Each row has a stateData[] array of cumulative snapshots.
- * We replay those entries to build the latest state, then
- * deduplicate across rows by docket_number.
+ * stateData extraction is deferred — for now we return the top-level
+ * row data as-is.
  */
 const EvictionAPI = (function () {
   'use strict';
@@ -28,7 +27,7 @@ const EvictionAPI = (function () {
   }
 
   // ---------------------------------------------------------------------------
-  // Fetch all pages
+  // Fetch all pages sequentially
   // ---------------------------------------------------------------------------
   async function fetchAllPages(onProgress) {
     const allRows = [];
@@ -37,7 +36,6 @@ const EvictionAPI = (function () {
     while (page <= MAX_PAGES) {
       const result = await fetchPage(page);
 
-      // Xano returns { items, curPage, nextPage, itemsReceived, ... }
       const items = Array.isArray(result) ? result : (result.items || []);
       allRows.push(...items);
 
@@ -50,7 +48,7 @@ const EvictionAPI = (function () {
         });
       }
 
-      // Stop when no next page or empty response
+      // Stop conditions
       if (Array.isArray(result)) {
         if (result.length < PER_PAGE) break;
       } else {
@@ -65,66 +63,25 @@ const EvictionAPI = (function () {
   }
 
   // ---------------------------------------------------------------------------
-  // Replay stateData entries for a single row → flat object
+  // Deduplicate rows by docket_number — keep the most recently updated row
   // ---------------------------------------------------------------------------
-  function replayRow(row) {
-    const docket = row.docket_number || '';
-
-    let entries = row.stateData;
-    if (typeof entries === 'string') {
-      try { entries = JSON.parse(entries); } catch { entries = []; }
-    }
-    if (!Array.isArray(entries)) entries = entries ? [entries] : [];
-
-    // Cumulative merge — later entries win, but empty values never overwrite
-    const state = {};
-    for (const entry of entries) {
-      if (!entry || typeof entry !== 'object') continue;
-      for (const [key, value] of Object.entries(entry)) {
-        if (value == null || value === '') continue;
-        if (Array.isArray(value) && value.length === 0) continue;
-        state[key] = value;
-      }
-    }
-
-    // Ensure identity fields
-    state.Docket_Number = state.Docket_Number || docket;
-
-    // Carry over top-level metadata
-    if (row.fileDate && !state.File_Date) state.File_Date = row.fileDate;
-    state._current_state_id = row.id;
-    state._updated = row.updated || row.created_at;
-
-    return state;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Deduplicate by docket_number  (last-write-wins per field)
-  // ---------------------------------------------------------------------------
-  function dedupeByDocket(states) {
+  function dedupeByDocket(rows) {
     const map = new Map();
 
-    for (const state of states) {
-      const key = normalizeDocket(state.Docket_Number);
+    for (const row of rows) {
+      const key = normalizeDocket(row.docket_number);
       if (!key) continue;
 
       const existing = map.get(key);
       if (!existing) {
-        state.Docket_Number = key;
-        map.set(key, state);
+        map.set(key, row);
       } else {
-        // Merge: keep newer _updated as base, fill gaps from the other
-        const newer =
-          (state._updated || 0) >= (existing._updated || 0) ? state : existing;
-        const older = newer === state ? existing : state;
-
-        for (const [k, v] of Object.entries(older)) {
-          if (newer[k] == null || newer[k] === '') {
-            newer[k] = v;
-          }
+        // Keep whichever row was updated more recently
+        const rowTs = row.updated || row.created_at || 0;
+        const existingTs = existing.updated || existing.created_at || 0;
+        if (rowTs > existingTs) {
+          map.set(key, row);
         }
-        newer.Docket_Number = key;
-        map.set(key, newer);
       }
     }
 
@@ -137,15 +94,14 @@ const EvictionAPI = (function () {
   }
 
   // ---------------------------------------------------------------------------
-  // Public: fetch everything, replay, dedupe → clean array
+  // Public: fetch all pages, dedupe, return raw rows
   // ---------------------------------------------------------------------------
   async function fetchAll(onProgress) {
     const rows = await fetchAllPages(onProgress);
-    const states = rows.map(replayRow);
-    return dedupeByDocket(states);
+    return dedupeByDocket(rows);
   }
 
-  return { fetchAll, fetchAllPages, fetchPage, replayRow, dedupeByDocket, normalizeDocket };
+  return { fetchAll, fetchAllPages, fetchPage, dedupeByDocket, normalizeDocket };
 })();
 
 if (typeof module !== 'undefined' && module.exports) {
