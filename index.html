@@ -6730,7 +6730,14 @@
 
         const recordColumnDefs = [
             { field: 'File_Date', headerName: 'File Date', headerClass: 'header-group-dates', width: 110,
-              valueFormatter: params => formatDateForDisplay(params.value),
+              cellRenderer: params => {
+                  const display = formatDateForDisplay(params.value);
+                  if (!display) return '';
+                  if (params.data && params.data._fileDateEstimated) {
+                      return `<span style="color:#f5c542" title="Estimated from neighboring docket numbers">~${display}</span>`;
+                  }
+                  return display;
+              },
               comparator: (valueA, valueB) => {
                   const dateA = valueA ? new Date(valueA).getTime() : 0;
                   const dateB = valueB ? new Date(valueB).getTime() : 0;
@@ -7205,6 +7212,89 @@
             // For other formats, fall back to standard Date parsing
             const d = new Date(str);
             return isNaN(d.getTime()) ? str : d.toLocaleDateString();
+        }
+
+        // Parse a Nashville docket number into prefix + sequence
+        // e.g. "25GT14532" → { prefix: "25GT", seq: 14532 }
+        function parseDocket(dn) {
+            const m = dn && dn.match(/^(\d{2}[A-Z]+)(\d+)$/i);
+            if (!m) return null;
+            return { prefix: m[1].toUpperCase(), seq: parseInt(m[2], 10) };
+        }
+
+        // Infer missing File_Date values by linear interpolation from neighboring
+        // docket numbers within the same prefix group (e.g. all "25GT" cases).
+        // Marks estimated records with _fileDateEstimated = true.
+        function inferMissingFileDates(data) {
+            const parsed = data.map((r, i) => ({
+                idx: i,
+                docket: parseDocket(r.Case_Number),
+                fileDate: r.File_Date || null,
+            }));
+
+            // Group by prefix (e.g. "25GT", "26GT")
+            const groups = {};
+            for (const p of parsed) {
+                if (!p.docket) continue;
+                const key = p.docket.prefix;
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(p);
+            }
+
+            let filled = 0;
+
+            for (const [prefix, items] of Object.entries(groups)) {
+                items.sort((a, b) => a.docket.seq - b.docket.seq);
+
+                // Collect anchors: items with known File_Date
+                const anchors = [];
+                for (const item of items) {
+                    if (item.fileDate != null) {
+                        const ts = new Date(item.fileDate).getTime();
+                        if (ts && !isNaN(ts)) {
+                            anchors.push({ seq: item.docket.seq, ts });
+                        }
+                    }
+                }
+
+                if (anchors.length === 0) continue;
+                anchors.sort((a, b) => a.seq - b.seq);
+
+                // For each item missing File_Date, interpolate from nearest anchors
+                for (const item of items) {
+                    if (item.fileDate != null) continue;
+                    const seq = item.docket.seq;
+
+                    let below = null, above = null;
+                    for (let i = 0; i < anchors.length; i++) {
+                        if (anchors[i].seq <= seq) below = anchors[i];
+                        if (anchors[i].seq >= seq && above === null) above = anchors[i];
+                    }
+
+                    let estimatedTs;
+                    if (below && above && below.seq !== above.seq) {
+                        const frac = (seq - below.seq) / (above.seq - below.seq);
+                        estimatedTs = below.ts + frac * (above.ts - below.ts);
+                    } else if (below) {
+                        estimatedTs = below.ts;
+                    } else if (above) {
+                        estimatedTs = above.ts;
+                    } else {
+                        continue;
+                    }
+
+                    const estDate = new Date(Math.round(estimatedTs));
+                    const isoDate = estDate.toISOString().slice(0, 10);
+                    if (isoDate >= EARLIEST_ACCEPTED_DATE) {
+                        data[item.idx].File_Date = isoDate;
+                        data[item.idx]._fileDateEstimated = true;
+                        filled++;
+                    }
+                }
+            }
+
+            console.log(`inferMissingFileDates: estimated ${filled} dates from docket sequence interpolation`);
+            return data;
         }
 
         // Cache staleness threshold: 24 hours in milliseconds
@@ -8274,6 +8364,7 @@
                 // Normalize for grid display
                 const normalizedData = records.map(normalizeRecord);
                 allData = dedupeByDocketNumber(normalizedData);
+                inferMissingFileDates(allData);
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
 
@@ -8347,6 +8438,7 @@
                 const previousCount = allData.length;
 
                 allData = dedupeByDocketNumber(normalizedData);
+                inferMissingFileDates(allData);
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
                 dataCache.invalidateAll();
