@@ -50,11 +50,12 @@ const EvictionAPI = (function () {
         });
       }
 
-      // Stop when no next page or empty response
+      // Stop when: no next page, empty response, or we've reached the known last page
       if (Array.isArray(result)) {
         if (result.length < PER_PAGE) break;
       } else {
         if (result.nextPage == null || items.length === 0) break;
+        if (result.pageTotal && page >= result.pageTotal) break;
       }
 
       page++;

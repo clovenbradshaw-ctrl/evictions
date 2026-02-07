@@ -7578,8 +7578,9 @@
                     });
                 }
 
-                // Stop when Xano signals no next page, or empty page
+                // Stop when: no next page, empty page, or reached known last page
                 if (result.nextPage == null || pageItems.length === 0) break;
+                if (result.pageTotal && page >= result.pageTotal) break;
 
                 if (page >= maxPages) {
                     console.warn('fetchAllPages: reached page limit (' + maxPages + ')');
