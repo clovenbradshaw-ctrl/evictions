@@ -5447,12 +5447,13 @@
         };
 
         // Login state for defendant privacy protection
-        // Authentication disabled - API is open
-        let isLoggedIn = true;
+        const LOGIN_PASSWORD_HASH = 'fac97e07e2a67586b26047d8862db7306133ca2e1d033013fea044177d584404';
+        const ENCRYPTED_POST_ENDPOINT = 'tRfLwLSLvPZ9HGJXfB8xR7xBMoawRXcN3L+0Y1K/yFaF3HhKPiAI5n4RIHMpqZVN38uaSxp3e3uTsChVBF2XZLQV8WfNJNqwmm+8oCRvIHqw94mTbfE8gQ==';
+        let isLoggedIn = false;
 
         // POST endpoint for eviction operations
         const POST_ENDPOINT = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/evictionseoevents';
-        let decryptedPostEndpoint = POST_ENDPOINT;
+        let decryptedPostEndpoint = null;
 
         // Hash function using Web Crypto API
         async function hashPassword(text) {
@@ -6256,11 +6257,43 @@
             }
         };
 
+        // IndexedDB encryption using AES-GCM with key derived from HIAHR hash
+        const IDB_KEY_SOURCE = 'HIAHR';
+
+        async function getIDBEncryptionKey() {
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(IDB_KEY_SOURCE.toLowerCase().trim());
+            const keyHash = await crypto.subtle.digest('SHA-256', keyData);
+            return crypto.subtle.importKey('raw', keyHash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+        }
+
+        async function encryptForIDB(data) {
+            const key = await getIDBEncryptionKey();
+            const encoder = new TextEncoder();
+            const plaintext = encoder.encode(JSON.stringify(data));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
+            const combined = new Uint8Array(iv.length + encrypted.byteLength);
+            combined.set(iv);
+            combined.set(new Uint8Array(encrypted), iv.length);
+            return combined.buffer;
+        }
+
+        async function decryptFromIDB(encryptedBuffer) {
+            const key = await getIDBEncryptionKey();
+            const combined = new Uint8Array(encryptedBuffer);
+            const iv = combined.slice(0, 12);
+            const ciphertext = combined.slice(12);
+            const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+            return JSON.parse(new TextDecoder().decode(decrypted));
+        }
+
         // IndexedDB helper for large data storage (localStorage has ~5MB limit)
         // This stores FULL records (not compressed) for instant loading
+        // All data is encrypted at rest using AES-GCM
         const evictionDB = {
             DB_NAME: 'evictionTrackerDB',
-            DB_VERSION: 2,
+            DB_VERSION: 3,
             STORE_NAME: 'evictionData',
 
             async open() {
@@ -6270,20 +6303,23 @@
                     request.onsuccess = () => resolve(request.result);
                     request.onupgradeneeded = (event) => {
                         const db = event.target.result;
-                        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
-                            db.createObjectStore(this.STORE_NAME, { keyPath: 'id' });
+                        // Clear old unencrypted data on upgrade
+                        if (db.objectStoreNames.contains(this.STORE_NAME)) {
+                            db.deleteObjectStore(this.STORE_NAME);
                         }
+                        db.createObjectStore(this.STORE_NAME, { keyPath: 'id' });
                     };
                 });
             },
 
             async save(data, timestamp) {
                 try {
+                    const encryptedData = await encryptForIDB(data);
                     const db = await this.open();
                     return new Promise((resolve, reject) => {
                         const tx = db.transaction(this.STORE_NAME, 'readwrite');
                         const store = tx.objectStore(this.STORE_NAME);
-                        store.put({ id: 'evictionData', data, timestamp });
+                        store.put({ id: 'evictionData', data: encryptedData, timestamp });
                         tx.oncomplete = () => {
                             db.close();
                             resolve(true);
@@ -6302,7 +6338,7 @@
             async load() {
                 try {
                     const db = await this.open();
-                    return new Promise((resolve, reject) => {
+                    const result = await new Promise((resolve, reject) => {
                         const tx = db.transaction(this.STORE_NAME, 'readonly');
                         const store = tx.objectStore(this.STORE_NAME);
                         const request = store.get('evictionData');
@@ -6315,8 +6351,13 @@
                             reject(request.error);
                         };
                     });
+                    if (!result) return null;
+                    const decryptedData = await decryptFromIDB(result.data);
+                    return { ...result, data: decryptedData };
                 } catch (e) {
                     console.error('IndexedDB load failed:', e);
+                    // If decryption fails (old unencrypted data), clear and return null
+                    try { await this.clear(); } catch (_) {}
                     return null;
                 }
             },
@@ -6324,14 +6365,15 @@
             // Save full records (no compression) for fast loading
             async saveFull(records, timestamp) {
                 try {
+                    const encryptedData = await encryptForIDB(records);
                     const db = await this.open();
                     return new Promise((resolve, reject) => {
                         const tx = db.transaction(this.STORE_NAME, 'readwrite');
                         const store = tx.objectStore(this.STORE_NAME);
-                        store.put({ id: 'fullEvictionData', data: records, timestamp });
+                        store.put({ id: 'fullEvictionData', data: encryptedData, timestamp });
                         tx.oncomplete = () => {
                             db.close();
-                            console.log('💾 Saved', records.length, 'full records to IndexedDB');
+                            console.log('Saved', records.length, 'full records to IndexedDB (encrypted)');
                             resolve(true);
                         };
                         tx.onerror = () => {
@@ -6349,7 +6391,7 @@
             async loadFull() {
                 try {
                     const db = await this.open();
-                    return new Promise((resolve, reject) => {
+                    const result = await new Promise((resolve, reject) => {
                         const tx = db.transaction(this.STORE_NAME, 'readonly');
                         const store = tx.objectStore(this.STORE_NAME);
                         const request = store.get('fullEvictionData');
@@ -6362,8 +6404,13 @@
                             reject(request.error);
                         };
                     });
+                    if (!result) return null;
+                    const decryptedData = await decryptFromIDB(result.data);
+                    return { ...result, data: decryptedData };
                 } catch (e) {
                     console.error('IndexedDB loadFull failed:', e);
+                    // If decryption fails (old unencrypted data), clear and return null
+                    try { await this.clear(); } catch (_) {}
                     return null;
                 }
             },
@@ -6378,7 +6425,7 @@
                         const request = store.clear();
                         tx.oncomplete = () => {
                             db.close();
-                            console.log('💾 Cleared IndexedDB cache');
+                            console.log('Cleared IndexedDB cache');
                             resolve(true);
                         };
                         tx.onerror = () => {
