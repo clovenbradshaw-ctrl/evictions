@@ -13,6 +13,7 @@
     <script src="eo-migration.js"></script>
     <script src="eo-integration.js"></script>
     <script src="eviction-api.js"></script>
+    <script src="webhook-api.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/styles/ag-grid.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/styles/ag-theme-alpine.css">
     <style>
@@ -8347,80 +8348,19 @@
             updateRefreshUI();
 
             try {
-                console.log('Loading eviction data...');
+                console.log('Loading eviction data from webhook...');
 
-                // Try IndexedDB cache first (instant load)
-                const cachedData = await loadCachedData();
-                if (cachedData && cachedData.length > 0) {
-                    console.log('Using cached data:', cachedData.length, 'records');
-                    allData = cachedData;
-                    filteredData = allData;
-                    calculateGlobalDataRange(allData);
-
-                    updateStatus(`Loaded ${allData.length} cached records`, 'success');
-                    updateMetrics();
-                    updateCharts();
-                    createDistrictMap();
-                    await loadDistrictDemographics();
-                    initDemographicsCharts();
-                    initGrid();
-                    updateLastImportedDisplay();
-                    restorePersistedFilters();
-
-                    isLoadingData = false;
-                    updateRefreshUI();
-                    return;
-                }
-
-                // No cache — fetch from API (primary) with CSV fallback
-                let records;
-                try {
-                    updateStatus('Fetching data from API...', 'loading');
-                    records = await EvictionAPI.fetchAll((progress) => {
-                        const pct = progress.total
-                            ? ` (${Math.round(progress.fetched / progress.total * 100)}%)`
-                            : '';
-                        updateStatus(`Fetching from API — page ${progress.page}${pct}...`, 'loading');
-                    });
-                    console.log('API fetch: got', records.length, 'records');
-                } catch (apiError) {
-                    console.warn('API fetch failed, falling back to CSV:', apiError.message);
-                    updateStatus('API unavailable — downloading CSV fallback...', 'loading');
-                    records = await fetchCSVFromDrive((progress) => {
-                        if (progress.stage === 'downloading') {
-                            updateStatus('Downloading CSV from Google Drive...', 'loading');
-                        } else if (progress.stage === 'parsing') {
-                            updateStatus('Parsing CSV data...', 'loading');
-                        } else if (progress.stage === 'converting') {
-                            updateStatus(`Processing ${progress.rows} records...`, 'loading');
-                        }
-                    });
-                    console.log('CSV fallback: got', records.length, 'records');
-                }
+                updateStatus('Fetching data from webhook...', 'loading');
+                const records = await WebhookAPI.fetchAll((progress) => {
+                    updateStatus(progress.message || 'Fetching from webhook...', 'loading');
+                });
+                console.log('Webhook fetch: got', records.length, 'records');
 
                 // Normalize for grid display
                 const normalizedData = records.map(normalizeRecord);
                 allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
-
-                // Cache to IndexedDB
-                dataCache.invalidateAll();
-                const timestamp = Date.now();
-                evictionDB.saveFull(allData, timestamp).then(success => {
-                    if (success) {
-                        localStorage.setItem('evictionDataTimestamp', timestamp.toString());
-                        localStorage.setItem('csvImportTimestamp', timestamp.toString());
-                        localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
-                    }
-                });
-                try {
-                    const compressed = compressEvictionData(allData);
-                    localStorage.setItem('evictionDataCompressed', JSON.stringify(compressed));
-                    localStorage.setItem('evictionCacheVersion', CACHE_VERSION.toString());
-                } catch (e) {
-                    console.warn('localStorage quota exceeded:', e.message);
-                }
 
                 console.log('Final record count:', allData.length);
 
@@ -8436,25 +8376,7 @@
 
             } catch (error) {
                 console.error('Error loading data:', error);
-
-                // Fall back to stale cache if both API and CSV fail
-                const fallback = await loadCachedData();
-                if (fallback && fallback.length > 0) {
-                    allData = fallback;
-                    filteredData = allData;
-                    calculateGlobalDataRange(allData);
-                    updateStatus(`Loaded ${allData.length} cached records (API/CSV unavailable)`, 'success');
-                    updateMetrics();
-                    updateCharts();
-                    createDistrictMap();
-                    await loadDistrictDemographics();
-                    initDemographicsCharts();
-                    initGrid();
-                    updateLastImportedDisplay();
-                    restorePersistedFilters();
-                } else {
-                    updateStatus(`Error loading data: ${error.message}`, 'error');
-                }
+                updateStatus(`Error loading data: ${error.message}`, 'error');
             } finally {
                 isLoadingData = false;
                 updateRefreshUI();
