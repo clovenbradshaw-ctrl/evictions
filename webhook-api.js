@@ -9,7 +9,7 @@ const WebhookAPI = (function () {
   'use strict';
 
   const WEBHOOK_URL =
-    'https://n8n.intelechia.com/webhooka6d30bde-23a0-412a-adbe-3eefe33940f8';
+    'https://n8n.intelechia.com/webhook/a6d30bde-23a0-412a-adbe-3eefe33940f8';
 
   const TIMEOUT_MS = 120000; // 2 minutes for binary download
 
