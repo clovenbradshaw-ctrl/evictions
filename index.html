@@ -3681,7 +3681,7 @@
                     </button>
 
                     <!-- Action Buttons -->
-                    <button id="refreshBtn" onclick="manualRefresh()" class="nav-action-btn nav-btn-refresh" title="Re-import data from CSV">
+                    <button id="refreshBtn" onclick="manualRefresh()" class="nav-action-btn nav-btn-refresh" title="Re-import data from CSV" style="display: none;">
                         <span>Re-import CSV</span>
                     </button>
 
@@ -3742,7 +3742,7 @@
         </div>
 
         <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" style="display: none;">
             <!-- Monthly Trend Chart (By Month Across Years) -->
             <div class="data-card p-6">
                 <div class="flex justify-between items-center mb-4">
@@ -3879,7 +3879,7 @@
         </div>
 
         <!-- Demographics Visualization Section -->
-        <div class="data-card p-6 mb-6" id="demographicsVizSection">
+        <div class="data-card p-6 mb-6" id="demographicsVizSection" style="display: none;">
             <!-- Collapsible Header -->
             <div class="demographics-header cursor-pointer" onclick="toggleDemographicsSection()">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
