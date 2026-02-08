@@ -8372,20 +8372,31 @@
                     return;
                 }
 
-                // No cache — fetch CSV from Google Drive
-                updateStatus('Downloading data from CSV...', 'loading');
-
-                const records = await fetchCSVFromDrive((progress) => {
-                    if (progress.stage === 'downloading') {
-                        updateStatus('Downloading CSV from Google Drive...', 'loading');
-                    } else if (progress.stage === 'parsing') {
-                        updateStatus('Parsing CSV data...', 'loading');
-                    } else if (progress.stage === 'converting') {
-                        updateStatus(`Processing ${progress.rows} records...`, 'loading');
-                    }
-                });
-
-                console.log('CSV import: got', records.length, 'records');
+                // No cache — fetch from API (primary) with CSV fallback
+                let records;
+                try {
+                    updateStatus('Fetching data from API...', 'loading');
+                    records = await EvictionAPI.fetchAll((progress) => {
+                        const pct = progress.total
+                            ? ` (${Math.round(progress.fetched / progress.total * 100)}%)`
+                            : '';
+                        updateStatus(`Fetching from API — page ${progress.page}${pct}...`, 'loading');
+                    });
+                    console.log('API fetch: got', records.length, 'records');
+                } catch (apiError) {
+                    console.warn('API fetch failed, falling back to CSV:', apiError.message);
+                    updateStatus('API unavailable — downloading CSV fallback...', 'loading');
+                    records = await fetchCSVFromDrive((progress) => {
+                        if (progress.stage === 'downloading') {
+                            updateStatus('Downloading CSV from Google Drive...', 'loading');
+                        } else if (progress.stage === 'parsing') {
+                            updateStatus('Parsing CSV data...', 'loading');
+                        } else if (progress.stage === 'converting') {
+                            updateStatus(`Processing ${progress.rows} records...`, 'loading');
+                        }
+                    });
+                    console.log('CSV fallback: got', records.length, 'records');
+                }
 
                 // Normalize for grid display
                 const normalizedData = records.map(normalizeRecord);
@@ -8413,7 +8424,7 @@
 
                 console.log('Final record count:', allData.length);
 
-                updateStatus(`Imported ${allData.length} records from CSV`, 'success');
+                updateStatus(`Loaded ${allData.length} records`, 'success');
                 updateMetrics();
                 updateCharts();
                 createDistrictMap();
@@ -8426,13 +8437,13 @@
             } catch (error) {
                 console.error('Error loading data:', error);
 
-                // Fall back to stale cache if CSV fetch fails
+                // Fall back to stale cache if both API and CSV fail
                 const fallback = await loadCachedData();
                 if (fallback && fallback.length > 0) {
                     allData = fallback;
                     filteredData = allData;
                     calculateGlobalDataRange(allData);
-                    updateStatus(`Loaded ${allData.length} cached records (CSV unavailable)`, 'success');
+                    updateStatus(`Loaded ${allData.length} cached records (API/CSV unavailable)`, 'success');
                     updateMetrics();
                     updateCharts();
                     createDistrictMap();
@@ -8450,7 +8461,7 @@
             }
         }
 
-        // Re-import from CSV (used by manual refresh)
+        // Re-fetch from API (used by manual refresh)
         async function loadDataIncremental() {
             return loadData();
         }
