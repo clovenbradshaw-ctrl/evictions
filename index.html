@@ -3710,33 +3710,17 @@
         </div>
 
 
-        <!-- Key Metrics -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <div id="metricTotal" class="data-card p-6 metric-clickable" onclick="filterByMetric('total')" title="Click to view all records">
-                <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Total Records</div>
-                <div id="totalRecords" class="metric-value text-gray-900">-</div>
-                <div id="totalChange" class="text-sm mt-2"></div>
-                <div class="metric-source-link" onclick="event.stopPropagation(); showMetricSource('total')">
-                    <span class="source-icon">ℹ️</span>
-                    <span class="text-xs">Source</span>
+        <!-- Month Scrubber -->
+        <div class="data-card p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <button onclick="scrubMonth(-1)" class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-lg" title="Previous month">&larr;</button>
+                <div class="text-center flex-1">
+                    <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide" id="scrubberMonthLabel">Loading...</div>
+                    <div id="scrubberCount" class="text-4xl font-bold text-gray-900 my-1">-</div>
+                    <div class="text-sm text-gray-500">eviction filings</div>
+                    <div id="scrubberTotal" class="text-xs text-gray-400 mt-1"></div>
                 </div>
-            </div>
-            <div id="metricMonth" class="data-card p-6 metric-clickable" onclick="filterByMetric('thisMonth')" title="Click to view this month's records">
-                <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">This Month</div>
-                <div id="thisMonth" class="metric-value text-gray-900">-</div>
-                <div id="monthChange" class="text-sm mt-2"></div>
-                <div class="metric-source-link" onclick="event.stopPropagation(); showMetricSource('thisMonth')">
-                    <span class="source-icon">ℹ️</span>
-                    <span class="text-xs">Source</span>
-                </div>
-            </div>
-            <div id="metricThirty" class="data-card p-6 metric-clickable" onclick="filterByMetric('last30Days')" title="Click to view last 30 days">
-                <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Last 30 Days</div>
-                <div id="last30Days" class="metric-value text-gray-900">-</div>
-                <div class="metric-source-link" onclick="event.stopPropagation(); showMetricSource('last30Days')">
-                    <span class="source-icon">ℹ️</span>
-                    <span class="text-xs">Source</span>
-                </div>
+                <button onclick="scrubMonth(1)" id="scrubberNextBtn" class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-lg" title="Next month">&rarr;</button>
             </div>
         </div>
 
@@ -3761,17 +3745,13 @@
                 </div>
             </div>
 
-            <!-- Timeline Trendline Chart (All Months Chronologically) -->
+            <!-- Timeline Chart (All Months Chronologically) -->
             <div class="data-card p-6">
                 <div class="flex justify-between items-center mb-4">
                     <div class="flex items-center gap-3">
-                        <h2 id="timelineChartTitle" class="text-lg font-bold text-gray-900">Timeline Trend</h2>
+                        <h2 id="timelineChartTitle" class="text-lg font-bold text-gray-900">Monthly Filings Over Time</h2>
                     </div>
                     <div class="flex items-center gap-2">
-                        <div class="flex rounded-lg overflow-hidden border border-gray-200">
-                            <button id="timelineViewBtn" onclick="setTimelineView('timeline')" class="px-3 py-1 text-xs font-medium bg-indigo-600 text-white">Timeline</button>
-                            <button id="cumulativeViewBtn" onclick="setTimelineView('cumulative')" class="px-3 py-1 text-xs font-medium bg-white text-gray-600 hover:bg-gray-50">Month Pace</button>
-                        </div>
                         <span class="text-xs text-gray-500">Click chart to filter</span>
                         <button onclick="downloadChart('timeline')" class="text-gray-500 hover:text-gray-700" title="Download chart data as CSV">
                             ⬇️
@@ -3780,9 +3760,6 @@
                 </div>
                 <div id="timelineChartContainer" class="chart-container">
                     <canvas id="timelineChart"></canvas>
-                </div>
-                <div id="cumulativeChartContainer" class="chart-container hidden">
-                    <canvas id="cumulativeChart"></canvas>
                 </div>
             </div>
 
@@ -3877,7 +3854,7 @@
             <input type="date" id="dateTo" class="hidden" min="2018-01-01">
         </div>
 
-        <!-- Demographics Visualization Section -->
+        <!-- District Comparison Section -->
         <div class="data-card p-6 mb-6" id="demographicsVizSection">
             <!-- Collapsible Header -->
             <div class="demographics-header cursor-pointer" onclick="toggleDemographicsSection()">
@@ -3886,10 +3863,10 @@
                         <span id="demographicsCollapseIcon" class="collapse-icon text-gray-400 transition-transform duration-200">▼</span>
                         <div>
                             <div class="flex items-center gap-2">
-                                <h2 class="text-xl font-bold text-gray-900">Eviction Rate & Demographics</h2>
+                                <h2 class="text-xl font-bold text-gray-900">Eviction Rate by District</h2>
                                 <span id="demoFilterIndicator" class="demo-filter-badge hidden">Filtered</span>
                             </div>
-                            <p class="text-sm text-gray-500 mt-1">Explore how eviction rates correlate with community demographics across Nashville's 35 council districts</p>
+                            <p class="text-sm text-gray-500 mt-1">Compare eviction filing rates across Nashville's 35 council districts</p>
                         </div>
                     </div>
                     <div class="demo-viz-controls" onclick="event.stopPropagation()">
@@ -3906,193 +3883,28 @@
 
             <!-- Collapsible Content -->
             <div id="demographicsContent" class="demographics-collapsible-content mt-6">
-            <div class="demo-viz-container">
-                <!-- Scatter Plot -->
-                <div>
-                    <div class="mb-3">
-                        <label class="block text-xs font-semibold text-gray-500 mb-1">COMPARE AGAINST</label>
-                        <select id="demoXAxis" class="demo-viz-select w-full" onchange="updateDemographicsCharts()">
-                            <option value="unemployment">Unemployment Rate (%)</option>
-                            <option value="medianRent">Median Monthly Rent ($)</option>
-                            <option value="pctLessThanHS">% Less Than High School</option>
-                            <option value="childPoverty">Child Poverty Rate (%)</option>
-                            <option value="pctSenior">% Senior Population (65+)</option>
-                            <option value="renterCostBurden">Renter Cost Burden (%)</option>
-                            <option value="povertyRate">Poverty Rate (%)</option>
-                            <option value="pctBlack">% Black Population</option>
-                            <option value="pctHispanic">% Hispanic Population</option>
-                            <option value="medianIncome">Median Income ($)</option>
-                            <option value="unitsPerPopulation">Housing Units per 1k Pop</option>
-                        </select>
-                    </div>
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="font-semibold text-gray-700">Correlation Analysis</h3>
-                        <span id="correlationBadge" class="correlation-badge correlation-weak">Loading...</span>
-                    </div>
-                    <div class="scatter-chart-container">
-                        <div id="chartVariableLabels" class="chart-variable-labels">
-                            <div class="variable-label y-label">
-                                <span class="variable-icon">↕</span>
-                                <span id="yVarLabel" class="variable-name">Eviction Rate</span>
-                            </div>
-                            <div class="variable-label x-label">
-                                <span class="variable-icon">↔</span>
-                                <span id="xVarLabel" class="variable-name">Demographic Factor</span>
-                            </div>
-                        </div>
-                        <canvas id="scatterChart"></canvas>
-                    </div>
-                    <div id="scatterInsight" class="demo-insight-box">
-                        <div class="insight-title">Key Insight</div>
-                        <div class="insight-text">Select a demographic factor to see correlation analysis.</div>
-                    </div>
-
-                    <!-- Methodology Toggle -->
-                    <details class="methodology-details mt-3">
-                        <summary class="methodology-toggle">
-                            <span class="methodology-icon">📐</span> Correlation Methodology
-                        </summary>
-                        <div class="methodology-content">
-                            <div class="methodology-section">
-                                <strong>Statistical Method:</strong>
-                                <p>Pearson correlation coefficient (r) measures linear relationship strength between -1 and +1:</p>
-                                <code class="methodology-formula">r = Σ(xᵢ - x̄)(yᵢ - ȳ) / √[Σ(xᵢ - x̄)² × Σ(yᵢ - ȳ)²]</code>
-                                <ul class="methodology-list">
-                                    <li><strong>|r| ≥ 0.7:</strong> Strong correlation</li>
-                                    <li><strong>0.4 ≤ |r| < 0.7:</strong> Moderate correlation</li>
-                                    <li><strong>|r| < 0.4:</strong> Weak correlation</li>
-                                </ul>
-                            </div>
-                            <div class="methodology-section">
-                                <strong>Eviction Rate Calculation:</strong>
-                                <p>Rate per 1,000 renter households = (Eviction Filings in District ÷ Estimated Renter Households) × 1,000</p>
-                            </div>
-                            <div class="methodology-section">
-                                <strong>Data Sources:</strong>
-                                <ul class="methodology-list">
-                                    <li><strong>Eviction filings:</strong> Davidson County General Sessions Court detainer warrant records</li>
-                                    <li><strong>Demographics:</strong> American Community Survey 5-year estimates by council district</li>
-                                    <li><strong>Renter estimates:</strong> ACS housing tenure data (occupied units × renter percentage)</li>
-                                </ul>
-                            </div>
-                            <div class="methodology-section">
-                                <strong>Limitations:</strong>
-                                <ul class="methodology-list">
-                                    <li>Correlation ≠ causation; other factors may explain relationships</li>
-                                    <li>District-level aggregation masks within-district variation</li>
-                                    <li>Eviction filings ≠ completed evictions (some dismissed, settled, or withdrawn)</li>
-                                    <li>n=35 districts limits statistical power for detecting weak effects</li>
-                                </ul>
-                            </div>
-                            <div class="methodology-section" style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
-                                <a href="provenance.html#demographics" target="_blank" style="color: #4f46e5; text-decoration: none; font-weight: 500; font-size: 12px;">
-                                    📄 View Full Methodology Documentation →
-                                </a>
-                            </div>
-                        </div>
-                    </details>
-
-                    <!-- Audit the Math Section -->
-                    <details class="methodology-details mt-3" id="auditMathDetails">
-                        <summary class="methodology-toggle">
-                            <span class="methodology-icon">🔍</span> Audit the Math
-                        </summary>
-                        <div class="methodology-content" id="auditMathContent">
-                            <div class="methodology-section">
-                                <strong>Calculation Verification</strong>
-                                <p style="font-size: 11px; color: #6b7280; margin-bottom: 8px;">All intermediate values shown for independent verification of Pearson's r</p>
-                            </div>
-
-                            <div class="methodology-section" id="auditSummarySection">
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
-                                    <div><strong>Sample size (n):</strong> <span id="auditN">-</span></div>
-                                    <div><strong>Final r value:</strong> <span id="auditR" style="font-weight: 600; color: #4f46e5;">-</span></div>
-                                </div>
-                            </div>
-
-                            <div class="methodology-section">
-                                <strong>Step 1: Compute Sums</strong>
-                                <div style="font-family: monospace; font-size: 11px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-top: 4px; overflow-x: auto;">
-                                    <div>Σx (sum of X values) = <span id="auditSumX">-</span></div>
-                                    <div>Σy (sum of Y values) = <span id="auditSumY">-</span></div>
-                                    <div>Σxy (sum of X×Y products) = <span id="auditSumXY">-</span></div>
-                                    <div>Σx² (sum of X² values) = <span id="auditSumX2">-</span></div>
-                                    <div>Σy² (sum of Y² values) = <span id="auditSumY2">-</span></div>
-                                </div>
-                            </div>
-
-                            <div class="methodology-section">
-                                <strong>Step 2: Compute Means</strong>
-                                <div style="font-family: monospace; font-size: 11px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-top: 4px;">
-                                    <div>x̄ (mean of X) = Σx / n = <span id="auditMeanX">-</span></div>
-                                    <div>ȳ (mean of Y) = Σy / n = <span id="auditMeanY">-</span></div>
-                                </div>
-                            </div>
-
-                            <div class="methodology-section">
-                                <strong>Step 3: Apply Pearson's Formula</strong>
-                                <div style="font-family: monospace; font-size: 11px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-top: 4px; overflow-x: auto;">
-                                    <div style="margin-bottom: 4px;"><strong>Numerator:</strong></div>
-                                    <div id="auditNumeratorFormula" style="word-break: break-word;">-</div>
-                                    <div style="margin: 8px 0 4px 0;"><strong>Denominator:</strong></div>
-                                    <div id="auditDenominatorFormula" style="word-break: break-word;">-</div>
-                                    <div style="margin: 8px 0 4px 0; border-top: 1px solid #e5e7eb; padding-top: 8px;"><strong>Final Calculation:</strong></div>
-                                    <div id="auditRFormula" style="font-weight: 600; color: #4f46e5;">-</div>
-                                </div>
-                            </div>
-
-                            <div class="methodology-section">
-                                <strong>Data Sources</strong>
-                                <div style="font-size: 10px; background: #f0fdf4; padding: 8px; border-radius: 4px; margin-bottom: 8px; border: 1px solid #bbf7d0;">
-                                    <div style="margin-bottom: 6px;">
-                                        <strong style="color: #166534;">X Values (Demographics):</strong>
-                                        <span id="auditXSourceName">-</span>
-                                        <br>
-                                        <span style="color: #6b7280;">Source: </span>
-                                        <a id="auditXSourceLink" href="https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf" target="_blank" style="color: #2563eb; text-decoration: underline;">Know Your Community December 2023</a>
-                                        <span style="color: #6b7280;"> (ACS 2017-2021, 5-year estimates)</span>
-                                    </div>
-                                    <div>
-                                        <strong style="color: #166534;">Y Values (Eviction Rate):</strong>
-                                        <span>Evictions per 1,000 Renter Households (annualized)</span>
-                                        <br>
-                                        <span style="color: #6b7280;">Source: </span>
-                                        <a href="https://caselink.nashville.gov/" target="_blank" style="color: #2563eb; text-decoration: underline;">Davidson County Sessions Court</a>
-                                        <span style="color: #6b7280;"> via CaseLink public records</span>
-                                        <br>
-                                        <span style="color: #6b7280;">Formula: (Annualized Eviction Filings ÷ Renter Households) × 1,000</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="methodology-section">
-                                <strong>Raw Data Points</strong>
-                                <p style="font-size: 10px; color: #6b7280; margin-bottom: 4px;">Each district's (X, Y) values used in calculation. Click column headers for source details.</p>
-                                <div id="auditDataTable" style="max-height: 200px; overflow-y: auto; font-size: 10px; background: #f9fafb; padding: 8px; border-radius: 4px;">
-                                    <table style="width: 100%; border-collapse: collapse;">
-                                        <thead>
-                                            <tr style="border-bottom: 1px solid #e5e7eb;">
-                                                <th style="text-align: left; padding: 2px 4px;">District</th>
-                                                <th style="text-align: right; padding: 2px 4px;" title="From ACS 2017-2021 via Know Your Community report">X Value</th>
-                                                <th style="text-align: right; padding: 2px 4px;" title="Evictions per 1,000 renter households (annualized from court records)">Y Value</th>
-                                                <th style="text-align: right; padding: 2px 4px;">X × Y</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="auditDataTableBody">
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <p id="auditDateRange" style="font-size: 9px; color: #6b7280; margin-top: 4px; font-style: italic;">Eviction data range: Loading...</p>
-                            </div>
-
-                            <div class="methodology-section" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
-                                <button onclick="copyAuditData(event)" style="font-size: 11px; padding: 4px 8px; background: #4f46e5; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                    📋 Copy Audit Data to Clipboard
-                                </button>
-                            </div>
-                        </div>
-                    </details>
-                </div>
+                <!-- Hidden scatter elements to avoid JS errors -->
+                <canvas id="scatterChart" style="display:none;"></canvas>
+                <div id="scatterInsight" style="display:none;"></div>
+                <span id="correlationBadge" style="display:none;"></span>
+                <span id="xVarLabel" style="display:none;"></span>
+                <span id="yVarLabel" style="display:none;"></span>
+                <select id="demoXAxis" style="display:none;"><option value="unemployment">Unemployment Rate (%)</option></select>
+                <span id="auditN" style="display:none;"></span>
+                <span id="auditR" style="display:none;"></span>
+                <span id="auditSumX" style="display:none;"></span>
+                <span id="auditSumY" style="display:none;"></span>
+                <span id="auditSumXY" style="display:none;"></span>
+                <span id="auditSumX2" style="display:none;"></span>
+                <span id="auditSumY2" style="display:none;"></span>
+                <span id="auditMeanX" style="display:none;"></span>
+                <span id="auditMeanY" style="display:none;"></span>
+                <span id="auditNumeratorFormula" style="display:none;"></span>
+                <span id="auditDenominatorFormula" style="display:none;"></span>
+                <span id="auditRFormula" style="display:none;"></span>
+                <span id="auditXSourceName" style="display:none;"></span>
+                <span id="auditDateRange" style="display:none;"></span>
+                <tbody id="auditDataTableBody" style="display:none;"></tbody>
 
                 <!-- Ranked Bar Chart -->
                 <div>
@@ -4103,12 +3915,7 @@
                     <div class="bar-chart-container">
                         <canvas id="rankedBarChart"></canvas>
                     </div>
-                    <div id="barInsight" class="demo-insight-box warning">
-                        <div class="insight-title">Top Districts</div>
-                        <div class="insight-text">Loading district rankings...</div>
-                    </div>
                 </div>
-            </div>
             </div> <!-- End demographicsContent -->
         </div>
 
@@ -5429,6 +5236,10 @@
         let timelineChart;
         let cumulativeChart;
         let activeTimelineView = 'timeline'; // 'timeline' or 'cumulative'
+
+        // Month scrubber state
+        let scrubberYear = new Date().getFullYear();
+        let scrubberMonth = new Date().getMonth(); // 0-indexed
         let searchMatches = [];
         let pivotData = [];
         let viewMode = 'records';
@@ -9156,46 +8967,41 @@
         }
 
         function updateMetrics() {
+            updateScrubber();
+        }
+
+        function scrubMonth(delta) {
+            scrubberMonth += delta;
+            if (scrubberMonth > 11) { scrubberMonth = 0; scrubberYear++; }
+            if (scrubberMonth < 0) { scrubberMonth = 11; scrubberYear--; }
+            updateScrubber();
+        }
+
+        function updateScrubber() {
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                'July', 'August', 'September', 'October', 'November', 'December'];
+            const prefix = `${scrubberYear}-${String(scrubberMonth + 1).padStart(2, '0')}`;
+
+            const dataSource = (hasActiveFilters() && filteredData.length !== allData.length) ? filteredData : allData;
+            const count = dataSource.filter(d => d.File_Date && d.File_Date.startsWith(prefix)).length;
+
+            const labelEl = document.getElementById('scrubberMonthLabel');
+            const countEl = document.getElementById('scrubberCount');
+            const totalEl = document.getElementById('scrubberTotal');
+            const nextBtn = document.getElementById('scrubberNextBtn');
+
+            if (labelEl) labelEl.textContent = `${monthNames[scrubberMonth]} ${scrubberYear}`;
+            if (countEl) countEl.textContent = count.toLocaleString();
+            if (totalEl) totalEl.textContent = `${dataSource.length.toLocaleString()} total records`;
+
+            // Disable next button if we're at the current month
             const now = new Date();
-            // Use ISO string comparison to avoid timezone issues with date-only ISO strings
-            const thirtyDaysAgoDt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
-            const thirtyDaysAgoStr = `${thirtyDaysAgoDt.getFullYear()}-${String(thirtyDaysAgoDt.getMonth() + 1).padStart(2, '0')}-${String(thirtyDaysAgoDt.getDate()).padStart(2, '0')}`;
-            const thisMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-            // Use filteredData when filters are active AND data actually differs from allData
-            const isFiltered = hasActiveFilters() && filteredData.length !== allData.length;
-            const dataSource = isFiltered ? filteredData : allData;
-
-            // Total records
-            const totalEl = document.getElementById('totalRecords');
-            if (isFiltered) {
-                totalEl.innerHTML = `${dataSource.length.toLocaleString()} <span class="text-xs text-indigo-600">(filtered)</span>`;
-            } else {
-                totalEl.textContent = dataSource.length.toLocaleString();
+            if (nextBtn) {
+                const isCurrentMonth = scrubberYear === now.getFullYear() && scrubberMonth === now.getMonth();
+                nextBtn.disabled = isCurrentMonth;
+                nextBtn.style.opacity = isCurrentMonth ? '0.3' : '1';
+                nextBtn.style.cursor = isCurrentMonth ? 'default' : 'pointer';
             }
-
-            // This month
-            const thisMonthCount = dataSource.filter(d => {
-                return d.File_Date && d.File_Date.startsWith(thisMonthPrefix);
-            }).length;
-            const thisMonthEl = document.getElementById('thisMonth');
-            if (isFiltered) {
-                thisMonthEl.innerHTML = `${thisMonthCount.toLocaleString()} <span class="text-xs text-indigo-600">(filtered)</span>`;
-            } else {
-                thisMonthEl.textContent = thisMonthCount.toLocaleString();
-            }
-
-            // Last 30 days
-            const last30Count = dataSource.filter(d => {
-                return d.File_Date && d.File_Date >= thirtyDaysAgoStr;
-            }).length;
-            const last30El = document.getElementById('last30Days');
-            if (isFiltered) {
-                last30El.innerHTML = `${last30Count.toLocaleString()} <span class="text-xs text-indigo-600">(filtered)</span>`;
-            } else {
-                last30El.textContent = last30Count.toLocaleString();
-            }
-
         }
 
         // Track active metric filter
@@ -9224,18 +9030,15 @@
             updateNameFilterIndicator();
             updateDistrictFilterIndicator();
 
-            // Apply styling
+            // Apply styling (metric cards removed; skip if elements missing)
             switch(metricType) {
                 case 'total':
-                    document.getElementById('metricTotal').classList.add('active');
                     activeMetricFilter = null;
                     clearAdvancedFilters();
                     return;
                 case 'thisMonth':
-                    document.getElementById('metricMonth').classList.add('active');
                     break;
                 case 'last30Days':
-                    document.getElementById('metricThirty').classList.add('active');
                     break;
             }
 
@@ -10043,15 +9846,7 @@
                         intersect: true
                     },
                     plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                padding: 10,
-                                boxWidth: 12,
-                                font: { size: 10 }
-                            }
-                        },
+                        legend: { display: false },
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
@@ -10139,19 +9934,6 @@
             });
             const counts = sortedKeys.map(key => yearMonthCounts[key]);
 
-            // Calculate trendline (linear regression)
-            const n = counts.length;
-            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-            counts.forEach((y, x) => {
-                sumX += x;
-                sumY += y;
-                sumXY += x * y;
-                sumX2 += x * x;
-            });
-            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-            const intercept = (sumY - slope * sumX) / n;
-            const trendlineData = counts.map((_, x) => slope * x + intercept);
-
             timelineChart.data.labels = labels;
             timelineChart.data.datasets = [
                 {
@@ -10165,55 +9947,20 @@
                     pointRadius: 3,
                     pointHoverRadius: 6,
                     pointBackgroundColor: '#4f46e5'
-                },
-                {
-                    label: 'Trend',
-                    data: trendlineData,
-                    borderColor: '#ef4444',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    fill: false,
-                    pointRadius: 0,
-                    tension: 0
                 }
             ];
             timelineChart.update();
         }
 
-        // Toggle between timeline and cumulative chart views
+        // Toggle between timeline and cumulative chart views (cumulative view removed)
         function setTimelineView(view) {
-            activeTimelineView = view;
-            const timelineContainer = document.getElementById('timelineChartContainer');
-            const cumulativeContainer = document.getElementById('cumulativeChartContainer');
-            const timelineBtn = document.getElementById('timelineViewBtn');
-            const cumulativeBtn = document.getElementById('cumulativeViewBtn');
-            const title = document.getElementById('timelineChartTitle');
-
-            if (view === 'timeline') {
-                timelineContainer.classList.remove('hidden');
-                cumulativeContainer.classList.add('hidden');
-                timelineBtn.classList.add('bg-indigo-600', 'text-white');
-                timelineBtn.classList.remove('bg-white', 'text-gray-600', 'hover:bg-gray-50');
-                cumulativeBtn.classList.remove('bg-indigo-600', 'text-white');
-                cumulativeBtn.classList.add('bg-white', 'text-gray-600', 'hover:bg-gray-50');
-                title.innerHTML = 'Timeline Trend';
-            } else {
-                timelineContainer.classList.add('hidden');
-                cumulativeContainer.classList.remove('hidden');
-                cumulativeBtn.classList.add('bg-indigo-600', 'text-white');
-                cumulativeBtn.classList.remove('bg-white', 'text-gray-600', 'hover:bg-gray-50');
-                timelineBtn.classList.remove('bg-indigo-600', 'text-white');
-                timelineBtn.classList.add('bg-white', 'text-gray-600', 'hover:bg-gray-50');
-                // Title will be set by updateCumulativeChart with month/day info
-                const now = new Date();
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                title.innerHTML = `Month Pace <span class="text-sm font-normal text-gray-500">${monthNames[now.getMonth()]} ${now.getFullYear()} · Day ${now.getDate()}</span>`;
-                updateCumulativeChart(); // Update when switching to cumulative view
-            }
+            activeTimelineView = 'timeline';
         }
 
         function initCumulativeChart() {
-            const ctx = document.getElementById('cumulativeChart').getContext('2d');
+            const el = document.getElementById('cumulativeChart');
+            if (!el) return;
+            const ctx = el.getContext('2d');
             cumulativeChart = new Chart(ctx, {
                 type: 'bar',  // Base type is bar, lines added as datasets
                 data: {
@@ -11421,14 +11168,7 @@
             rankedBarChart.options.scales.x.title.text = yAxisLabel;
             rankedBarChart.update();
 
-            // Update bar insight
-            const barInsight = document.getElementById('barInsight');
-            const top3 = sortedData.slice(0, 3);
-            const top3Text = top3.map(d => `District ${d.district} (${d[yAxisKey].toFixed(1)})`).join(', ');
-            barInsight.innerHTML = `
-                <div class="insight-title">Highest Eviction Rates</div>
-                <div class="insight-text">${top3Text}</div>
-            `;
+            // Bar insight removed (simplified view)
         }
 
         function clearChartFilter() {
