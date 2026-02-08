@@ -2,7 +2,7 @@
  * Webhook API Client
  *
  * Fetches eviction data as a binary file from the n8n webhook endpoint.
- * Handles gzipped, raw JSON, and CSV binary payloads.
+ * Handles EVIC binary snapshots, gzipped data, raw JSON, and CSV payloads.
  * This is the sole data source for hydration.
  */
 const WebhookAPI = (function () {
@@ -104,10 +104,22 @@ const WebhookAPI = (function () {
   function parsePayload(buffer, contentType) {
     const bytes = new Uint8Array(buffer);
 
-    // Try to decode as text
+    // 1. Try EVIC binary snapshot (magic bytes "EVIC")
+    if (bytes.length >= 17 &&
+        bytes[0] === 0x45 && bytes[1] === 0x56 &&  // 'E','V'
+        bytes[2] === 0x49 && bytes[3] === 0x43) {   // 'I','C'
+      if (typeof EOIntegration !== 'undefined' && EOIntegration.parseBinarySnapshot) {
+        console.log('WebhookAPI: detected EVIC binary snapshot format');
+        const { entities } = EOIntegration.parseBinarySnapshot(buffer);
+        return entities;
+      }
+      throw new Error('EVIC binary snapshot detected but EOIntegration is not available');
+    }
+
+    // Try to decode as text for JSON/CSV detection
     const text = new TextDecoder('utf-8').decode(bytes).trim();
 
-    // 1. Try JSON (starts with [ or {)
+    // 2. Try JSON (starts with [ or {)
     if (text[0] === '[' || text[0] === '{') {
       const body = JSON.parse(text);
       if (Array.isArray(body)) return body;
@@ -118,13 +130,13 @@ const WebhookAPI = (function () {
       }
     }
 
-    // 2. Try CSV (has comma-separated header row)
-    if (contentType && contentType.includes('csv') || text.includes(',') && text.includes('\n')) {
+    // 3. Try CSV (has comma-separated header row)
+    if ((contentType && contentType.includes('csv')) || (text.includes(',') && text.includes('\n'))) {
       const records = parseCSV(text);
       if (records.length > 0) return records;
     }
 
-    throw new Error('Could not parse webhook binary payload (not JSON or CSV)');
+    throw new Error('Could not parse webhook binary payload (not JSON, CSV, or EVIC binary)');
   }
 
   // ---------------------------------------------------------------------------
