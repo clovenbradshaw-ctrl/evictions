@@ -6,6 +6,7 @@
     <title>Ground Truth Nashville Eviction Tracker</title>
     <link rel="icon" type="image/png" href="https://storage.googleapis.com/intelechia-content/im/eviction%20prevention%20logo.png">
     <link rel="stylesheet" href="dist/output.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/ag-grid-community.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -3709,25 +3710,104 @@
         </div>
 
 
-        <!-- Month Scrubber -->
-        <div class="data-card p-6 mb-6">
-            <div class="flex items-center justify-between">
-                <button onclick="scrubMonth(-1)" class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-lg" title="Previous month">&larr;</button>
-                <div class="text-center flex-1">
-                    <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide" id="scrubberMonthLabel">Loading...</div>
-                    <div id="scrubberCount" class="text-4xl font-bold text-gray-900 my-1">-</div>
-                    <div class="text-sm text-gray-500">eviction filings</div>
-                    <div id="scrubberTotal" class="text-xs text-gray-400 mt-1"></div>
+        <!-- Key Metrics -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <div id="metricTotal" class="data-card p-6 metric-clickable" onclick="filterByMetric('total')" title="Click to view all records">
+                <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Total Records</div>
+                <div id="totalRecords" class="metric-value text-gray-900">-</div>
+                <div id="totalChange" class="text-sm mt-2"></div>
+                <div class="metric-source-link" onclick="event.stopPropagation(); showMetricSource('total')">
+                    <span class="source-icon">ℹ️</span>
+                    <span class="text-xs">Source</span>
                 </div>
-                <button onclick="scrubMonth(1)" id="scrubberNextBtn" class="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-lg" title="Next month">&rarr;</button>
+            </div>
+            <div id="metricMonth" class="data-card p-6 metric-clickable" onclick="filterByMetric('thisMonth')" title="Click to view this month's records">
+                <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">This Month</div>
+                <div id="thisMonth" class="metric-value text-gray-900">-</div>
+                <div id="monthChange" class="text-sm mt-2"></div>
+                <div class="metric-source-link" onclick="event.stopPropagation(); showMetricSource('thisMonth')">
+                    <span class="source-icon">ℹ️</span>
+                    <span class="text-xs">Source</span>
+                </div>
+            </div>
+            <div id="metricThirty" class="data-card p-6 metric-clickable" onclick="filterByMetric('last30Days')" title="Click to view last 30 days">
+                <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Last 30 Days</div>
+                <div id="last30Days" class="metric-value text-gray-900">-</div>
+                <div class="metric-source-link" onclick="event.stopPropagation(); showMetricSource('last30Days')">
+                    <span class="source-icon">ℹ️</span>
+                    <span class="text-xs">Source</span>
+                </div>
             </div>
         </div>
 
-        <!-- Hidden chart elements to avoid JS errors -->
-        <span id="chartFilterIndicator" class="hidden"></span>
-        <span id="timelineChartTitle" class="hidden"></span>
-        <div id="timelineChartContainer" class="hidden"></div>
-        <div id="districtGrid" class="hidden"></div>
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- Monthly Trend Chart (By Month Across Years) -->
+            <div class="data-card p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-lg font-bold text-gray-900">Filings by Month</h2>
+                        <span id="chartFilterIndicator" class="hidden"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">Click chart to filter</span>
+                        <button onclick="downloadChart('monthly')" class="text-gray-500 hover:text-gray-700" title="Download chart data as CSV">
+                            ⬇️
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Timeline Trendline Chart (All Months Chronologically) -->
+            <div class="data-card p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center gap-3">
+                        <h2 id="timelineChartTitle" class="text-lg font-bold text-gray-900">Timeline Trend</h2>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="flex rounded-lg overflow-hidden border border-gray-200">
+                            <button id="timelineViewBtn" onclick="setTimelineView('timeline')" class="px-3 py-1 text-xs font-medium bg-indigo-600 text-white">Timeline</button>
+                            <button id="cumulativeViewBtn" onclick="setTimelineView('cumulative')" class="px-3 py-1 text-xs font-medium bg-white text-gray-600 hover:bg-gray-50">Month Pace</button>
+                        </div>
+                        <span class="text-xs text-gray-500">Click chart to filter</span>
+                        <button onclick="downloadChart('timeline')" class="text-gray-500 hover:text-gray-700" title="Download chart data as CSV">
+                            ⬇️
+                        </button>
+                    </div>
+                </div>
+                <div id="timelineChartContainer" class="chart-container">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+                <div id="cumulativeChartContainer" class="chart-container hidden">
+                    <canvas id="cumulativeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- District Heat Map - Hidden (address/district data uncertain) -->
+            <div class="data-card p-6 hidden">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">District Activity Patterns*</h2>
+                <div class="grid grid-cols-7 gap-1" id="districtGrid">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+                <div class="mt-4 flex items-center justify-between text-xs">
+                    <span class="text-gray-500">Lower activity</span>
+                    <div class="flex gap-1 items-center">
+                        <span class="text-gray-400">○</span>
+                        <div class="w-4 h-4 heat-1 rounded"></div>
+                        <div class="w-4 h-4 heat-2 rounded"></div>
+                        <div class="w-4 h-4 heat-3 rounded"></div>
+                        <div class="w-4 h-4 heat-4 rounded"></div>
+                        <div class="w-4 h-4 heat-5 rounded"></div>
+                        <span class="text-gray-700">●●●</span>
+                    </div>
+                    <span class="text-gray-500">Higher activity</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-2 text-center">Relative distribution based on available data*</p>
+            </div>
+        </div>
 
         <!-- Advanced Filters Section -->
         <div class="data-card p-6 mb-6" id="advancedFiltersSection">
@@ -3797,36 +3877,239 @@
             <input type="date" id="dateTo" class="hidden" min="2018-01-01">
         </div>
 
-        <!-- Hidden elements to avoid JS errors from removed district comparison section -->
-        <div class="hidden">
-            <div id="demographicsVizSection"></div>
-            <span id="demographicsCollapseIcon"></span>
-            <span id="demoFilterIndicator"></span>
-            <div id="demographicsContent"></div>
-            <canvas id="scatterChart"></canvas>
-            <div id="scatterInsight"></div>
-            <span id="correlationBadge"></span>
-            <span id="xVarLabel"></span>
-            <span id="yVarLabel"></span>
-            <select id="demoXAxis"><option value="unemployment">Unemployment Rate (%)</option></select>
-            <span id="auditN"></span>
-            <span id="auditR"></span>
-            <span id="auditSumX"></span>
-            <span id="auditSumY"></span>
-            <span id="auditSumXY"></span>
-            <span id="auditSumX2"></span>
-            <span id="auditSumY2"></span>
-            <span id="auditMeanX"></span>
-            <span id="auditMeanY"></span>
-            <span id="auditNumeratorFormula"></span>
-            <span id="auditDenominatorFormula"></span>
-            <span id="auditRFormula"></span>
-            <span id="auditXSourceName"></span>
-            <span id="auditDateRange"></span>
-            <table><tbody id="auditDataTableBody"></tbody></table>
-            <canvas id="rankedBarChart"></canvas>
-            <button id="normPop"></button>
-            <button id="normHousing"></button>
+        <!-- Demographics Visualization Section -->
+        <div class="data-card p-6 mb-6" id="demographicsVizSection">
+            <!-- Collapsible Header -->
+            <div class="demographics-header cursor-pointer" onclick="toggleDemographicsSection()">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <span id="demographicsCollapseIcon" class="collapse-icon text-gray-400 transition-transform duration-200">▼</span>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-xl font-bold text-gray-900">Eviction Rate & Demographics</h2>
+                                <span id="demoFilterIndicator" class="demo-filter-badge hidden">Filtered</span>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-1">Explore how eviction rates correlate with community demographics across Nashville's 35 council districts</p>
+                        </div>
+                    </div>
+                    <div class="demo-viz-controls" onclick="event.stopPropagation()">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">NORMALIZE BY</label>
+                            <div class="demo-viz-toggle">
+                                <button id="normPop" class="active" onclick="setNormalization('population')">Per 1k Renters</button>
+                                <button id="normHousing" onclick="setNormalization('housing')">Per 100 Units</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Collapsible Content -->
+            <div id="demographicsContent" class="demographics-collapsible-content mt-6">
+            <div class="demo-viz-container">
+                <!-- Scatter Plot -->
+                <div>
+                    <div class="mb-3">
+                        <label class="block text-xs font-semibold text-gray-500 mb-1">COMPARE AGAINST</label>
+                        <select id="demoXAxis" class="demo-viz-select w-full" onchange="updateDemographicsCharts()">
+                            <option value="unemployment">Unemployment Rate (%)</option>
+                            <option value="medianRent">Median Monthly Rent ($)</option>
+                            <option value="pctLessThanHS">% Less Than High School</option>
+                            <option value="childPoverty">Child Poverty Rate (%)</option>
+                            <option value="pctSenior">% Senior Population (65+)</option>
+                            <option value="renterCostBurden">Renter Cost Burden (%)</option>
+                            <option value="povertyRate">Poverty Rate (%)</option>
+                            <option value="pctBlack">% Black Population</option>
+                            <option value="pctHispanic">% Hispanic Population</option>
+                            <option value="medianIncome">Median Income ($)</option>
+                            <option value="unitsPerPopulation">Housing Units per 1k Pop</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-semibold text-gray-700">Correlation Analysis</h3>
+                        <span id="correlationBadge" class="correlation-badge correlation-weak">Loading...</span>
+                    </div>
+                    <div class="scatter-chart-container">
+                        <div id="chartVariableLabels" class="chart-variable-labels">
+                            <div class="variable-label y-label">
+                                <span class="variable-icon">↕</span>
+                                <span id="yVarLabel" class="variable-name">Eviction Rate</span>
+                            </div>
+                            <div class="variable-label x-label">
+                                <span class="variable-icon">↔</span>
+                                <span id="xVarLabel" class="variable-name">Demographic Factor</span>
+                            </div>
+                        </div>
+                        <canvas id="scatterChart"></canvas>
+                    </div>
+                    <div id="scatterInsight" class="demo-insight-box">
+                        <div class="insight-title">Key Insight</div>
+                        <div class="insight-text">Select a demographic factor to see correlation analysis.</div>
+                    </div>
+
+                    <!-- Methodology Toggle -->
+                    <details class="methodology-details mt-3">
+                        <summary class="methodology-toggle">
+                            <span class="methodology-icon">📐</span> Correlation Methodology
+                        </summary>
+                        <div class="methodology-content">
+                            <div class="methodology-section">
+                                <strong>Statistical Method:</strong>
+                                <p>Pearson correlation coefficient (r) measures linear relationship strength between -1 and +1:</p>
+                                <code class="methodology-formula">r = Σ(xᵢ - x̄)(yᵢ - ȳ) / √[Σ(xᵢ - x̄)² × Σ(yᵢ - ȳ)²]</code>
+                                <ul class="methodology-list">
+                                    <li><strong>|r| ≥ 0.7:</strong> Strong correlation</li>
+                                    <li><strong>0.4 ≤ |r| < 0.7:</strong> Moderate correlation</li>
+                                    <li><strong>|r| < 0.4:</strong> Weak correlation</li>
+                                </ul>
+                            </div>
+                            <div class="methodology-section">
+                                <strong>Eviction Rate Calculation:</strong>
+                                <p>Rate per 1,000 renter households = (Eviction Filings in District ÷ Estimated Renter Households) × 1,000</p>
+                            </div>
+                            <div class="methodology-section">
+                                <strong>Data Sources:</strong>
+                                <ul class="methodology-list">
+                                    <li><strong>Eviction filings:</strong> Davidson County General Sessions Court detainer warrant records</li>
+                                    <li><strong>Demographics:</strong> American Community Survey 5-year estimates by council district</li>
+                                    <li><strong>Renter estimates:</strong> ACS housing tenure data (occupied units × renter percentage)</li>
+                                </ul>
+                            </div>
+                            <div class="methodology-section">
+                                <strong>Limitations:</strong>
+                                <ul class="methodology-list">
+                                    <li>Correlation ≠ causation; other factors may explain relationships</li>
+                                    <li>District-level aggregation masks within-district variation</li>
+                                    <li>Eviction filings ≠ completed evictions (some dismissed, settled, or withdrawn)</li>
+                                    <li>n=35 districts limits statistical power for detecting weak effects</li>
+                                </ul>
+                            </div>
+                            <div class="methodology-section" style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+                                <a href="provenance.html#demographics" target="_blank" style="color: #4f46e5; text-decoration: none; font-weight: 500; font-size: 12px;">
+                                    📄 View Full Methodology Documentation →
+                                </a>
+                            </div>
+                        </div>
+                    </details>
+
+                    <!-- Audit the Math Section -->
+                    <details class="methodology-details mt-3" id="auditMathDetails">
+                        <summary class="methodology-toggle">
+                            <span class="methodology-icon">🔍</span> Audit the Math
+                        </summary>
+                        <div class="methodology-content" id="auditMathContent">
+                            <div class="methodology-section">
+                                <strong>Calculation Verification</strong>
+                                <p style="font-size: 11px; color: #6b7280; margin-bottom: 8px;">All intermediate values shown for independent verification of Pearson's r</p>
+                            </div>
+
+                            <div class="methodology-section" id="auditSummarySection">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
+                                    <div><strong>Sample size (n):</strong> <span id="auditN">-</span></div>
+                                    <div><strong>Final r value:</strong> <span id="auditR" style="font-weight: 600; color: #4f46e5;">-</span></div>
+                                </div>
+                            </div>
+
+                            <div class="methodology-section">
+                                <strong>Step 1: Compute Sums</strong>
+                                <div style="font-family: monospace; font-size: 11px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-top: 4px; overflow-x: auto;">
+                                    <div>Σx (sum of X values) = <span id="auditSumX">-</span></div>
+                                    <div>Σy (sum of Y values) = <span id="auditSumY">-</span></div>
+                                    <div>Σxy (sum of X×Y products) = <span id="auditSumXY">-</span></div>
+                                    <div>Σx² (sum of X² values) = <span id="auditSumX2">-</span></div>
+                                    <div>Σy² (sum of Y² values) = <span id="auditSumY2">-</span></div>
+                                </div>
+                            </div>
+
+                            <div class="methodology-section">
+                                <strong>Step 2: Compute Means</strong>
+                                <div style="font-family: monospace; font-size: 11px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-top: 4px;">
+                                    <div>x̄ (mean of X) = Σx / n = <span id="auditMeanX">-</span></div>
+                                    <div>ȳ (mean of Y) = Σy / n = <span id="auditMeanY">-</span></div>
+                                </div>
+                            </div>
+
+                            <div class="methodology-section">
+                                <strong>Step 3: Apply Pearson's Formula</strong>
+                                <div style="font-family: monospace; font-size: 11px; background: #f9fafb; padding: 8px; border-radius: 4px; margin-top: 4px; overflow-x: auto;">
+                                    <div style="margin-bottom: 4px;"><strong>Numerator:</strong></div>
+                                    <div id="auditNumeratorFormula" style="word-break: break-word;">-</div>
+                                    <div style="margin: 8px 0 4px 0;"><strong>Denominator:</strong></div>
+                                    <div id="auditDenominatorFormula" style="word-break: break-word;">-</div>
+                                    <div style="margin: 8px 0 4px 0; border-top: 1px solid #e5e7eb; padding-top: 8px;"><strong>Final Calculation:</strong></div>
+                                    <div id="auditRFormula" style="font-weight: 600; color: #4f46e5;">-</div>
+                                </div>
+                            </div>
+
+                            <div class="methodology-section">
+                                <strong>Data Sources</strong>
+                                <div style="font-size: 10px; background: #f0fdf4; padding: 8px; border-radius: 4px; margin-bottom: 8px; border: 1px solid #bbf7d0;">
+                                    <div style="margin-bottom: 6px;">
+                                        <strong style="color: #166534;">X Values (Demographics):</strong>
+                                        <span id="auditXSourceName">-</span>
+                                        <br>
+                                        <span style="color: #6b7280;">Source: </span>
+                                        <a id="auditXSourceLink" href="https://www.nashville.gov/sites/default/files/2024-01/Know-Your-Community-December-2023.pdf" target="_blank" style="color: #2563eb; text-decoration: underline;">Know Your Community December 2023</a>
+                                        <span style="color: #6b7280;"> (ACS 2017-2021, 5-year estimates)</span>
+                                    </div>
+                                    <div>
+                                        <strong style="color: #166534;">Y Values (Eviction Rate):</strong>
+                                        <span>Evictions per 1,000 Renter Households (annualized)</span>
+                                        <br>
+                                        <span style="color: #6b7280;">Source: </span>
+                                        <a href="https://caselink.nashville.gov/" target="_blank" style="color: #2563eb; text-decoration: underline;">Davidson County Sessions Court</a>
+                                        <span style="color: #6b7280;"> via CaseLink public records</span>
+                                        <br>
+                                        <span style="color: #6b7280;">Formula: (Annualized Eviction Filings ÷ Renter Households) × 1,000</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="methodology-section">
+                                <strong>Raw Data Points</strong>
+                                <p style="font-size: 10px; color: #6b7280; margin-bottom: 4px;">Each district's (X, Y) values used in calculation. Click column headers for source details.</p>
+                                <div id="auditDataTable" style="max-height: 200px; overflow-y: auto; font-size: 10px; background: #f9fafb; padding: 8px; border-radius: 4px;">
+                                    <table style="width: 100%; border-collapse: collapse;">
+                                        <thead>
+                                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                                <th style="text-align: left; padding: 2px 4px;">District</th>
+                                                <th style="text-align: right; padding: 2px 4px;" title="From ACS 2017-2021 via Know Your Community report">X Value</th>
+                                                <th style="text-align: right; padding: 2px 4px;" title="Evictions per 1,000 renter households (annualized from court records)">Y Value</th>
+                                                <th style="text-align: right; padding: 2px 4px;">X × Y</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="auditDataTableBody">
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p id="auditDateRange" style="font-size: 9px; color: #6b7280; margin-top: 4px; font-style: italic;">Eviction data range: Loading...</p>
+                            </div>
+
+                            <div class="methodology-section" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+                                <button onclick="copyAuditData(event)" style="font-size: 11px; padding: 4px 8px; background: #4f46e5; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    📋 Copy Audit Data to Clipboard
+                                </button>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+
+                <!-- Ranked Bar Chart -->
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-semibold text-gray-700">Districts Ranked by Eviction Rate</h3>
+                        <span class="text-xs text-gray-500">Click bar for details</span>
+                    </div>
+                    <div class="bar-chart-container">
+                        <canvas id="rankedBarChart"></canvas>
+                    </div>
+                    <div id="barInsight" class="demo-insight-box warning">
+                        <div class="insight-title">Top Districts</div>
+                        <div class="insight-text">Loading district rankings...</div>
+                    </div>
+                </div>
+            </div>
+            </div> <!-- End demographicsContent -->
         </div>
 
         <!-- Search Section -->
@@ -5146,10 +5429,6 @@
         let timelineChart;
         let cumulativeChart;
         let activeTimelineView = 'timeline'; // 'timeline' or 'cumulative'
-
-        // Month scrubber state
-        let scrubberYear = new Date().getFullYear();
-        let scrubberMonth = new Date().getMonth(); // 0-indexed
         let searchMatches = [];
         let pivotData = [];
         let viewMode = 'records';
@@ -8873,41 +9152,46 @@
         }
 
         function updateMetrics() {
-            updateScrubber();
-        }
-
-        function scrubMonth(delta) {
-            scrubberMonth += delta;
-            if (scrubberMonth > 11) { scrubberMonth = 0; scrubberYear++; }
-            if (scrubberMonth < 0) { scrubberMonth = 11; scrubberYear--; }
-            updateScrubber();
-        }
-
-        function updateScrubber() {
-            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                'July', 'August', 'September', 'October', 'November', 'December'];
-            const prefix = `${scrubberYear}-${String(scrubberMonth + 1).padStart(2, '0')}`;
-
-            const dataSource = (hasActiveFilters() && filteredData.length !== allData.length) ? filteredData : allData;
-            const count = dataSource.filter(d => d.File_Date && d.File_Date.startsWith(prefix)).length;
-
-            const labelEl = document.getElementById('scrubberMonthLabel');
-            const countEl = document.getElementById('scrubberCount');
-            const totalEl = document.getElementById('scrubberTotal');
-            const nextBtn = document.getElementById('scrubberNextBtn');
-
-            if (labelEl) labelEl.textContent = `${monthNames[scrubberMonth]} ${scrubberYear}`;
-            if (countEl) countEl.textContent = count.toLocaleString();
-            if (totalEl) totalEl.textContent = `${dataSource.length.toLocaleString()} total records`;
-
-            // Disable next button if we're at the current month
             const now = new Date();
-            if (nextBtn) {
-                const isCurrentMonth = scrubberYear === now.getFullYear() && scrubberMonth === now.getMonth();
-                nextBtn.disabled = isCurrentMonth;
-                nextBtn.style.opacity = isCurrentMonth ? '0.3' : '1';
-                nextBtn.style.cursor = isCurrentMonth ? 'default' : 'pointer';
+            // Use ISO string comparison to avoid timezone issues with date-only ISO strings
+            const thirtyDaysAgoDt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
+            const thirtyDaysAgoStr = `${thirtyDaysAgoDt.getFullYear()}-${String(thirtyDaysAgoDt.getMonth() + 1).padStart(2, '0')}-${String(thirtyDaysAgoDt.getDate()).padStart(2, '0')}`;
+            const thisMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+            // Use filteredData when filters are active AND data actually differs from allData
+            const isFiltered = hasActiveFilters() && filteredData.length !== allData.length;
+            const dataSource = isFiltered ? filteredData : allData;
+
+            // Total records
+            const totalEl = document.getElementById('totalRecords');
+            if (isFiltered) {
+                totalEl.innerHTML = `${dataSource.length.toLocaleString()} <span class="text-xs text-indigo-600">(filtered)</span>`;
+            } else {
+                totalEl.textContent = dataSource.length.toLocaleString();
             }
+
+            // This month
+            const thisMonthCount = dataSource.filter(d => {
+                return d.File_Date && d.File_Date.startsWith(thisMonthPrefix);
+            }).length;
+            const thisMonthEl = document.getElementById('thisMonth');
+            if (isFiltered) {
+                thisMonthEl.innerHTML = `${thisMonthCount.toLocaleString()} <span class="text-xs text-indigo-600">(filtered)</span>`;
+            } else {
+                thisMonthEl.textContent = thisMonthCount.toLocaleString();
+            }
+
+            // Last 30 days
+            const last30Count = dataSource.filter(d => {
+                return d.File_Date && d.File_Date >= thirtyDaysAgoStr;
+            }).length;
+            const last30El = document.getElementById('last30Days');
+            if (isFiltered) {
+                last30El.innerHTML = `${last30Count.toLocaleString()} <span class="text-xs text-indigo-600">(filtered)</span>`;
+            } else {
+                last30El.textContent = last30Count.toLocaleString();
+            }
+
         }
 
         // Track active metric filter
@@ -8936,15 +9220,18 @@
             updateNameFilterIndicator();
             updateDistrictFilterIndicator();
 
-            // Apply styling (metric cards removed; skip if elements missing)
+            // Apply styling
             switch(metricType) {
                 case 'total':
+                    document.getElementById('metricTotal').classList.add('active');
                     activeMetricFilter = null;
                     clearAdvancedFilters();
                     return;
                 case 'thisMonth':
+                    document.getElementById('metricMonth').classList.add('active');
                     break;
                 case 'last30Days':
+                    document.getElementById('metricThirty').classList.add('active');
                     break;
             }
 
@@ -9674,24 +9961,324 @@
         let chartFilter = null;
 
         function initCharts() {
-            // Charts removed - no-op
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            monthlyChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'point',
+                        intersect: true
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.parsed.y} filings`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Filings'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        }
+                    },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const datasetIndex = element.datasetIndex;
+                            const monthIndex = element.index;
+                            const year = monthlyChart.data.datasets[datasetIndex].label;
+                            const month = monthIndex + 1;
+                            filterByChartClick(year, month);
+                        }
+                    },
+                    onHover: function(event, elements) {
+                        event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                    }
+                }
+            });
         }
 
         function initTimelineChart() {
-            // Charts removed - no-op
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+            timelineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'point',
+                        intersect: true
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                padding: 10,
+                                boxWidth: 12,
+                                font: { size: 10 }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.parsed.y} filings`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Filings',
+                                font: { size: 10 }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month',
+                                font: { size: 10 }
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                font: { size: 9 }
+                            }
+                        }
+                    },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            const element = elements[0];
+                            const label = timelineChart.data.labels[element.index];
+                            // Label format: "Jan 2024"
+                            const parts = label.split(' ');
+                            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                            const month = monthNames.indexOf(parts[0]) + 1;
+                            const year = parseInt(parts[1]);
+                            if (month > 0 && year) {
+                                filterByChartClick(year, month);
+                            }
+                        }
+                    },
+                    onHover: function(event, elements) {
+                        event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                    }
+                }
+            });
         }
 
         function updateTimelineChart() {
-            // Charts removed - no-op
+            if (!timelineChart) {
+                console.warn('⚠️ timelineChart not initialized yet, skipping update');
+                return;
+            }
+
+            // Group data by year and month
+            const yearMonthCounts = {};
+
+            allData.forEach(record => {
+                if (!record.File_Date) return;
+                const date = new Date(record.File_Date);
+                if (isNaN(date.getTime())) return;
+
+                const year = date.getUTCFullYear();
+                const month = date.getUTCMonth(); // 0-11
+
+                const key = `${year}-${String(month).padStart(2, '0')}`;
+                yearMonthCounts[key] = (yearMonthCounts[key] || 0) + 1;
+            });
+
+            // Sort keys chronologically
+            const allSortedKeys = Object.keys(yearMonthCounts).sort();
+
+            // Exclude current month (incomplete data)
+            const now = new Date();
+            const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth()).padStart(2, '0')}`;
+            const sortedKeys = allSortedKeys.filter(key => key !== currentMonthKey);
+
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const labels = sortedKeys.map(key => {
+                const [year, month] = key.split('-');
+                return `${monthNames[parseInt(month)]} ${year}`;
+            });
+            const counts = sortedKeys.map(key => yearMonthCounts[key]);
+
+            // Calculate trendline (linear regression)
+            const n = counts.length;
+            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+            counts.forEach((y, x) => {
+                sumX += x;
+                sumY += y;
+                sumXY += x * y;
+                sumX2 += x * x;
+            });
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            const trendlineData = counts.map((_, x) => slope * x + intercept);
+
+            timelineChart.data.labels = labels;
+            timelineChart.data.datasets = [
+                {
+                    label: 'Monthly Filings',
+                    data: counts,
+                    borderColor: '#4f46e5',
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#4f46e5'
+                },
+                {
+                    label: 'Trend',
+                    data: trendlineData,
+                    borderColor: '#ef4444',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false,
+                    pointRadius: 0,
+                    tension: 0
+                }
+            ];
+            timelineChart.update();
         }
 
-        // Toggle between timeline and cumulative chart views (cumulative view removed)
+        // Toggle between timeline and cumulative chart views
         function setTimelineView(view) {
-            activeTimelineView = 'timeline';
+            activeTimelineView = view;
+            const timelineContainer = document.getElementById('timelineChartContainer');
+            const cumulativeContainer = document.getElementById('cumulativeChartContainer');
+            const timelineBtn = document.getElementById('timelineViewBtn');
+            const cumulativeBtn = document.getElementById('cumulativeViewBtn');
+            const title = document.getElementById('timelineChartTitle');
+
+            if (view === 'timeline') {
+                timelineContainer.classList.remove('hidden');
+                cumulativeContainer.classList.add('hidden');
+                timelineBtn.classList.add('bg-indigo-600', 'text-white');
+                timelineBtn.classList.remove('bg-white', 'text-gray-600', 'hover:bg-gray-50');
+                cumulativeBtn.classList.remove('bg-indigo-600', 'text-white');
+                cumulativeBtn.classList.add('bg-white', 'text-gray-600', 'hover:bg-gray-50');
+                title.innerHTML = 'Timeline Trend';
+            } else {
+                timelineContainer.classList.add('hidden');
+                cumulativeContainer.classList.remove('hidden');
+                cumulativeBtn.classList.add('bg-indigo-600', 'text-white');
+                cumulativeBtn.classList.remove('bg-white', 'text-gray-600', 'hover:bg-gray-50');
+                timelineBtn.classList.remove('bg-indigo-600', 'text-white');
+                timelineBtn.classList.add('bg-white', 'text-gray-600', 'hover:bg-gray-50');
+                // Title will be set by updateCumulativeChart with month/day info
+                const now = new Date();
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                title.innerHTML = `Month Pace <span class="text-sm font-normal text-gray-500">${monthNames[now.getMonth()]} ${now.getFullYear()} · Day ${now.getDate()}</span>`;
+                updateCumulativeChart(); // Update when switching to cumulative view
+            }
         }
 
         function initCumulativeChart() {
-            // Charts removed - no-op
+            const ctx = document.getElementById('cumulativeChart').getContext('2d');
+            cumulativeChart = new Chart(ctx, {
+                type: 'bar',  // Base type is bar, lines added as datasets
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                padding: 10,
+                                boxWidth: 12,
+                                font: { size: 10 },
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    const pct = Math.round((context[0].label / 30) * 100);
+                                    return `${pct}% through month (${context[0].label}/30)`;
+                                },
+                                label: function(context) {
+                                    if (context.parsed.y === null) return null;
+                                    return `${context.dataset.label}: ${Math.round(context.parsed.y)} filings`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Cumulative Filings',
+                                font: { size: 10 }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Fraction of Month (1/30 to 30/30)',
+                                font: { size: 10 }
+                            },
+                            ticks: {
+                                font: { size: 9 },
+                                callback: function(value, index) {
+                                    // Show every 5th label
+                                    return (index + 1) % 5 === 0 ? index + 1 : '';
+                                }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         // Helper: get days in a month
@@ -9706,11 +10293,251 @@
         }
 
         function updateCumulativeChart() {
-            // Charts removed - no-op
+            if (!cumulativeChart) {
+                console.warn('⚠️ cumulativeChart not initialized yet, skipping update');
+                return;
+            }
+
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth();
+            const currentDay = now.getDate();
+            const currentMonthKey = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            const currentDaysInMonth = getDaysInMonth(currentYear, currentMonth);
+            const currentThirtieth = dayToThirtieth(currentDay, currentDaysInMonth);
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const currentMonthName = monthNames[currentMonth];
+
+            // Group data by year-month, storing daily counts
+            const monthlyDailyData = {}; // { '2024-01': { 1: count, 2: count, ... }, ... }
+            const monthMeta = {}; // { '2024-01': { year: 2024, month: 0, daysInMonth: 31 }, ... }
+
+            allData.forEach(record => {
+                if (!record.File_Date) return;
+                const date = new Date(record.File_Date);
+                if (isNaN(date.getTime())) return;
+
+                const year = date.getUTCFullYear();
+                const month = date.getUTCMonth();
+                const day = date.getUTCDate();
+                const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+
+                if (!monthlyDailyData[monthKey]) {
+                    monthlyDailyData[monthKey] = {};
+                    monthMeta[monthKey] = {
+                        year,
+                        month,
+                        daysInMonth: getDaysInMonth(year, month)
+                    };
+                }
+                monthlyDailyData[monthKey][day] = (monthlyDailyData[monthKey][day] || 0) + 1;
+            });
+
+            // Get all completed months (excluding current)
+            const completedMonths = Object.keys(monthlyDailyData)
+                .filter(key => key !== currentMonthKey)
+                .sort();
+
+            // Calculate cumulative by normalized 30ths for a given month
+            function getCumulativeByThirtieth(monthKey) {
+                const dailyData = monthlyDailyData[monthKey];
+                const meta = monthMeta[monthKey];
+                const daysInMonth = meta.daysInMonth;
+                const cumulativeByThirtieth = new Array(30).fill(0);
+
+                let cumulative = 0;
+                let lastBucket = 0;
+
+                for (let day = 1; day <= daysInMonth; day++) {
+                    cumulative += dailyData[day] || 0;
+                    const bucket = dayToThirtieth(day, daysInMonth);
+                    // Fill all buckets from lastBucket+1 to bucket with current cumulative
+                    for (let b = lastBucket + 1; b <= bucket; b++) {
+                        cumulativeByThirtieth[b - 1] = cumulative;
+                    }
+                    lastBucket = bucket;
+                }
+
+                return cumulativeByThirtieth;
+            }
+
+            // Calculate historical average cumulative by 30th - ALL completed months
+            const avgCumulativeByThirtieth = new Array(30).fill(0);
+            const monthCount = completedMonths.length;
+
+            if (monthCount > 0) {
+                completedMonths.forEach(monthKey => {
+                    const cumByThirtieth = getCumulativeByThirtieth(monthKey);
+                    for (let i = 0; i < 30; i++) {
+                        avgCumulativeByThirtieth[i] += cumByThirtieth[i];
+                    }
+                });
+                for (let i = 0; i < 30; i++) {
+                    avgCumulativeByThirtieth[i] = avgCumulativeByThirtieth[i] / monthCount;
+                }
+            }
+
+            // Calculate recent trend cumulative (last 7 completed months)
+            const recentTrendByThirtieth = new Array(30).fill(0);
+            const recentMonths = completedMonths.slice(-7);
+            const recentCount = recentMonths.length;
+
+            if (recentCount > 0) {
+                recentMonths.forEach(monthKey => {
+                    const cumByThirtieth = getCumulativeByThirtieth(monthKey);
+                    for (let i = 0; i < 30; i++) {
+                        recentTrendByThirtieth[i] += cumByThirtieth[i];
+                    }
+                });
+                for (let i = 0; i < 30; i++) {
+                    recentTrendByThirtieth[i] = recentTrendByThirtieth[i] / recentCount;
+                }
+            }
+
+            // Prior year same month (e.g., Feb 2025 for Feb 2026)
+            const priorYearMonthKey = `${currentYear - 1}-${String(currentMonth).padStart(2, '0')}`;
+            const priorYearMonthName = `${currentMonthName} ${currentYear - 1}`;
+            let priorYearByThirtieth = null;
+            if (monthlyDailyData[priorYearMonthKey]) {
+                priorYearByThirtieth = getCumulativeByThirtieth(priorYearMonthKey);
+            }
+
+            // Current month's actual cumulative by 30th (as bars)
+            const currentMonthCumulative = new Array(30).fill(null);
+            if (monthlyDailyData[currentMonthKey]) {
+                const dailyData = monthlyDailyData[currentMonthKey];
+                let cumulative = 0;
+                let lastBucket = 0;
+
+                for (let day = 1; day <= currentDay; day++) {
+                    cumulative += dailyData[day] || 0;
+                    const bucket = dayToThirtieth(day, currentDaysInMonth);
+                    // Fill all buckets from lastBucket+1 to bucket
+                    for (let b = lastBucket + 1; b <= bucket; b++) {
+                        currentMonthCumulative[b - 1] = cumulative;
+                    }
+                    lastBucket = bucket;
+                }
+            }
+
+            // Labels: 1/30 through 30/30 (displayed as 1-30)
+            const labels = Array.from({ length: 30 }, (_, i) => i + 1);
+
+            cumulativeChart.data.labels = labels;
+
+            const datasets = [
+                {
+                    type: 'bar',
+                    label: `${currentMonthName} ${currentYear}`,
+                    data: currentMonthCumulative,
+                    backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                    borderColor: 'rgba(239, 68, 68, 0.9)',
+                    borderWidth: 1,
+                    borderRadius: 3,
+                    order: 3
+                },
+                {
+                    type: 'line',
+                    label: `Historical Avg (${monthCount} mo)`,
+                    data: avgCumulativeByThirtieth,
+                    borderColor: '#6366f1',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2.5,
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    order: 1
+                },
+                {
+                    type: 'line',
+                    label: `Recent Trend (${recentCount} mo)`,
+                    data: recentTrendByThirtieth,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2.5,
+                    borderDash: [8, 4],
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    order: 0
+                }
+            ];
+
+            // Add prior year same month if data exists
+            if (priorYearByThirtieth) {
+                datasets.push({
+                    type: 'line',
+                    label: priorYearMonthName,
+                    data: priorYearByThirtieth,
+                    borderColor: '#10b981',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [3, 3],
+                    fill: false,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    order: 2
+                });
+            }
+
+            cumulativeChart.data.datasets = datasets;
+            cumulativeChart.update();
         }
 
         function updateCharts() {
-            // Charts removed - no-op
+            // Group data by year and month
+            const yearMonthCounts = {};
+
+            allData.forEach(record => {
+                if (!record.File_Date) return;
+                const date = new Date(record.File_Date);
+                if (isNaN(date.getTime())) return;
+
+                const year = date.getUTCFullYear();
+                const month = date.getUTCMonth(); // 0-11
+
+                if (!yearMonthCounts[year]) {
+                    yearMonthCounts[year] = new Array(12).fill(0);
+                }
+                yearMonthCounts[year][month]++;
+            });
+
+            // Get sorted years
+            const years = Object.keys(yearMonthCounts).sort();
+
+            // Color palette for different years - solid colors for bar charts
+            const colors = [
+                { bg: 'rgba(79, 70, 229, 0.8)', border: '#4f46e5' },   // Indigo
+                { bg: 'rgba(16, 185, 129, 0.8)', border: '#10b981' },  // Emerald
+                { bg: 'rgba(245, 158, 11, 0.8)', border: '#f59e0b' },  // Amber
+                { bg: 'rgba(239, 68, 68, 0.8)', border: '#ef4444' },   // Red
+                { bg: 'rgba(6, 182, 212, 0.8)', border: '#06b6d4' },   // Cyan
+                { bg: 'rgba(168, 85, 247, 0.8)', border: '#a855f7' },  // Purple
+                { bg: 'rgba(236, 72, 153, 0.8)', border: '#ec4899' },  // Pink
+                { bg: 'rgba(34, 197, 94, 0.8)', border: '#22c55e' }    // Green
+            ];
+
+            // Create datasets for each year
+            const datasets = years.map((year, index) => ({
+                label: year,
+                data: yearMonthCounts[year],
+                backgroundColor: colors[index % colors.length].bg,
+                borderColor: colors[index % colors.length].border,
+                borderWidth: 1,
+                borderRadius: 4,
+                hoverBackgroundColor: colors[index % colors.length].border
+            }));
+
+            // Only update if chart is initialized
+            if (!monthlyChart) {
+                console.warn('⚠️ monthlyChart not initialized yet, skipping update');
+                return;
+            }
+            monthlyChart.data.datasets = datasets;
+            monthlyChart.update();
+
+            // Also update the timeline chart
+            updateTimelineChart();
         }
 
         function filterByChartClick(year, month) {
@@ -10334,11 +11161,270 @@
         }
 
         function initDemographicsCharts() {
-            // Charts removed - no-op
+            // Initialize Scatter Chart with responsive point sizing
+            const scatterCtx = document.getElementById('scatterChart').getContext('2d');
+            const isMobile = window.innerWidth < 640;
+            const pointRadius = isMobile ? 6 : 8;
+            const pointHoverRadius = isMobile ? 9 : 12;
+
+            scatterChart = new Chart(scatterCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Districts',
+                            data: [],
+                            backgroundColor: 'rgba(79, 70, 229, 0.6)',
+                            borderColor: '#4f46e5',
+                            borderWidth: isMobile ? 1 : 2,
+                            pointRadius: pointRadius,
+                            pointHoverRadius: pointHoverRadius,
+                            pointHoverBackgroundColor: '#4f46e5',
+                            order: 2 // Draw points above the line
+                        },
+                        {
+                            label: 'Trend Line',
+                            data: [],
+                            type: 'line',
+                            borderColor: 'rgba(156, 163, 175, 0.5)',
+                            borderWidth: 3,
+                            fill: false,
+                            pointRadius: 0,
+                            pointHoverRadius: 0,
+                            tension: 0,
+                            order: 1 // Draw line behind points
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            filter: function(tooltipItem) {
+                                // Only show tooltip for scatter points, not trend line
+                                return tooltipItem.datasetIndex === 0;
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    const point = context.raw;
+                                    if (!point.district) return null;
+                                    return [
+                                        `District ${point.district}`,
+                                        `Eviction Rate: ${point.y.toFixed(2)}`,
+                                        `${getDemographicLabel(document.getElementById('demoXAxis').value)}: ${point.x.toFixed(1)}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Renter Cost Burden (%)',
+                                font: { weight: 'bold' }
+                            },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Evictions per 1,000 Renter Households',
+                                font: { weight: 'bold' }
+                            },
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        }
+                    },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0 && elements[0].datasetIndex === 0) {
+                            const point = scatterChart.data.datasets[0].data[elements[0].index];
+                            openDistrictModal(point.district);
+                        }
+                    },
+                    onHover: function(event, elements) {
+                        const hasScatterPoint = elements.some(el => el.datasetIndex === 0);
+                        event.native.target.style.cursor = hasScatterPoint ? 'pointer' : 'default';
+                    }
+                }
+            });
+
+            // Initialize Ranked Bar Chart
+            const barCtx = document.getElementById('rankedBarChart').getContext('2d');
+            rankedBarChart = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Eviction Rate',
+                        data: [],
+                        backgroundColor: [],
+                        borderColor: [],
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const districtData = context.raw;
+                                    if (typeof districtData === 'object') {
+                                        return [
+                                            `Rate: ${districtData.y.toFixed(2)}`,
+                                            `Evictions: ${districtData.count}`,
+                                            `Population: ${districtData.population.toLocaleString()}`
+                                        ];
+                                    }
+                                    return `Rate: ${context.parsed.x.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Evictions per 1,000 Renter Households',
+                                font: { weight: 'bold' }
+                            },
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        y: {
+                            title: { display: false },
+                            grid: { display: false }
+                        }
+                    },
+                    onClick: function(event, elements) {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const district = rankedBarChart.data.labels[index].replace('District ', '');
+                            openDistrictModal(district);
+                        }
+                    },
+                    onHover: function(event, elements) {
+                        event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                    }
+                }
+            });
+
+            updateDemographicsCharts();
         }
 
         function updateDemographicsCharts() {
-            // Charts removed - no-op
+            if (!scatterChart || !rankedBarChart || !districtDemographics) return;
+
+            const data = getDistrictEvictionData();
+            if (data.length === 0) return;
+
+            const xAxisKey = document.getElementById('demoXAxis').value;
+            const yAxisKey = normalizationMode === 'population' ? 'evictionRatePer1k' : 'evictionRatePer100Units';
+            const yAxisLabel = normalizationMode === 'population' ? 'Evictions per 1,000 Renter Households' : 'Evictions per 100 Housing Units';
+
+            // Update Scatter Chart
+            const scatterData = data.map(d => ({
+                x: d[xAxisKey],
+                y: d[yAxisKey],
+                district: d.district,
+                count: d.evictionCount,
+                population: d.population
+            }));
+
+            scatterChart.data.datasets[0].data = scatterData;
+            scatterChart.options.scales.x.title.text = getDemographicLabel(xAxisKey);
+            scatterChart.options.scales.y.title.text = yAxisLabel;
+
+            // Update variable labels overlay
+            const xVarLabel = document.getElementById('xVarLabel');
+            const yVarLabel = document.getElementById('yVarLabel');
+            if (xVarLabel) xVarLabel.textContent = getDemographicLabel(xAxisKey);
+            if (yVarLabel) yVarLabel.textContent = yAxisLabel;
+
+            // Calculate and display correlation with audit data
+            const xValues = data.map(d => d[xAxisKey]);
+            const yValues = data.map(d => d[yAxisKey]);
+            const correlationAudit = calculateCorrelationWithAudit(xValues, yValues);
+            const correlation = correlationAudit.r;
+            const strength = getCorrelationStrength(correlation);
+
+            // Populate audit section
+            updateCorrelationAuditDisplay(correlationAudit, data, xAxisKey, yAxisLabel);
+
+            // Calculate and add regression line with correlation-based styling
+            const regression = calculateLinearRegression(xValues, yValues);
+            if (regression) {
+                const lineStyle = getRegressionLineStyle(correlation);
+                const linePoints = regression.getLinePoints();
+
+                scatterChart.data.datasets[1].data = linePoints;
+                scatterChart.data.datasets[1].borderColor = lineStyle.color;
+                scatterChart.data.datasets[1].borderWidth = lineStyle.lineWidth;
+            } else {
+                scatterChart.data.datasets[1].data = [];
+            }
+
+            scatterChart.update();
+
+            const correlationBadge = document.getElementById('correlationBadge');
+            correlationBadge.textContent = `${strength.label} (r = ${correlation.toFixed(2)})`;
+            correlationBadge.className = `correlation-badge ${strength.class}`;
+
+            // Update scatter insight
+            const scatterInsight = document.getElementById('scatterInsight');
+            const direction = correlation > 0 ? 'positive' : 'negative';
+            const demoLabel = getDemographicLabel(xAxisKey).toLowerCase();
+
+            let insightText = '';
+            if (Math.abs(correlation) >= 0.6) {
+                insightText = `Strong ${direction} correlation: Districts with higher ${demoLabel} tend to have ${correlation > 0 ? 'higher' : 'lower'} eviction rates.`;
+                scatterInsight.className = 'demo-insight-box warning';
+            } else if (Math.abs(correlation) >= 0.3) {
+                insightText = `Moderate ${direction} correlation between ${demoLabel} and eviction rates. Other factors may also play a role.`;
+                scatterInsight.className = 'demo-insight-box';
+            } else {
+                insightText = `Weak correlation suggests ${demoLabel} alone does not strongly predict eviction rates in Nashville districts.`;
+                scatterInsight.className = 'demo-insight-box';
+            }
+            scatterInsight.innerHTML = `<div class="insight-title">Key Insight</div><div class="insight-text">${insightText}</div>`;
+
+            // Update Ranked Bar Chart
+            const sortedData = [...data].sort((a, b) => b[yAxisKey] - a[yAxisKey]);
+            const labels = sortedData.map(d => `District ${d.district}`);
+            const values = sortedData.map(d => d[yAxisKey]);
+
+            // Color gradient from high (red) to low (green)
+            const colors = sortedData.map((d, i) => {
+                const ratio = i / (sortedData.length - 1);
+                if (ratio < 0.2) return 'rgba(239, 68, 68, 0.8)';  // Red for top 20%
+                if (ratio < 0.4) return 'rgba(249, 115, 22, 0.8)'; // Orange
+                if (ratio < 0.6) return 'rgba(245, 158, 11, 0.8)'; // Amber
+                if (ratio < 0.8) return 'rgba(34, 197, 94, 0.7)';  // Light green
+                return 'rgba(22, 163, 74, 0.8)';                   // Green for bottom 20%
+            });
+
+            rankedBarChart.data.labels = labels;
+            rankedBarChart.data.datasets[0].data = values;
+            rankedBarChart.data.datasets[0].backgroundColor = colors;
+            rankedBarChart.data.datasets[0].borderColor = colors.map(c => c.replace('0.8', '1').replace('0.7', '1'));
+            rankedBarChart.options.scales.x.title.text = yAxisLabel;
+            rankedBarChart.update();
+
+            // Update bar insight
+            const barInsight = document.getElementById('barInsight');
+            const top3 = sortedData.slice(0, 3);
+            const top3Text = top3.map(d => `District ${d.district} (${d[yAxisKey].toFixed(1)})`).join(', ');
+            barInsight.innerHTML = `
+                <div class="insight-title">Highest Eviction Rates</div>
+                <div class="insight-text">${top3Text}</div>
+            `;
         }
 
         function clearChartFilter() {
@@ -12413,7 +13499,71 @@
         }
 
         function renderBenchmarkChart() {
-            // Charts removed - no-op
+            const canvas = document.getElementById('metroBenchmarkChart');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const chartData = getBenchmarkChartData();
+
+            if (metroBenchmarkChart) {
+                metroBenchmarkChart.destroy();
+            }
+
+            const metricLabels = {
+                'filing_rate': 'Filing Rate (%)',
+                'judgment_rate': 'Judgment Rate (% of filings)',
+                'eviction_rate': 'Eviction Rate (% of renters)'
+            };
+
+            metroBenchmarkChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        label: metricLabels[currentBenchmarkMetric],
+                        data: chartData.data,
+                        backgroundColor: chartData.colors,
+                        borderColor: chartData.colors.map(c => c === '#7c3aed' ? '#5b21b6' : c === '#10b981' ? '#059669' : '#64748b'),
+                        borderWidth: 2,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.raw.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: metricLabels[currentBenchmarkMetric]
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                font: {
+                                    weight: function(context) {
+                                        return chartData.labels[context.index] === 'Nashville' ? 'bold' : 'normal';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
 
         function renderBenchmarkTable() {
