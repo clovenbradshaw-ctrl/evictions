@@ -1399,6 +1399,130 @@
             font-style: italic;
         }
 
+        /* === Skeleton Loading Animations === */
+        @keyframes shimmer {
+            0% { background-position: -400px 0; }
+            100% { background-position: 400px 0; }
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+            background-size: 400px 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 6px;
+        }
+
+        .skeleton-metric {
+            height: 38px;
+            width: 80%;
+            margin-top: 4px;
+        }
+
+        .skeleton-metric-label {
+            height: 14px;
+            width: 60%;
+            margin-bottom: 8px;
+        }
+
+        .skeleton-chart {
+            height: 200px;
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        .skeleton-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 16px 0;
+        }
+
+        .skeleton-grid-row {
+            height: 18px;
+            width: 100%;
+            border-radius: 4px;
+        }
+
+        .skeleton-grid-row:nth-child(odd) { width: 95%; }
+        .skeleton-grid-row:nth-child(3n) { width: 88%; }
+
+        .skeleton-grid-header {
+            height: 36px;
+            width: 100%;
+            border-radius: 4px;
+            margin-bottom: 4px;
+        }
+
+        /* === Sync Indicator Bar === */
+        .sync-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+            border-bottom: 2px solid #818cf8;
+            font-size: 13px;
+            font-weight: 600;
+            color: #4338ca;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .sync-bar.visible {
+            transform: translateY(0);
+        }
+
+        .sync-bar-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2.5px solid #c7d2fe;
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+
+        .sync-bar-progress {
+            height: 3px;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            background: #4f46e5;
+            border-radius: 0 2px 2px 0;
+            transition: width 0.4s ease;
+        }
+
+        /* Data section loading overlay - used for grid during load */
+        .loading-overlay {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            color: #6b7280;
+            gap: 16px;
+        }
+
+        .loading-overlay-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e5e7eb;
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-overlay-text {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
         /* Animate spin for refresh button */
         .animate-spin {
             animation: spin 1s linear infinite;
@@ -3620,6 +3744,13 @@
     </style>
 </head>
 <body>
+    <!-- Sync Indicator Bar - fixed top bar shown during data sync -->
+    <div id="syncBar" class="sync-bar">
+        <div class="sync-bar-spinner"></div>
+        <span id="syncBarText">Syncing data...</span>
+        <div id="syncBarProgress" class="sync-bar-progress" style="width: 0%"></div>
+    </div>
+
     <!-- Secret Mode Indicator -->
     <div id="secretModeIndicator" class="secret-mode-indicator">
         Type the keyword: <span id="secretModeTyped" class="typed-chars"></span>
@@ -3732,7 +3863,7 @@
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
             <div id="metricTotal" class="data-card p-6 metric-clickable" onclick="filterByMetric('total')" title="Click to view all records">
                 <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Total Records</div>
-                <div id="totalRecords" class="metric-value text-gray-900">-</div>
+                <div id="totalRecords" class="metric-value text-gray-900"><div class="skeleton skeleton-metric"></div></div>
                 <div id="totalChange" class="text-sm mt-2"></div>
                 <div class="metric-source-link" onclick="event.stopPropagation(); showMetricSource('total')">
                     <span class="source-icon">ℹ️</span>
@@ -3741,7 +3872,7 @@
             </div>
             <div id="metricMonth" class="data-card p-6 metric-clickable" onclick="filterByMetric('thisMonth')" title="Click to view this month's records">
                 <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">This Month</div>
-                <div id="thisMonth" class="metric-value text-gray-900">-</div>
+                <div id="thisMonth" class="metric-value text-gray-900"><div class="skeleton skeleton-metric"></div></div>
                 <div id="monthChange" class="text-sm mt-2"></div>
                 <div class="metric-source-link" onclick="event.stopPropagation(); showMetricSource('thisMonth')">
                     <span class="source-icon">ℹ️</span>
@@ -3750,7 +3881,7 @@
             </div>
             <div id="metricThirty" class="data-card p-6 metric-clickable" onclick="filterByMetric('last30Days')" title="Click to view last 30 days">
                 <div class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Last 30 Days</div>
-                <div id="last30Days" class="metric-value text-gray-900">-</div>
+                <div id="last30Days" class="metric-value text-gray-900"><div class="skeleton skeleton-metric"></div></div>
                 <div class="metric-source-link" onclick="event.stopPropagation(); showMetricSource('last30Days')">
                     <span class="source-icon">ℹ️</span>
                     <span class="text-xs">Source</span>
@@ -4544,7 +4675,22 @@
                     </div>
                 </div>
             </div>
-            <div id="dataGrid" class="ag-theme-alpine"></div>
+            <div id="gridLoadingState" class="loading-overlay">
+                <div class="loading-overlay-spinner"></div>
+                <div class="loading-overlay-text">Loading eviction records...</div>
+                <div class="skeleton-grid" style="width:100%">
+                    <div class="skeleton skeleton-grid-header"></div>
+                    <div class="skeleton skeleton-grid-row"></div>
+                    <div class="skeleton skeleton-grid-row"></div>
+                    <div class="skeleton skeleton-grid-row"></div>
+                    <div class="skeleton skeleton-grid-row"></div>
+                    <div class="skeleton skeleton-grid-row"></div>
+                    <div class="skeleton skeleton-grid-row"></div>
+                    <div class="skeleton skeleton-grid-row"></div>
+                    <div class="skeleton skeleton-grid-row"></div>
+                </div>
+            </div>
+            <div id="dataGrid" class="ag-theme-alpine" style="display:none"></div>
         </div>
     </div>
 
@@ -8410,11 +8556,14 @@
         async function loadData() {
             isLoadingData = true;
             updateRefreshUI();
+            setGridLoading(true);
+            updateSyncProgress(0);
 
             try {
                 console.log('Loading eviction data from EO events API...');
 
                 updateStatus('Fetching events from API...', 'loading');
+                updateSyncProgress(5);
 
                 // Fetch all EO events from the operations endpoint
                 const url = buildEOApiUrl();
@@ -8422,17 +8571,22 @@
                     perPage: 2500,
                     maxPages: 500,
                     onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
+                        const pct = pageTotal ? Math.round((page / pageTotal) * 60) + 5 : 30;
+                        updateSyncProgress(pct);
                         updateStatus(`Fetching events: page ${page}${pageTotal ? '/' + pageTotal : ''} (${itemsFetched} events)`, 'loading');
                     }
                 });
                 console.log('EO API fetch: got', rawEvents.length, 'raw events');
 
                 updateStatus('Replaying events...', 'loading');
+                updateSyncProgress(70);
 
                 // Parse from Xano format and reconstruct current state
                 const events = rawEvents.map(e => EOMigration.fromXanoFormat(e));
                 const states = EOMigration.reconstructAllStates(events);
                 console.log('Reconstructed', states.length, 'entities from', events.length, 'events');
+
+                updateSyncProgress(85);
 
                 // Store last sync timestamp for incremental sync
                 if (events.length > 0) {
@@ -8448,6 +8602,7 @@
 
                 console.log('Final record count:', allData.length);
 
+                updateSyncProgress(100);
                 updateStatus(`Loaded ${allData.length} records`, 'success');
                 updateMetrics();
                 updateCharts();
@@ -8455,15 +8610,18 @@
                 await loadDistrictDemographics();
                 initDemographicsCharts();
                 initGrid();
+                setGridLoading(false);
                 updateLastImportedDisplay();
                 restorePersistedFilters();
 
             } catch (error) {
                 console.error('Error loading data:', error);
                 updateStatus(`Error loading data: ${error.message}`, 'error');
+                setGridLoading(false);
             } finally {
                 isLoadingData = false;
                 updateRefreshUI();
+                updateSyncProgress(0);
             }
         }
 
@@ -8479,10 +8637,12 @@
 
             isLoadingData = true;
             updateRefreshUI();
+            updateSyncProgress(0);
 
             try {
                 console.log('Incremental sync from:', new Date(parseInt(lastSyncTs)).toISOString());
                 updateStatus('Checking for new events...', 'loading');
+                updateSyncProgress(10);
 
                 // Fetch only events newer than last sync
                 const url = buildEOApiUrl({ ts_gt: parseInt(lastSyncTs) });
@@ -8490,23 +8650,30 @@
                     perPage: 2500,
                     maxPages: 100,
                     onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
-                        updateStatus(`Fetching new events: ${itemsFetched} found`, 'loading');
+                        const pct = pageTotal ? Math.round((page / pageTotal) * 50) + 10 : 35;
+                        updateSyncProgress(pct);
+                        updateStatus(`Syncing: ${itemsFetched} new events found`, 'loading');
                     }
                 });
 
                 if (rawEvents.length === 0) {
+                    updateSyncProgress(100);
                     updateStatus('Already up to date', 'success');
                     isLoadingData = false;
                     updateRefreshUI();
+                    updateSyncProgress(0);
                     return;
                 }
 
                 console.log('Incremental sync: got', rawEvents.length, 'new events');
                 updateStatus('Replaying new events...', 'loading');
+                updateSyncProgress(70);
 
                 // Parse and reconstruct state from new events
                 const events = rawEvents.map(e => EOMigration.fromXanoFormat(e));
                 const newStates = EOMigration.reconstructAllStates(events);
+
+                updateSyncProgress(85);
 
                 // Merge new/updated entities into existing allData
                 const newNormalized = newStates.map(normalizeRecord);
@@ -8521,6 +8688,7 @@
 
                 console.log('Incremental sync complete:', newStates.length, 'updated entities, total:', allData.length);
 
+                updateSyncProgress(100);
                 updateStatus(`Updated ${newStates.length} records (${allData.length} total)`, 'success');
                 updateMetrics();
                 updateCharts();
@@ -8533,6 +8701,7 @@
             } finally {
                 isLoadingData = false;
                 updateRefreshUI();
+                updateSyncProgress(0);
             }
         }
 
@@ -9212,13 +9381,39 @@
             const statusEl = document.getElementById('statusMessage');
             statusEl.textContent = message;
             statusEl.className = `status-message status-${type}`;
-            
-            // Hide after success
+
+            // Also update sync bar
+            const syncBar = document.getElementById('syncBar');
+            const syncBarText = document.getElementById('syncBarText');
+
+            if (type === 'loading') {
+                statusEl.style.display = '';
+                if (syncBar) syncBar.classList.add('visible');
+                if (syncBarText) syncBarText.textContent = message;
+            } else {
+                if (syncBar) syncBar.classList.remove('visible');
+            }
+
+            // Hide status message after success
             if (type === 'success') {
                 setTimeout(() => {
                     statusEl.style.display = 'none';
                 }, 3000);
             }
+        }
+
+        // Update the sync bar progress (0-100)
+        function updateSyncProgress(pct) {
+            const bar = document.getElementById('syncBarProgress');
+            if (bar) bar.style.width = Math.min(100, Math.max(0, pct)) + '%';
+        }
+
+        // Show or hide the grid loading skeleton
+        function setGridLoading(show) {
+            const loader = document.getElementById('gridLoadingState');
+            const grid = document.getElementById('dataGrid');
+            if (loader) loader.style.display = show ? '' : 'none';
+            if (grid) grid.style.display = show ? 'none' : '';
         }
 
         // Check if any filters are currently active
