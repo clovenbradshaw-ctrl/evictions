@@ -7702,6 +7702,34 @@
         // =============================================
 
         /**
+         * Fetch a URL with retry and exponential backoff.
+         * @param {string} url - URL to fetch
+         * @param {object} fetchOptions - Options to pass to fetch()
+         * @param {number} maxRetries - Maximum number of retries (default: 3)
+         * @returns {Promise<Response>} The fetch response
+         */
+        async function fetchWithRetry(url, fetchOptions = {}, maxRetries = 3) {
+            let lastError;
+            for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                try {
+                    const response = await fetch(url, fetchOptions);
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.status} ${response.statusText}`);
+                    }
+                    return response;
+                } catch (error) {
+                    lastError = error;
+                    if (attempt < maxRetries) {
+                        const delayMs = 1000 * Math.pow(2, attempt); // 1s, 2s, 4s
+                        console.warn(`Fetch attempt ${attempt + 1} failed (${error.message}), retrying in ${delayMs}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, delayMs));
+                    }
+                }
+            }
+            throw lastError;
+        }
+
+        /**
          * Fetch all pages from a Xano paginated API endpoint.
          * Handles both flat array responses and the Xano pagination envelope:
          *   { items, itemsReceived, curPage, nextPage, prevPage, offset, perPage, itemsTotal, pageTotal }
@@ -7725,11 +7753,7 @@
                 const separator = baseUrl.includes('?') ? '&' : '?';
                 const url = `${baseUrl}${separator}page=${page}&per_page=${perPage}`;
 
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`API error: ${response.status} ${response.statusText}`);
-                }
-
+                const response = await fetchWithRetry(url);
                 const result = await response.json();
 
                 // Handle flat array response (no pagination metadata)
@@ -8412,43 +8436,90 @@
             updateRefreshUI();
 
             try {
-                console.log('Loading eviction data from EO events API...');
+                let records = null;
+                let source = '';
 
-                updateStatus('Fetching events from API...', 'loading');
+                // Strategy 1: EO events API (primary)
+                try {
+                    console.log('Loading eviction data from EO events API...');
+                    updateStatus('Fetching events from API...', 'loading');
 
-                // Fetch all EO events from the operations endpoint
-                const url = buildEOApiUrl();
-                const rawEvents = await fetchAllPages(url, {
-                    perPage: 2500,
-                    maxPages: 500,
-                    onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
-                        updateStatus(`Fetching events: page ${page}${pageTotal ? '/' + pageTotal : ''} (${itemsFetched} events)`, 'loading');
+                    const url = buildEOApiUrl();
+                    const rawEvents = await fetchAllPages(url, {
+                        perPage: 2500,
+                        maxPages: 500,
+                        onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
+                            updateStatus(`Fetching events: page ${page}${pageTotal ? '/' + pageTotal : ''} (${itemsFetched} events)`, 'loading');
+                        }
+                    });
+                    console.log('EO API fetch: got', rawEvents.length, 'raw events');
+
+                    updateStatus('Replaying events...', 'loading');
+
+                    const events = rawEvents.map(e => EOMigration.fromXanoFormat(e));
+                    const states = EOMigration.reconstructAllStates(events);
+                    console.log('Reconstructed', states.length, 'entities from', events.length, 'events');
+
+                    // Store last sync timestamp for incremental sync
+                    if (events.length > 0) {
+                        const maxTs = Math.max(...events.map(e => e.ts));
+                        localStorage.setItem('eo_last_sync_ts', maxTs.toString());
                     }
-                });
-                console.log('EO API fetch: got', rawEvents.length, 'raw events');
 
-                updateStatus('Replaying events...', 'loading');
+                    records = states;
+                    source = 'EO events API';
+                } catch (eoError) {
+                    console.warn('EO events API failed:', eoError.message);
 
-                // Parse from Xano format and reconstruct current state
-                const events = rawEvents.map(e => EOMigration.fromXanoFormat(e));
-                const states = EOMigration.reconstructAllStates(events);
-                console.log('Reconstructed', states.length, 'entities from', events.length, 'events');
+                    // Strategy 2: Current-state API (fallback)
+                    try {
+                        console.log('Falling back to current-state API...');
+                        updateStatus('Primary API unavailable. Trying current-state API...', 'loading');
 
-                // Store last sync timestamp for incremental sync
-                if (events.length > 0) {
-                    const maxTs = Math.max(...events.map(e => e.ts));
-                    localStorage.setItem('eo_last_sync_ts', maxTs.toString());
+                        const csUrl = buildCurrentStateApiUrl();
+                        const csRows = await fetchAllPages(csUrl, {
+                            perPage: 2500,
+                            maxPages: 500,
+                            onProgress: ({ page, pageTotal, itemsFetched }) => {
+                                updateStatus(`Current-state API: page ${page}${pageTotal ? '/' + pageTotal : ''} (${itemsFetched} records)`, 'loading');
+                            }
+                        });
+                        console.log('Current-state API: got', csRows.length, 'rows');
+
+                        records = csRows.map(row => EvictionAPI.replayRow(row));
+                        source = 'current-state API';
+                    } catch (csError) {
+                        console.warn('Current-state API failed:', csError.message);
+
+                        // Strategy 3: CSV import (last resort)
+                        try {
+                            console.log('Falling back to CSV import...');
+                            updateStatus('APIs unavailable. Loading from CSV backup...', 'loading');
+
+                            records = await fetchCSVFromDrive((progress) => {
+                                updateStatus(`CSV import: ${progress.stage}${progress.rows ? ' (' + progress.rows + ' rows)' : ''}...`, 'loading');
+                            });
+                            source = 'CSV backup';
+                        } catch (csvError) {
+                            console.error('All data sources failed:', {
+                                eo: eoError.message,
+                                currentState: csError.message,
+                                csv: csvError.message
+                            });
+                            throw new Error(`All data sources failed. Last error: ${csvError.message}`);
+                        }
+                    }
                 }
 
                 // Normalize for grid display
-                const normalizedData = states.map(normalizeRecord);
+                const normalizedData = records.map(normalizeRecord);
                 allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
 
-                console.log('Final record count:', allData.length);
+                console.log(`Final record count: ${allData.length} (source: ${source})`);
 
-                updateStatus(`Loaded ${allData.length} records`, 'success');
+                updateStatus(`Loaded ${allData.length} records from ${source}`, 'success');
                 updateMetrics();
                 updateCharts();
                 createDistrictMap();
@@ -9212,7 +9283,8 @@
             const statusEl = document.getElementById('statusMessage');
             statusEl.textContent = message;
             statusEl.className = `status-message status-${type}`;
-            
+            statusEl.style.display = '';
+
             // Hide after success
             if (type === 'success') {
                 setTimeout(() => {
