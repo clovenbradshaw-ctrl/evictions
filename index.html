@@ -16168,9 +16168,10 @@
                     details: 'You must be logged in to upload data.',
                     errorMessage: 'Please login before uploading records.'
                 });
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Upload Data';
                 return;
             }
-            const apiUrl = decryptedPostEndpoint;
 
             // Upload each record to current-state endpoint
             const currentStateApiUrl = CURRENT_STATE_API;
