@@ -7640,6 +7640,9 @@
         // Current-state API endpoint (new model — replaces event-sourcing for reads)
         const CURRENT_STATE_API = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_current_state';
 
+        // Append-only state update endpoint (upserts by docket_number, appends to stateData array)
+        const UPDATE_STATE_API = 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/update_eviction_state';
+
         // API query builder for current-state endpoint
         // The API has no server-side filtering — only pagination params are supported
         function buildCurrentStateApiUrl(options = {}) {
@@ -16257,14 +16260,22 @@
                 return;
             }
 
-            // Upload each record to current-state endpoint
-            const currentStateApiUrl = CURRENT_STATE_API;
+            // Build a lookup of existing cases by normalized docket number
+            // to detect new vs update and skip no-change records
+            const existingByDocket = new Map();
+            for (const rec of allData) {
+                const dk = (rec.Docket_Number || rec.docket_number || '').toUpperCase().trim();
+                if (dk) existingByDocket.set(dk, rec);
+            }
 
+            let skipped = 0;
+
+            // Upload each record via append-only state update endpoint
             for (let i = 0; i < transformedData.length; i++) {
                 const record = transformedData[i];
                 const progress = Math.round(((i + 1) / total) * 100);
 
-                // Validate that Docket_Number is present (required for object_id)
+                // Validate that Docket_Number is present
                 if (!record.Docket_Number) {
                     failed++;
                     addUploadStatusItem(statusLog, 'Missing required field', 'error', {
@@ -16279,18 +16290,38 @@
                     continue;
                 }
 
+                const normalizedDocket = record.Docket_Number.toUpperCase().trim();
+                const existing = existingByDocket.get(normalizedDocket);
+
+                // Determine operation type
+                const isNew = !existing;
+                const op = isNew ? 'INS' : 'ALT';
+
+                // For existing cases, only upload if Status changed
+                if (existing && existing.Status === record.Status) {
+                    skipped++;
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `${progress}% (${i + 1}/${total})`;
+                    continue;
+                }
+
                 try {
-                    // Build current-state POST body
+                    // Build state entry with metadata and POST body
+                    const stateEntry = typeof EOMigration !== 'undefined'
+                        ? EOMigration.buildStateEntry(record, { op, source: 'bulk_upload' })
+                        : { op, ts: new Date().toISOString(), source: 'bulk_upload', ...record };
+
                     const body = typeof EOMigration !== 'undefined'
-                        ? EOMigration.toCurrentStateFormat(record.Docket_Number, record, { object_type: 'eviction_case' })
+                        ? EOMigration.toUpdateStatePayload(record.Docket_Number, stateEntry, {
+                            fileDate: record.File_Date
+                        })
                         : {
-                            object_type: 'eviction_case',
-                            object_id: record.Docket_Number,
-                            data: [record],
-                            deleted: false
+                            docket_number: normalizedDocket,
+                            state_data: stateEntry,
+                            file_date: record.File_Date
                         };
 
-                    const response = await fetch(currentStateApiUrl, {
+                    const response = await fetch(UPDATE_STATE_API, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -16300,8 +16331,8 @@
 
                     if (response.ok) {
                         success++;
-                        const resultData = await response.json().catch(() => ({}));
-                        addUploadStatusItem(statusLog, 'Uploaded successfully', 'success', {
+                        await response.json().catch(() => ({}));
+                        addUploadStatusItem(statusLog, `${isNew ? 'Created' : 'Updated'} successfully`, 'success', {
                             recordId: record.Docket_Number || `Row ${i + 1}`
                         });
                     } else {
@@ -16319,7 +16350,6 @@
                     }
                 } catch (error) {
                     failed++;
-                    // Categorize network/fetch errors
                     let errorType = 'NETWORK';
                     let errorMessage = error.message;
 
@@ -16351,16 +16381,21 @@
             }
 
             // Final status summary
-            const successRate = total > 0 ? Math.round((success / total) * 100) : 0;
+            const uploaded = success + failed;
+            const successRate = uploaded > 0 ? Math.round((success / uploaded) * 100) : 0;
             let finalStatus = 'success';
-            let finalMessage = `Upload complete: ${success}/${total} records uploaded successfully`;
+            let finalMessage = `Upload complete: ${success} created/updated`;
+            if (skipped > 0) {
+                finalMessage += `, ${skipped} skipped (no status change)`;
+            }
 
             if (failed > 0 && success === 0) {
                 finalStatus = 'error';
                 finalMessage = `Upload failed: All ${failed} records encountered errors`;
             } else if (failed > 0) {
                 finalStatus = 'warning';
-                finalMessage = `Upload complete with errors: ${success} succeeded, ${failed} failed (${successRate}% success rate)`;
+                finalMessage = `Upload complete with errors: ${success} succeeded, ${failed} failed`;
+                if (skipped > 0) finalMessage += `, ${skipped} skipped`;
             }
 
             addUploadStatusItem(statusLog, finalMessage, finalStatus, {
@@ -18373,28 +18408,33 @@
                         pdf_created: docketPdfMetadata?.creationDate
                     };
 
-                    let body;
+                    // Build the case data for this entry
+                    let caseData;
                     if (item.operation === 'INS') {
-                        // New record — POST full case data as a current-state entry
-                        body = EOMigration.toCurrentStateFormat(item.docketNumber, item.record, {
-                            object_type: 'eviction_case'
-                        });
+                        caseData = item.record;
                     } else {
                         // Update — build updated data entry with changes applied
-                        const updatedData = { ...item.record };
+                        caseData = { ...item.record };
                         if (item.changes) {
                             for (const [field, change] of Object.entries(item.changes)) {
                                 const newValue = change.new !== undefined ? change.new : change;
-                                updatedData[field] = newValue;
+                                caseData[field] = newValue;
                             }
                         }
-                        body = EOMigration.toCurrentStateFormat(item.docketNumber, updatedData, {
-                            object_type: 'eviction_case'
-                        });
                     }
 
-                    // Upload to current-state API
-                    const response = await fetch(CURRENT_STATE_API, {
+                    // Build state entry with metadata and POST body
+                    const stateEntry = EOMigration.buildStateEntry(caseData, {
+                        op: item.operation === 'INS' ? 'INS' : 'ALT',
+                        source: 'docket_processing'
+                    });
+
+                    const body = EOMigration.toUpdateStatePayload(item.docketNumber, stateEntry, {
+                        fileDate: caseData.File_Date || caseData.file_date
+                    });
+
+                    // Upload via append-only state update endpoint
+                    const response = await fetch(UPDATE_STATE_API, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
