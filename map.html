@@ -944,12 +944,19 @@
 
         async function loadEvictionData() {
             try {
-                // Use EvictionAPI (current-state) for data with address info
-                const records = await EvictionAPI.fetchAll((progress) => {
-                    updateLoadingProgress(`Page ${progress.page}${progress.pageTotal ? '/' + progress.pageTotal : ''} - ${progress.fetched} records`);
+                // Fetch EO events from the operations API and replay into current state
+                updateLoadingProgress('Fetching events from API...');
+                const result = await EOMigration.fetchAllEventsPaginated({
+                    perPage: 2500,
+                    maxPages: 500,
+                    onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
+                        updateLoadingProgress(`Fetching events: page ${page}${pageTotal ? '/' + pageTotal : ''} (${itemsFetched} events)`);
+                    },
+                    log: console.log
                 });
 
-                console.log('Total records from API:', records.length);
+                const records = result.states;
+                console.log('Total records from EO replay:', records.length);
 
                 // Filter to only records with address/coordinate info
                 allRecords = records.filter(r => {
