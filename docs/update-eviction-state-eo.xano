@@ -1,0 +1,156 @@
+// Submits an eviction state update as an EO (Epistemic Operator) event.
+// Append-only: every call creates a new event row in the operations table.
+// Replaces the old current-state upsert with proper event-sourced writes.
+//
+// Xano table: evictionsEOevents
+// Schema:
+//   id           : text    (UUID, primary key)
+//   ts           : integer (Unix ms — when synced to database)
+//   ts_iso       : text    (ISO-8601 of ts)
+//   op           : text    (INS | ALT)
+//   entity_id    : text    (docket number, normalized)
+//   entity_type  : text    ("eviction_case")
+//   source_table : text    ("eviction_cases")
+//   target       : text    (JSON stringified)
+//   payload      : text    (JSON stringified)
+//   frame        : text    (JSON stringified)
+
+query update_eviction_state verb=POST {
+  api_group = "evictions"
+
+  input {
+    // The docket number identifying the case
+    text docket_number filters=trim
+
+    // The state data object (contains op, ts, source, and case fields)
+    json state_data
+
+    // Optional timestamp override for the sync time
+    timestamp updated_at?
+
+    // Optional file date for the case
+    date file_date?
+  }
+
+  stack {
+    // -- Sync timestamp (when this event is recorded) ---------------------
+    var $now_ms {
+      value = $input.updated_at|first_notnull:now|to_milliseconds
+    }
+
+    var $now_iso {
+      value = $input.updated_at|first_notnull:now|format_timestamp:"yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
+    }
+
+    // -- Normalize docket number ------------------------------------------
+    var $entity_id {
+      value = $input.docket_number|trim|to_upper
+    }
+
+    // -- Resolve operator from state_data.op (default ALT) ----------------
+    var $op {
+      value = $input.state_data.op|first_notnull:"ALT"
+    }
+
+    // -- Observation timestamp (when the data was actually observed) -------
+    // Prefer the ts inside state_data; fall back to sync time
+    var $observation_ts {
+      value = $input.state_data.ts|to_milliseconds|first_notnull:$now_ms
+    }
+
+    // -- Build target JSON ------------------------------------------------
+    var $target {
+      value = {
+        id   : $entity_id,
+        type : "eviction_case"
+      }
+    }
+
+    // -- Build payload JSON -----------------------------------------------
+    // payload.data carries the full state_data object.
+    // payload.observationTS is the time the source data was observed.
+    // payload.fileDate preserves file_date so current-state replay can use it.
+    var $payload {
+      value = {
+        table         : "eviction_cases",
+        observationTS : $observation_ts,
+        data          : $input.state_data,
+        fileDate      : $input.file_date
+      }
+    }
+
+    // -- Build frame JSON -------------------------------------------------
+    var $frame {
+      value = {
+        source  : $input.state_data.source|first_notnull:"api_update",
+        version : "1.0"
+      }
+    }
+
+    // -- Insert the EO event (append-only) --------------------------------
+    db.add evictionsEOevents {
+      data = {
+        id           : random_uuid
+        ts           : $now_ms
+        ts_iso       : $now_iso
+        op           : $op
+        entity_id    : $entity_id
+        entity_type  : "eviction_case"
+        source_table : "eviction_cases"
+        target       : $target|json_encode
+        payload      : $payload|json_encode
+        frame        : $frame|json_encode
+      }
+    } as $eo_event
+
+    // -- Also update the current-state materialized view ------------------
+    // This keeps eviction_current_state in sync for fast reads.
+    db.get eviction_current_state {
+      field_name = "docket_number"
+      field_value = $entity_id
+    } as $existing_record
+
+    conditional {
+      if ($existing_record != null) {
+        var $current_state_data {
+          value = $existing_record.stateData|first_notnull:[]
+        }
+
+        array.push $current_state_data {
+          value = $input.state_data
+        }
+
+        var $file_date_to_save {
+          value = $existing_record.fileDate|first_notnull:$input.file_date
+        }
+
+        db.edit eviction_current_state {
+          field_name = "id"
+          field_value = $existing_record.id
+          data = {
+            updated  : $now_ms
+            stateData: $current_state_data
+            fileDate : $file_date_to_save
+          }
+        } as $state_result
+      }
+
+      else {
+        var $initial_state_data {
+          value = []|push:$input.state_data
+        }
+
+        db.add eviction_current_state {
+          data = {
+            docket_number: $entity_id
+            updated      : $now_ms
+            stateData    : $initial_state_data
+            fileDate     : $input.file_date
+          }
+        } as $state_result
+      }
+    }
+  }
+
+  response = $eo_event
+}
