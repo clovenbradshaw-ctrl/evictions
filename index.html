@@ -8412,16 +8412,36 @@
             updateRefreshUI();
 
             try {
-                console.log('Loading eviction data from webhook...');
+                console.log('Loading eviction data from EO events API...');
 
-                updateStatus('Fetching data from webhook...', 'loading');
-                const records = await WebhookAPI.fetchAll((progress) => {
-                    updateStatus(progress.message || 'Fetching from webhook...', 'loading');
+                updateStatus('Fetching events from API...', 'loading');
+
+                // Fetch all EO events from the operations endpoint
+                const url = buildEOApiUrl();
+                const rawEvents = await fetchAllPages(url, {
+                    perPage: 2500,
+                    maxPages: 500,
+                    onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
+                        updateStatus(`Fetching events: page ${page}${pageTotal ? '/' + pageTotal : ''} (${itemsFetched} events)`, 'loading');
+                    }
                 });
-                console.log('Webhook fetch: got', records.length, 'records');
+                console.log('EO API fetch: got', rawEvents.length, 'raw events');
+
+                updateStatus('Replaying events...', 'loading');
+
+                // Parse from Xano format and reconstruct current state
+                const events = rawEvents.map(e => EOMigration.fromXanoFormat(e));
+                const states = EOMigration.reconstructAllStates(events);
+                console.log('Reconstructed', states.length, 'entities from', events.length, 'events');
+
+                // Store last sync timestamp for incremental sync
+                if (events.length > 0) {
+                    const maxTs = Math.max(...events.map(e => e.ts));
+                    localStorage.setItem('eo_last_sync_ts', maxTs.toString());
+                }
 
                 // Normalize for grid display
-                const normalizedData = records.map(normalizeRecord);
+                const normalizedData = states.map(normalizeRecord);
                 allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
@@ -8447,9 +8467,73 @@
             }
         }
 
-        // Re-fetch from API (used by manual refresh)
+        // Incremental re-fetch from API (used by manual refresh)
+        // Only fetches events newer than last sync timestamp
         async function loadDataIncremental() {
-            return loadData();
+            const lastSyncTs = localStorage.getItem('eo_last_sync_ts');
+
+            // No previous sync or no data yet — do full load
+            if (!lastSyncTs || allData.length === 0) {
+                return loadData();
+            }
+
+            isLoadingData = true;
+            updateRefreshUI();
+
+            try {
+                console.log('Incremental sync from:', new Date(parseInt(lastSyncTs)).toISOString());
+                updateStatus('Checking for new events...', 'loading');
+
+                // Fetch only events newer than last sync
+                const url = buildEOApiUrl({ ts_gt: parseInt(lastSyncTs) });
+                const rawEvents = await fetchAllPages(url, {
+                    perPage: 2500,
+                    maxPages: 100,
+                    onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
+                        updateStatus(`Fetching new events: ${itemsFetched} found`, 'loading');
+                    }
+                });
+
+                if (rawEvents.length === 0) {
+                    updateStatus('Already up to date', 'success');
+                    isLoadingData = false;
+                    updateRefreshUI();
+                    return;
+                }
+
+                console.log('Incremental sync: got', rawEvents.length, 'new events');
+                updateStatus('Replaying new events...', 'loading');
+
+                // Parse and reconstruct state from new events
+                const events = rawEvents.map(e => EOMigration.fromXanoFormat(e));
+                const newStates = EOMigration.reconstructAllStates(events);
+
+                // Merge new/updated entities into existing allData
+                const newNormalized = newStates.map(normalizeRecord);
+                const merged = allData.concat(newNormalized);
+                allData = dedupeByDocketNumber(merged);
+                filteredData = allData;
+                calculateGlobalDataRange(allData);
+
+                // Update last sync timestamp
+                const maxTs = Math.max(...events.map(e => e.ts));
+                localStorage.setItem('eo_last_sync_ts', maxTs.toString());
+
+                console.log('Incremental sync complete:', newStates.length, 'updated entities, total:', allData.length);
+
+                updateStatus(`Updated ${newStates.length} records (${allData.length} total)`, 'success');
+                updateMetrics();
+                updateCharts();
+                createDistrictMap();
+                initGrid();
+
+            } catch (error) {
+                console.error('Error in incremental sync:', error);
+                updateStatus(`Sync error: ${error.message}`, 'error');
+            } finally {
+                isLoadingData = false;
+                updateRefreshUI();
+            }
         }
 
         // Fetch all pages of data from the paginated EO API
