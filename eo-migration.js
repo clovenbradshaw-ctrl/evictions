@@ -40,6 +40,9 @@ const EOMigration = (function() {
     CURRENT_STATE_GET_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_current_state',
     CURRENT_STATE_POST_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/eviction_current_state',
 
+    // Append-only update endpoint (upserts by docket_number, appends to stateData array)
+    UPDATE_STATE_URL: 'https://xvkq-pq7i-idtl.n7d.xano.io/api:3CsVHkZK/update_eviction_state',
+
     // Source table identifier
     SOURCE_TABLE: 'eviction_cases',
 
@@ -1640,6 +1643,137 @@ const EOMigration = (function() {
     return results;
   }
 
+  // =============================================================================
+  // APPEND-ONLY STATE UPDATE API
+  // =============================================================================
+
+  /**
+   * Build a state_data entry with metadata for the append-only update endpoint.
+   *
+   * Each entry in the stateData array includes operation metadata alongside the
+   * case data fields:
+   *   { op, ts, source, ...caseFields }
+   *
+   * @param {object} caseData - The case record fields (e.g., Status, Office, Attorney, etc.)
+   * @param {object} options
+   * @param {string} options.op - Operation type: "INS" for new cases, "ALT" for updates (default: "INS")
+   * @param {string} options.source - Source identifier (default: "bulk_upload")
+   * @param {string} options.ts - ISO timestamp override (default: now)
+   * @returns {object} state_data object ready for the update endpoint
+   */
+  function buildStateEntry(caseData, options = {}) {
+    const op = options.op || OPERATORS.INS;
+    const source = options.source || 'bulk_upload';
+    const ts = options.ts || new Date().toISOString();
+
+    // Merge metadata with case data; metadata fields come first for readability
+    return {
+      op,
+      ts,
+      source,
+      ...caseData
+    };
+  }
+
+  /**
+   * Build the POST body for the update_eviction_state endpoint.
+   *
+   * @param {string} docketNumber - The docket number
+   * @param {object} stateEntry - A state_data object (from buildStateEntry or raw)
+   * @param {object} options
+   * @param {string} options.fileDate - Filing date in YYYY-MM-DD format
+   * @param {number|string} options.updatedAt - Timestamp for the update
+   * @returns {object} POST body for update_eviction_state
+   */
+  function toUpdateStatePayload(docketNumber, stateEntry, options = {}) {
+    const normalizedId = normalizeDocketNumber(docketNumber);
+
+    const body = {
+      docket_number: normalizedId,
+      state_data: stateEntry
+    };
+
+    if (options.updatedAt) {
+      body.updated_at = typeof options.updatedAt === 'number'
+        ? new Date(options.updatedAt).toISOString()
+        : options.updatedAt;
+    }
+
+    // Derive file_date from options or from the state entry
+    const fileDate = options.fileDate
+      || stateEntry.File_Date
+      || stateEntry.file_date;
+    if (fileDate) {
+      body.file_date = fileDate;
+    }
+
+    return body;
+  }
+
+  /**
+   * Push a single state update via the append-only endpoint.
+   * Upserts by docket_number: appends state_data to existing stateData array,
+   * or creates a new row if docket_number doesn't exist.
+   *
+   * @param {object} body - POST body from toUpdateStatePayload()
+   * @returns {object} API response
+   */
+  async function pushStateUpdate(body) {
+    const response = await fetch(CONFIG.UPDATE_STATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to push state update: ${response.status} - ${errorText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Push multiple state updates in batches via the append-only endpoint.
+   *
+   * @param {Array} payloads - Array of POST bodies (from toUpdateStatePayload)
+   * @param {function} onProgress - Progress callback
+   * @returns {object} { success, failed, errors }
+   */
+  async function pushStateUpdateBatch(payloads, onProgress = null) {
+    const results = { success: 0, failed: 0, errors: [] };
+
+    for (let i = 0; i < payloads.length; i += CONFIG.BATCH_SIZE) {
+      const batch = payloads.slice(i, i + CONFIG.BATCH_SIZE);
+
+      for (const payload of batch) {
+        try {
+          await pushStateUpdate(payload);
+          results.success++;
+        } catch (error) {
+          results.failed++;
+          results.errors.push({ docket_number: payload.docket_number, error: error.message });
+        }
+      }
+
+      if (onProgress) {
+        onProgress({
+          processed: Math.min(i + CONFIG.BATCH_SIZE, payloads.length),
+          total: payloads.length,
+          success: results.success,
+          failed: results.failed
+        });
+      }
+
+      // Small delay between batches
+      if (i + CONFIG.BATCH_SIZE < payloads.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    return results;
+  }
+
   /**
    * Get the data entries (update history) for a specific record from the current-state table.
    * Useful for audit/replay of a single entity.
@@ -1749,6 +1883,12 @@ const EOMigration = (function() {
     pushCurrentState,
     pushCurrentStateBatch,
     fetchCurrentStateHistory,
+
+    // Append-only state update API
+    buildStateEntry,
+    toUpdateStatePayload,
+    pushStateUpdate,
+    pushStateUpdateBatch,
 
     // Format conversion
     toXanoFormat,
