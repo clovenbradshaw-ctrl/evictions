@@ -7501,13 +7501,11 @@
             }
         }
 
-        // Manual refresh - always does a full refresh from the API
-        // Manual refresh: clear cache and re-import from CSV
+        // Manual refresh - always does a full refresh from the current-state API
         async function manualRefresh() {
             if (isLoadingData) return;
 
-            console.log('Re-importing from CSV...');
-            // Clear cache so loadData() fetches fresh from CSV
+            console.log('Refreshing from current-state API...');
             await evictionDB.clear();
             localStorage.removeItem('evictionDataTimestamp');
             localStorage.removeItem('csvImportTimestamp');
@@ -8415,36 +8413,18 @@
             updateRefreshUI();
 
             try {
-                console.log('Loading eviction data from EO events API...');
+                console.log('Loading eviction data from current-state API...');
 
-                updateStatus('Fetching events from API...', 'loading');
+                updateStatus('Fetching records from API...', 'loading');
 
-                // Fetch all EO events from the operations endpoint
-                const url = buildEOApiUrl();
-                const rawEvents = await fetchAllPages(url, {
-                    perPage: 2500,
-                    maxPages: 500,
-                    onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
-                        updateStatus(`Fetching events: page ${page}${pageTotal ? '/' + pageTotal : ''} (${itemsFetched} events)`, 'loading');
-                    }
+                // Fetch all current-state rows (paginated) and replay stateData
+                const records = await EvictionAPI.fetchAll(({ page, pageTotal, fetched, total }) => {
+                    updateStatus(`Fetching records: page ${page}${pageTotal ? '/' + pageTotal : ''} (${fetched} records)`, 'loading');
                 });
-                console.log('EO API fetch: got', rawEvents.length, 'raw events');
-
-                updateStatus('Replaying events...', 'loading');
-
-                // Parse from Xano format and reconstruct current state
-                const events = rawEvents.map(e => EOMigration.fromXanoFormat(e));
-                const states = EOMigration.reconstructAllStates(events);
-                console.log('Reconstructed', states.length, 'entities from', events.length, 'events');
-
-                // Store last sync timestamp for incremental sync
-                if (events.length > 0) {
-                    const maxTs = Math.max(...events.map(e => e.ts));
-                    localStorage.setItem('eo_last_sync_ts', maxTs.toString());
-                }
+                console.log('Current-state API: got', records.length, 'records');
 
                 // Normalize for grid display
-                const normalizedData = states.map(normalizeRecord);
+                const normalizedData = records.map(normalizeRecord);
                 allData = dedupeByDocketNumber(normalizedData);
                 filteredData = allData;
                 calculateGlobalDataRange(allData);
@@ -8470,73 +8450,11 @@
             }
         }
 
-        // Incremental re-fetch from API (used by manual refresh)
-        // Only fetches events newer than last sync timestamp
+        // Incremental refresh from the current-state API.
+        // The current-state endpoint does not support timestamp-based filtering,
+        // so this performs a full reload which is already efficient (no event replay).
         async function loadDataIncremental() {
-            const lastSyncTs = localStorage.getItem('eo_last_sync_ts');
-
-            // No previous sync or no data yet — do full load
-            if (!lastSyncTs || allData.length === 0) {
-                return loadData();
-            }
-
-            isLoadingData = true;
-            updateRefreshUI();
-
-            try {
-                console.log('Incremental sync from:', new Date(parseInt(lastSyncTs)).toISOString());
-                updateStatus('Checking for new events...', 'loading');
-
-                // Fetch only events newer than last sync
-                const url = buildEOApiUrl({ ts_gt: parseInt(lastSyncTs) });
-                const rawEvents = await fetchAllPages(url, {
-                    perPage: 2500,
-                    maxPages: 100,
-                    onProgress: ({ page, pageTotal, itemsFetched, itemsTotal }) => {
-                        updateStatus(`Fetching new events: ${itemsFetched} found`, 'loading');
-                    }
-                });
-
-                if (rawEvents.length === 0) {
-                    updateStatus('Already up to date', 'success');
-                    isLoadingData = false;
-                    updateRefreshUI();
-                    return;
-                }
-
-                console.log('Incremental sync: got', rawEvents.length, 'new events');
-                updateStatus('Replaying new events...', 'loading');
-
-                // Parse and reconstruct state from new events
-                const events = rawEvents.map(e => EOMigration.fromXanoFormat(e));
-                const newStates = EOMigration.reconstructAllStates(events);
-
-                // Merge new/updated entities into existing allData
-                const newNormalized = newStates.map(normalizeRecord);
-                const merged = allData.concat(newNormalized);
-                allData = dedupeByDocketNumber(merged);
-                filteredData = allData;
-                calculateGlobalDataRange(allData);
-
-                // Update last sync timestamp
-                const maxTs = Math.max(...events.map(e => e.ts));
-                localStorage.setItem('eo_last_sync_ts', maxTs.toString());
-
-                console.log('Incremental sync complete:', newStates.length, 'updated entities, total:', allData.length);
-
-                updateStatus(`Updated ${newStates.length} records (${allData.length} total)`, 'success');
-                updateMetrics();
-                updateCharts();
-                createDistrictMap();
-                initGrid();
-
-            } catch (error) {
-                console.error('Error in incremental sync:', error);
-                updateStatus(`Sync error: ${error.message}`, 'error');
-            } finally {
-                isLoadingData = false;
-                updateRefreshUI();
-            }
+            return loadData();
         }
 
         // Fetch all pages of data from the paginated EO API
