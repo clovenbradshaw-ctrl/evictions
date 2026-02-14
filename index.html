@@ -8417,18 +8417,35 @@
 
                 updateStatus('Fetching records from API...', 'loading');
 
-                // Fetch all current-state rows (paginated) and replay stateData
-                const records = await EvictionAPI.fetchAll(({ page, pageTotal, fetched, total }) => {
-                    updateStatus(`Fetching records: page ${page}${pageTotal ? '/' + pageTotal : ''} (${fetched} records)`, 'loading');
+                // Fetch all current-state rows (paginated), replaying & rendering progressively
+                let gridInitialized = false;
+                const allRecords = [];
+
+                await EvictionAPI.fetchAllPages(({ page, pageTotal, fetched, total, pageItems, partial }) => {
+                    updateStatus(`Fetching records: page ${page}${pageTotal ? '/' + pageTotal : ''} (${fetched} records${partial ? ' - partial load' : ''})`, 'loading');
+
+                    if (pageItems && pageItems.length > 0) {
+                        // Replay stateData and normalize this page's records
+                        const pageRecords = pageItems.map(EvictionAPI.replayRow).map(normalizeRecord);
+                        allRecords.push(...pageRecords);
+
+                        // Deduplicate running total and update globals
+                        allData = dedupeByDocketNumber(allRecords);
+                        filteredData = allData;
+                        calculateGlobalDataRange(allData);
+
+                        // Update UI progressively
+                        updateMetrics();
+                        if (!gridInitialized) {
+                            initGrid();
+                            gridInitialized = true;
+                        } else if (typeof gridApi !== 'undefined' && gridApi) {
+                            gridApi.setRowData(filteredData);
+                        }
+                    }
                 });
-                console.log('Current-state API: got', records.length, 'records');
 
-                // Normalize for grid display
-                const normalizedData = records.map(normalizeRecord);
-                allData = dedupeByDocketNumber(normalizedData);
-                filteredData = allData;
-                calculateGlobalDataRange(allData);
-
+                console.log('Current-state API: fetched', allRecords.length, 'raw rows, deduped to', allData.length, 'records');
                 console.log('Final record count:', allData.length);
 
                 updateStatus(`Loaded ${allData.length} records`, 'success');
@@ -8437,7 +8454,7 @@
                 createDistrictMap();
                 await loadDistrictDemographics();
                 initDemographicsCharts();
-                initGrid();
+                if (!gridInitialized) initGrid();
                 updateLastImportedDisplay();
                 restorePersistedFilters();
 

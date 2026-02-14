@@ -13,15 +13,48 @@ const EvictionAPI = (function () {
 
   const PER_PAGE = 2500;
   const MAX_PAGES = 500; // safety limit
+  const MAX_RETRIES = 4;
+  const BASE_DELAY_MS = 2000;
+  const PAGE_DELAY_MS = 1000; // throttle between pages to avoid 503s
 
   // ---------------------------------------------------------------------------
-  // Fetch a single page
+  // Delay helper
+  // ---------------------------------------------------------------------------
+  function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fetch a single page (with retry + exponential backoff for transient errors)
   // ---------------------------------------------------------------------------
   async function fetchPage(page) {
     const url = `${API_URL}?page=${page}&per_page=${PER_PAGE}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`API error ${res.status}`);
-    return res.json();
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) return res.json();
+
+        // Retry on transient server errors (429, 500, 502, 503, 504)
+        if ([429, 500, 502, 503, 504].includes(res.status) && attempt < MAX_RETRIES) {
+          const wait = BASE_DELAY_MS * Math.pow(2, attempt);
+          console.warn(`EvictionAPI: page ${page} returned ${res.status}, retrying in ${wait}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+          await delay(wait);
+          continue;
+        }
+
+        throw new Error(`API error ${res.status}`);
+      } catch (err) {
+        // Network failures (CORS errors surface as TypeError: Failed to fetch)
+        if (attempt < MAX_RETRIES && (err.name === 'TypeError' || err.message.includes('Failed to fetch'))) {
+          const wait = BASE_DELAY_MS * Math.pow(2, attempt);
+          console.warn(`EvictionAPI: page ${page} network error, retrying in ${wait}ms (attempt ${attempt + 1}/${MAX_RETRIES}): ${err.message}`);
+          await delay(wait);
+          continue;
+        }
+        throw err;
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -77,12 +110,37 @@ const EvictionAPI = (function () {
   async function fetchAllPages(onProgress) {
     const allRows = [];
     let page = 1;
+    let expectedTotal = null;
 
     while (page <= MAX_PAGES) {
-      const result = await fetchPage(page);
+      let result;
+      try {
+        result = await fetchPage(page);
+      } catch (err) {
+        // If we already have data, log the error and return what we have
+        if (allRows.length > 0) {
+          console.warn(`EvictionAPI: page ${page} failed after retries, returning ${allRows.length} records already fetched. Error: ${err.message}`);
+          if (onProgress) {
+            onProgress({
+              page,
+              pageTotal: expectedTotal,
+              fetched: allRows.length,
+              total: expectedTotal ? expectedTotal * PER_PAGE : null,
+              partial: true,
+            });
+          }
+          break;
+        }
+        // No data fetched yet — rethrow so caller sees the failure
+        throw err;
+      }
 
       const items = Array.isArray(result) ? result : (result.items || []);
       allRows.push(...items);
+
+      if (!expectedTotal && result.pageTotal) {
+        expectedTotal = result.pageTotal;
+      }
 
       if (onProgress) {
         onProgress({
@@ -90,6 +148,7 @@ const EvictionAPI = (function () {
           pageTotal: result.pageTotal || null,
           fetched: allRows.length,
           total: result.itemsTotal || null,
+          pageItems: items,
         });
       }
 
@@ -107,6 +166,9 @@ const EvictionAPI = (function () {
       // Stop when we have all the records or got an empty page
       if (items.length === 0) break;
       if (result.itemsTotal && allRows.length >= result.itemsTotal) break;
+
+      // Throttle between pages to avoid overwhelming the API
+      await delay(PAGE_DELAY_MS);
       page++;
     }
 
