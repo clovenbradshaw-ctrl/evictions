@@ -27,8 +27,9 @@ const EvictionAPI = (function () {
   // ---------------------------------------------------------------------------
   // Fetch a single page (with retry + exponential backoff for transient errors)
   // ---------------------------------------------------------------------------
-  async function fetchPage(page) {
-    const url = `${API_URL}?page=${page}&per_page=${PER_PAGE}`;
+  async function fetchPage(page, perPage) {
+    perPage = perPage || PER_PAGE;
+    const url = `${API_URL}?page=${page}&per_page=${perPage}`;
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
@@ -106,6 +107,15 @@ const EvictionAPI = (function () {
 
   // ---------------------------------------------------------------------------
   // Fetch all pages sequentially
+  //
+  // Handles two Xano response shapes:
+  //   1. Paginated envelope: { items, itemsTotal, pageTotal, curPage, nextPage, … }
+  //   2. Plain array (no pagination metadata)
+  //
+  // When the Xano endpoint does not declare page/per_page as inputs the
+  // pagination params are ignored and every request returns page 1.  We detect
+  // this via curPage and fall back to a single large-page fetch so all records
+  // are still retrieved.
   // ---------------------------------------------------------------------------
   async function fetchAllPages(onProgress) {
     const allRows = [];
@@ -136,6 +146,46 @@ const EvictionAPI = (function () {
       }
 
       const items = Array.isArray(result) ? result : (result.items || []);
+      const isEnvelope = !Array.isArray(result);
+
+      // ---- Stuck-pagination detection ----
+      // If Xano returned a curPage that doesn't match what we requested the
+      // endpoint isn't accepting page/per_page inputs.  Rather than looping
+      // and collecting duplicates, try one large-page fetch to get everything.
+      if (isEnvelope && page > 1 && result.curPage != null && result.curPage !== page) {
+        const totalItems = result.itemsTotal || 0;
+        console.warn(
+          `EvictionAPI: requested page ${page} but received curPage ${result.curPage}. ` +
+          `Xano endpoint may not declare page/per_page inputs. ` +
+          `Attempting single large-page fetch for all ${totalItems} records.`
+        );
+
+        if (totalItems > allRows.length) {
+          // Re-fetch page 1 with a per_page large enough for all records
+          try {
+            const bigResult = await fetchPage(1, totalItems);
+            const bigItems = Array.isArray(bigResult) ? bigResult : (bigResult.items || []);
+            if (bigItems.length > allRows.length) {
+              // Replace what we had with the larger result set
+              allRows.length = 0;
+              allRows.push(...bigItems);
+              if (onProgress) {
+                onProgress({
+                  page: 1,
+                  pageTotal: 1,
+                  fetched: allRows.length,
+                  total: totalItems,
+                  pageItems: bigItems,
+                });
+              }
+            }
+          } catch (bigErr) {
+            console.warn('EvictionAPI: large-page fallback failed, returning partial data:', bigErr.message);
+          }
+        }
+        break;
+      }
+
       allRows.push(...items);
 
       if (!expectedTotal && result.pageTotal) {
@@ -153,12 +203,13 @@ const EvictionAPI = (function () {
       }
 
       // Log pagination metadata on first page for diagnostics
-      if (page === 1 && !Array.isArray(result)) {
+      if (page === 1 && isEnvelope) {
         console.log('API pagination:', {
           itemsTotal: result.itemsTotal,
           pageTotal: result.pageTotal,
           perPage: result.perPage,
           nextPage: result.nextPage,
+          curPage: result.curPage,
           itemsOnPage: items.length
         });
       }
@@ -166,6 +217,9 @@ const EvictionAPI = (function () {
       // Stop when we have all the records or got an empty page
       if (items.length === 0) break;
       if (result.itemsTotal && allRows.length >= result.itemsTotal) break;
+
+      // Use nextPage as the canonical Xano stop signal
+      if (isEnvelope && result.nextPage == null) break;
 
       // Throttle between pages to avoid overwhelming the API
       await delay(PAGE_DELAY_MS);
