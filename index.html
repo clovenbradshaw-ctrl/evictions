@@ -16032,6 +16032,10 @@
                     // Try partial matching
                     for (const [key, value] of Object.entries(autoMappingRules)) {
                         if (normalizedHeader.includes(key) || key.includes(normalizedHeader)) {
+                            // Skip auto-linking defendant attorney - we usually don't have that data
+                            if ((key === 'attorney' || key === 'lawyer') && normalizedHeader.includes('defendant')) {
+                                continue;
+                            }
                             bulkUploadFieldMapping[header] = value;
                             break;
                         }
